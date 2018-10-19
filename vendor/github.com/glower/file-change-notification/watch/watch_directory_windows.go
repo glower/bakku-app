@@ -37,12 +37,12 @@ static inline void WatchDirectory(char* dir) {
 	ovl.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
   if (handle == INVALID_HANDLE_VALUE){
-    printf("\n ERROR: CreateFile function failed.\n");
+    printf("[CGO] [ERROR] WatchDirectory(): CreateFile function failed for directroy [%s] with error [%s]\n", dir, GetLastError());
     ExitProcess(GetLastError());
   }
 
   if ( handle == NULL ) {
-    printf("\n ERROR: Unexpected NULL from CreateFile.\n");
+    printf("[CGO] ERROR WatchDirectory(): Unexpected NULL from CreateFile for directroy [%s]\n", dir);
     ExitProcess(GetLastError());
   }
 
@@ -82,25 +82,11 @@ static inline void WatchDirectory(char* dir) {
 */
 import "C"
 import (
-	"log"
-	"os"
 	"strings"
 	"unsafe"
 )
 
-// DirectoryChangeNotification expected path to the directory to watch as string
-// and a FileInfo channel for the callback notofications
-// Notofication is fired each time file in the directory is changed or some new
-// file (or sub-directory) is created
-func DirectoryChangeNotification(path string, callbackChan chan FileChangeInfo) {
-
-	data := CallbackData{
-		CallbackChan: callbackChan,
-		Path:         path,
-	}
-
-	register(data, path)
-
+func setupDirectoryChangeNotification(path string) {
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
@@ -111,24 +97,7 @@ func DirectoryChangeNotification(path string, callbackChan chan FileChangeInfo) 
 
 //export goCallbackFileChange
 func goCallbackFileChange(cpath, cfile *C.char, action C.int) {
-
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
-	log.Printf("goCallbackFileChange(): [%s %s], action: %d\n", path, file, action)
-
-	filePath := strings.TrimSpace(path + file)
-	fi, err := os.Stat(filePath)
-	if err != nil {
-		log.Printf("[ERROR] Can not stat file [%s]: %v\n", filePath, err)
-		return
-	}
-	callbackData := lookup(path)
-
-	// TODO: check for double events
-	if fi != nil {
-		callbackData.CallbackChan <- FileChangeInfo{
-			Action:   Action(int(action)),
-			FileInfo: fi,
-		}
-	}
+	fileChangeNotifier(path, file, int(caction))
 }
