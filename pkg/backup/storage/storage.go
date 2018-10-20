@@ -5,9 +5,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/glower/file-change-notification/watch"
+	"github.com/glower/bakku-app/pkg/watchers/watch"
 	log "github.com/sirupsen/logrus"
-	// _ "github.com/glower/bakku-app/pkg/backup/storage/fake"
 )
 
 // Storage ...

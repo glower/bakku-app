@@ -12,7 +12,7 @@ import (
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/handlers"
 	"github.com/glower/bakku-app/pkg/watchers"
-	"github.com/glower/file-change-notification/watch"
+	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/r3labs/sse"
 
 	// for auto import

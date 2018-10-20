@@ -1,7 +1,7 @@
 package watchers
 
 import (
-	"github.com/glower/file-change-notification/watch"
+	"github.com/glower/bakku-app/pkg/watchers/watch"
 )
 
 // WatchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
