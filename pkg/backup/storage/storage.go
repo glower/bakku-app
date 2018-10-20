@@ -7,6 +7,7 @@ import (
 
 	"github.com/glower/file-change-notification/watch"
 	log "github.com/sirupsen/logrus"
+	// _ "github.com/glower/bakku-app/pkg/backup/storage/fake"
 )
 
 // Storage ...
@@ -23,7 +24,7 @@ type FileChangeNotification struct {
 
 // Manager ...
 type Manager struct {
-	fileChangeNotificationChannel chan *FileChangeNotification
+	FileChangeNotificationChannel chan *FileChangeNotification
 }
 
 type teardown func()
@@ -37,23 +38,23 @@ var (
 // Register a storage implementation by name.
 func Register(name string, s Storage) {
 	if name == "" {
-		panic("Register(): could not register a StorageFactory with an empty name")
+		panic("storage.Register(): could not register a StorageFactory with an empty name")
 	}
 
 	if s == nil {
-		panic("Register(): could not register a nil Storage interface")
+		panic("storage.Register(): could not register a nil Storage interface")
 	}
 
 	storagesM.Lock()
 	defer storagesM.Unlock()
 
 	if _, dup := storages[name]; dup {
-		panic("Register(): called twice for " + name)
+		panic("storageRegister(): called twice for " + name)
 	}
 
 	log.WithFields(log.Fields{
 		"name": name,
-	}).Info("Register(): registered")
+	}).Info("storage.Register(): registered")
 
 	storages[name] = s
 }
@@ -65,19 +66,21 @@ func UnregisterStorage(name string) {
 	delete(storages, name)
 }
 
-// Run all implemented storages
-func Run() {
+// SetupManager runs all implemented storages
+func SetupManager() *Manager {
+	log.Println("strorage.Run()")
 	m := &Manager{
-		fileChangeNotificationChannel: make(chan *FileChangeNotification),
+		FileChangeNotificationChannel: make(chan *FileChangeNotification),
 	}
 	for name, storage := range storages {
-		ok := storage.Setup(m.fileChangeNotificationChannel)
+		ok := storage.Setup(m.FileChangeNotificationChannel)
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
 			log.Errorf("Run(): can not get configuration for storage [%s]", name)
 		}
 	}
+	return m
 }
 
 // SetupStorage ...

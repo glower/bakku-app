@@ -2,9 +2,9 @@ package fake
 
 import (
 	"context"
-	"log"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	log "github.com/sirupsen/logrus"
 )
 
 // Storage fake
@@ -15,11 +15,13 @@ type Storage struct {
 }
 
 func init() {
-	storage.Register("hipchat", &Storage{})
+	log.Println("storage.fake.init()")
+	storage.Register("fake", &Storage{})
 }
 
 // Setup fake storage
 func (s *Storage) Setup(fileChangeNotificationChannel chan *storage.FileChangeNotification) bool {
+	log.Println("storage.fake.Setup()")
 	s.name = "fake"
 	s.fileChangeNotificationChannel = fileChangeNotificationChannel
 	return true
@@ -27,6 +29,7 @@ func (s *Storage) Setup(fileChangeNotificationChannel chan *storage.FileChangeNo
 
 // Start fake storage
 func (s *Storage) Start(ctx context.Context) error {
+	log.Println("storage.fake.Start()")
 	s.ctx = ctx
 	go func() {
 		for {
@@ -42,7 +45,7 @@ func (s *Storage) Start(ctx context.Context) error {
 }
 
 func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) {
-	log.Printf("File %s has been changed\n", fileChange.File.Name())
+	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.File.Name())
 }
 
 func store(file string) {
