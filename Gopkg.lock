@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  branch = "master"
-  digest = "1:e58f37bc18ed54f9e16a63892776721249453dbb631a2087c64756e033cfbbdd"
-  name = "github.com/glower/file-change-notification"
-  packages = ["watch"]
-  pruneopts = "UT"
-  revision = "47ea681d9b5a20d5fb7c973aa1a7bae7394090a9"
-
-[[projects]]
   digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
   name = "github.com/gorilla/context"
   packages = ["."]
@@ -88,7 +80,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/glower/file-change-notification/watch",
     "github.com/gorilla/mux",
     "github.com/r3labs/sse",
     "github.com/sirupsen/logrus",
