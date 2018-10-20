@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/handlers"
 	"github.com/glower/bakku-app/pkg/watchers"
 	"github.com/glower/file-change-notification/watch"
@@ -45,6 +46,9 @@ func main() {
 	events := setupSSE()
 	srv := startHTTPServer(events, fsWachers)
 
+	// setup storages for the backup
+	storage.Run()
+
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
 	switch killSignal {
@@ -57,6 +61,7 @@ func main() {
 	log.Print("The service is shutting down...")
 	srv.Shutdown(context.Background())
 	events.Close()
+	storage.Stop()
 	log.Print("Done")
 }
 
