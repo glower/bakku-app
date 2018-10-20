@@ -4,14 +4,26 @@ import (
 	"context"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/watchers/watch"
 	log "github.com/sirupsen/logrus"
 )
 
+// Progress represents a moment of progress.
+type Progress struct {
+	StorageName string
+	FileName    string
+	Percent     float64
+	n           float64
+	size        float64
+	estimated   time.Time
+	err         error
+}
+
 // Storage ...
 type Storage interface {
-	Setup(chan *FileChangeNotification) bool
+	Setup(chan *FileChangeNotification, chan *Progress) bool
 	Start(ctx context.Context) error
 }
 
@@ -24,6 +36,7 @@ type FileChangeNotification struct {
 // Manager ...
 type Manager struct {
 	FileChangeNotificationChannel chan *FileChangeNotification
+	ProgressChannel               chan *Progress
 }
 
 type teardown func()
@@ -70,9 +83,10 @@ func SetupManager() *Manager {
 	log.Println("strorage.Run()")
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *FileChangeNotification),
+		ProgressChannel:               make(chan *Progress),
 	}
 	for name, storage := range storages {
-		ok := storage.Setup(m.FileChangeNotificationChannel)
+		ok := storage.Setup(m.FileChangeNotificationChannel, m.ProgressChannel)
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
@@ -94,6 +108,20 @@ func (m *Manager) SetupStorage(name string, storage Storage) {
 	} else {
 		// store cancelling context for each storage
 		teardowns[name] = func() { cancel() }
+
+		go m.ProcessProgressCallback(ctx)
+	}
+}
+
+// ProcessProgressCallback ...
+func (m *Manager) ProcessProgressCallback(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case progress := <-m.ProgressChannel:
+			log.Printf("[%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+		}
 	}
 }
 
