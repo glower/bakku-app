@@ -2,23 +2,24 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/glower/bakku-app/pkg/watchers/watch"
+	"github.com/r3labs/sse"
 	log "github.com/sirupsen/logrus"
 )
 
 // Progress represents a moment of progress.
 type Progress struct {
-	StorageName string
-	FileName    string
-	Percent     float64
-	n           float64
-	size        float64
-	estimated   time.Time
-	err         error
+	StorageName string  `json:"storage"`
+	FileName    string  `json:"file"`
+	Percent     float64 `json:"percent"`
+	// n           float64
+	// size        float64
+	// estimated   time.Time
+	// err         error
 }
 
 // Storage ...
@@ -37,6 +38,7 @@ type FileChangeNotification struct {
 type Manager struct {
 	FileChangeNotificationChannel chan *FileChangeNotification
 	ProgressChannel               chan *Progress
+	SSEServer                     *sse.Server
 }
 
 type teardown func()
@@ -79,11 +81,12 @@ func UnregisterStorage(name string) {
 }
 
 // SetupManager runs all implemented storages
-func SetupManager() *Manager {
+func SetupManager(sseServer *sse.Server) *Manager {
 	log.Println("strorage.Run()")
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *FileChangeNotification),
 		ProgressChannel:               make(chan *Progress),
+		SSEServer:                     sseServer,
 	}
 	for name, storage := range storages {
 		ok := storage.Setup(m.FileChangeNotificationChannel, m.ProgressChannel)
@@ -121,15 +124,22 @@ func (m *Manager) ProcessProgressCallback(ctx context.Context) {
 			return
 		case progress := <-m.ProgressChannel:
 			log.Printf("[%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			progressJSON, _ := json.Marshal(progress)
+			// file fotification for the frontend client over the SSE
+			m.SSEServer.Publish("files", &sse.Event{
+				Data: []byte(progressJSON),
+			})
 		}
 	}
 }
 
 // Stop eveything
 func Stop() {
+	// TODO: block here untill all files are transferd
 	for name, teardown := range teardowns {
 		log.Infof("Teardown %s storage", name)
 		teardown()
 		UnregisterStorage(name)
 	}
+	log.Println("storage.Stop(): eveything is stoped")
 }

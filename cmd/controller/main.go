@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,6 +22,7 @@ func init() {
 	log.Println("init ...")
 }
 
+// TODO: try this out: https://github.com/antage/eventsource
 func setupSSE() *sse.Server {
 	events := sse.New()
 	events.CreateStream("files")
@@ -48,10 +48,9 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	fsWachers := setupWatchers()
-	events := setupSSE()
-	// TODO: add SSE events to the SetupManager()
-	storageManager := storage.SetupManager()
-	srv := startHTTPServer(events, storageManager, fsWachers)
+	sseServer := setupSSE()
+	storageManager := storage.SetupManager(sseServer)
+	startHTTPServer(sseServer, storageManager, fsWachers)
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -63,13 +62,16 @@ func main() {
 	}
 
 	log.Print("The service is shutting down...")
-	srv.Shutdown(context.Background())
-	events.Close()
+	sseServer.RemoveStream("files")
+	sseServer.Close()
 	storage.Stop()
+	log.Println("Shutdown the web server ...")
+	// TODO: Shutdown is not working with open SSE connection, need to solve this first
+	// srv.Shutdown(context.Background())
 	log.Print("Done")
 }
 
-func startHTTPServer(events *sse.Server, sManager *storage.Manager, fsWachers []chan watch.FileChangeInfo) *http.Server {
+func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager, fsWachers []chan watch.FileChangeInfo) *http.Server {
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
@@ -77,7 +79,7 @@ func startHTTPServer(events *sse.Server, sManager *storage.Manager, fsWachers []
 	}
 
 	r := handlers.Resources{
-		SSEServer: events,
+		SSEServer: sseServer,
 		FSChanges: fsWachers,
 	}
 	router := r.Router()
@@ -94,11 +96,6 @@ func startHTTPServer(events *sse.Server, sManager *storage.Manager, fsWachers []
 					file := change.FileInfo
 					info := fmt.Sprintf("Sync file [%s] it was %s\n", file.Name(), watch.ActionToString(change.Action))
 					log.Print(info)
-
-					// file fotification for the frontend client over the SSE
-					events.Publish("files", &sse.Event{
-						Data: []byte(info),
-					})
 					// file the notification to the storage
 					sManager.FileChangeNotificationChannel <- &storage.FileChangeNotification{
 						File:   file,
@@ -110,8 +107,9 @@ func startHTTPServer(events *sse.Server, sManager *storage.Manager, fsWachers []
 	}()
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			log.Printf("Httpserver: ListenAndServe() error: %s\n", err)
+		err := srv.ListenAndServe()
+		if err != nil {
+			log.Println("Failed to run server")
 		}
 	}()
 	log.Print("The service is ready to listen and serve.")
