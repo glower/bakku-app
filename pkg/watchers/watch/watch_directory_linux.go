@@ -68,14 +68,14 @@ import (
 // #define IN_ACCESS		0x00000001	/* File was accessed */
 // #define IN_MODIFY		0x00000002	/* File was modified */
 // #define IN_ATTRIB		0x00000004	/* Metadata changed */
-// #define IN_CLOSE_WRITE		0x00000008	/* Writtable file was closed */
+// #define IN_CLOSE_WRITE	0x00000008	/* Writtable file was closed */
 // #define IN_CLOSE_NOWRITE	0x00000010	/* Unwrittable file closed */
 // #define IN_OPEN			0x00000020	/* File was opened */
-// #define IN_MOVED_FROM		0x00000040	/* File was moved from X */
+// #define IN_MOVED_FROM	0x00000040	/* File was moved from X */
 // #define IN_MOVED_TO		0x00000080	/* File was moved to Y */
 // #define IN_CREATE		0x00000100	/* Subfile was created */
 // #define IN_DELETE		0x00000200	/* Subfile was deleted */
-// #define IN_DELETE_SELF		0x00000400	/* Self was deleted */
+// #define IN_DELETE_SELF	0x00000400	/* Self was deleted */
 func convertMaskToAction(mask int) Action {
 	switch mask {
 	case 2: // File was modified

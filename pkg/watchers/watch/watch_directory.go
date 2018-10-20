@@ -1,13 +1,10 @@
 package watch
 
 import (
-	"C"
-	"os"
-	"sync"
-)
-import (
 	"log"
+	"os"
 	"strings"
+	"sync"
 )
 
 // Action stores corresponding action from Windows api, see: https://docs.microsoft.com/en-us/windows/desktop/api/winnt/ns-winnt-_file_notify_information
@@ -71,12 +68,6 @@ func DirectoryChangeNotification(path string, callbackChan chan FileChangeInfo) 
 	}
 	register(data, path)
 	setupDirectoryChangeNotification(path)
-	// cpath := C.CString(path)
-	// defer func() {
-	// 	C.free(unsafe.Pointer(cpath))
-	// 	unregister(path)
-	// }()
-	// C.WatchDirectory(cpath)
 }
 
 func register(data CallbackData, path string) {
@@ -98,9 +89,7 @@ func unregister(path string) {
 }
 
 func fileChangeNotifier(path, file string, action Action) {
-
-	log.Printf("fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
-
+	// log.Printf("fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
 	filePath := strings.TrimSpace(path + file)
 	var fi os.FileInfo
 	var err error

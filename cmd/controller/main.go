@@ -93,7 +93,7 @@ func startHTTPServer(events *sse.Server, sManager *storage.Manager, fsWachers []
 				case change := <-watcher:
 					file := change.FileInfo
 					info := fmt.Sprintf("Sync file [%s] it was %s\n", file.Name(), watch.ActionToString(change.Action))
-					log.Println(info)
+					log.Print(info)
 
 					// file fotification for the frontend client over the SSE
 					events.Publish("files", &sse.Event{
