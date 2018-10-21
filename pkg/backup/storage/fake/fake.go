@@ -24,12 +24,17 @@ func init() {
 }
 
 // Setup fake storage
-func (s *Storage) Setup(fileChangeNotificationChannel chan *storage.FileChangeNotification, fileStorageProgressCannel chan *storage.Progress) bool {
+func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	log.Println("storage.fake.Setup()")
 	s.name = storageName
-	s.fileChangeNotificationChannel = fileChangeNotificationChannel
+	s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
 	s.fileStorageProgressCannel = fileStorageProgressCannel
 	return true
+}
+
+// FileChangeNotification returns channel for notifications
+func (s *Storage) FileChangeNotification() chan *storage.FileChangeNotification {
+	return s.fileChangeNotificationChannel
 }
 
 // Start fake storage
@@ -73,8 +78,8 @@ func (s *Storage) store(file string) {
 				}
 				s.fileStorageProgressCannel <- progress
 				if p >= float64(100.0) {
-					log.Printf("storage.fake.store(): Done uploading file [%s]\n", file)
 					storage.BackupFinished(file, storageName)
+					log.Printf("storage.fake.store(): Done uploading file [%s]\n", file)
 					return
 				}
 			}

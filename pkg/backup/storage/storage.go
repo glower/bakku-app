@@ -14,8 +14,9 @@ import (
 
 // Storage ...
 type Storage interface {
-	Setup(chan *FileChangeNotification, chan *Progress) bool
+	Setup(chan *Progress) bool
 	Start(ctx context.Context) error
+	FileChangeNotification() chan *FileChangeNotification
 }
 
 // FileChangeNotification ...
@@ -79,7 +80,7 @@ func SetupManager(sseServer *sse.Server) *Manager {
 		SSEServer:                     sseServer,
 	}
 	for name, storage := range storages {
-		ok := storage.Setup(m.FileChangeNotificationChannel, m.ProgressChannel)
+		ok := storage.Setup(m.ProgressChannel)
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
@@ -103,6 +104,20 @@ func (m *Manager) SetupStorage(name string, storage Storage) {
 		teardowns[name] = func() { cancel() }
 
 		go m.ProcessProgressCallback(ctx)
+		go m.ProcessFileChangeNotifications(ctx)
+	}
+}
+
+// ProcessFileChangeNotifications sends file change notofocations to all registerd storages
+func (m *Manager) ProcessFileChangeNotifications(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	case change := <-m.FileChangeNotificationChannel:
+		for name, storage := range storages {
+			log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
+			storage.FileChangeNotification() <- change
+		}
 	}
 }
 
