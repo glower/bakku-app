@@ -161,6 +161,3 @@ func teardownAll() {
 	}
 	log.Println("storage.Stop(): eveything is stoped")
 }
-
-// TODO: block all new events if we are stopping the service
-// TODO: send events from FileChangeNotificationChannel to all other storage providers
