@@ -5,22 +5,12 @@ import (
 	"encoding/json"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/r3labs/sse"
 	log "github.com/sirupsen/logrus"
 )
-
-// Progress represents a moment of progress.
-type Progress struct {
-	StorageName string  `json:"storage"`
-	FileName    string  `json:"file"`
-	Percent     float64 `json:"percent"`
-	// n           float64
-	// size        float64
-	// estimated   time.Time
-	// err         error
-}
 
 // Storage ...
 type Storage interface {
@@ -135,7 +125,20 @@ func (m *Manager) ProcessProgressCallback(ctx context.Context) {
 
 // Stop eveything
 func Stop() {
-	// TODO: block here untill all files are transferd
+	// block here untill all files are transferd
+	for {
+		select {
+		case <-time.After(1 * time.Second):
+			if TotalFilesInProgres() == 0 {
+				teardownAll()
+				return
+			}
+		}
+	}
+
+}
+
+func teardownAll() {
 	for name, teardown := range teardowns {
 		log.Infof("Teardown %s storage", name)
 		teardown()
@@ -143,3 +146,6 @@ func Stop() {
 	}
 	log.Println("storage.Stop(): eveything is stoped")
 }
+
+// TODO: block all new events if we are stopping the service
+// TODO: send events from FileChangeNotificationChannel to all other storage providers

@@ -51,7 +51,9 @@ func (s *Storage) Start(ctx context.Context) error {
 
 func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) {
 	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.File.Name())
-	s.store(fileChange.File.Name())
+	file := fileChange.File.Name()
+	storage.BackupStarted(file, storageName)
+	s.store(file)
 }
 
 func (s *Storage) store(file string) {
@@ -72,6 +74,7 @@ func (s *Storage) store(file string) {
 				s.fileStorageProgressCannel <- progress
 				if p >= float64(100.0) {
 					log.Printf("storage.fake.store(): Done uploading file [%s]\n", file)
+					storage.BackupFinished(file, storageName)
 					return
 				}
 			}
