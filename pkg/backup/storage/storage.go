@@ -22,6 +22,7 @@ type Storage interface {
 // FileChangeNotification ...
 type FileChangeNotification struct {
 	File   os.FileInfo
+	Path   string
 	Action watch.Action
 }
 
@@ -116,7 +117,7 @@ func (m *Manager) ProcessFileChangeNotifications(ctx context.Context) {
 	case change := <-m.FileChangeNotificationChannel:
 		for name, storage := range storages {
 			log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-			storage.FileChangeNotification() <- change
+			storage.FileChangeNotification() <- change // TODO: this should not block!
 		}
 	}
 }
@@ -128,7 +129,7 @@ func (m *Manager) ProcessProgressCallback(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case progress := <-m.ProgressChannel:
-			log.Printf("[%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, _ := json.Marshal(progress)
 			// file fotification for the frontend client over the SSE
 			m.SSEServer.Publish("files", &sse.Event{

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 
 	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
+	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
 )
 
 func init() {
@@ -29,12 +29,14 @@ func setupSSE() *sse.Server {
 	return events
 }
 
+// var directoriesToWatch = []string{`C:\Users\Brown\Downloads\`}
+var directoriesToWatch = []string{`/home/igor/Downloads/`}
+
 func setupWatchers() []chan watch.FileChangeInfo {
 	list := []chan watch.FileChangeInfo{}
 	// TODO: check if the directrory is valid
 	// TODO: check if `\` is at the end of the path,  it is importand!
-	// directoriesToWatch := []string{`C:\Users\Brown\Downloads\`}
-	directoriesToWatch := []string{`/home/igor/Downloads/`}
+
 	for _, dir := range directoriesToWatch {
 		watcher := watchers.WatchDirectoryForChanges(dir)
 		list = append(list, watcher)
@@ -49,6 +51,7 @@ func main() {
 
 	fsWachers := setupWatchers()
 	sseServer := setupSSE()
+	// snapshots := setupLocalStorage()
 	storageManager := storage.SetupManager(sseServer)
 	startHTTPServer(sseServer, storageManager, fsWachers)
 
@@ -88,23 +91,7 @@ func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager, fsWachers
 		Handler: router,
 	}
 
-	go func() {
-		for _, watcher := range fsWachers {
-			for {
-				select {
-				case change := <-watcher:
-					file := change.FileInfo
-					info := fmt.Sprintf("Sync file [%s] it was %s\n", file.Name(), watch.ActionToString(change.Action))
-					log.Print(info)
-					// file the notification to the storage
-					sManager.FileChangeNotificationChannel <- &storage.FileChangeNotification{
-						File:   file,
-						Action: change.Action,
-					}
-				}
-			}
-		}
-	}()
+	go handleFileChangedRequests(sManager.FileChangeNotificationChannel, fsWachers)
 
 	go func() {
 		err := srv.ListenAndServe()
@@ -114,4 +101,22 @@ func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager, fsWachers
 	}()
 	log.Print("The service is ready to listen and serve.")
 	return srv
+}
+
+// TODO: https://go101.org/article/channel-use-cases.html (Rate Limiting)
+func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileChangeNotification, fsWachers []chan watch.FileChangeInfo) {
+	for _, watcher := range fsWachers {
+		for {
+			select {
+			case change := <-watcher:
+				log.Printf("event for [%s]\n", change.FileInfo.Name())
+				// file the notification to the storage
+				fileChangeNotificationChannel <- &storage.FileChangeNotification{
+					File:   change.FileInfo,
+					Path:   change.FilePath,
+					Action: change.Action,
+				}
+			}
+		}
+	}
 }

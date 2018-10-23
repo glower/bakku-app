@@ -45,6 +45,7 @@ func ActionToString(action Action) string {
 type FileChangeInfo struct {
 	Action
 	FileInfo os.FileInfo
+	FilePath string
 }
 
 // CallbackData struct holds information about files in the watched directory
@@ -89,7 +90,7 @@ func unregister(path string) {
 }
 
 func fileChangeNotifier(path, file string, action Action) {
-	// log.Printf("fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
+	log.Printf("fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
 	filePath := strings.TrimSpace(path + file)
 	var fi os.FileInfo
 	var err error
@@ -106,6 +107,7 @@ func fileChangeNotifier(path, file string, action Action) {
 		callbackData.CallbackChan <- FileChangeInfo{
 			Action:   action,
 			FileInfo: fi,
+			FilePath: filePath,
 		}
 	}
 }

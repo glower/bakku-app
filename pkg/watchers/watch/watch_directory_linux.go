@@ -22,11 +22,11 @@ static inline void WatchDirectory(char* dir) {
 
   inotifyFd = inotify_init();
   if (inotifyFd == -1) {
-		printf("[ERROR] CGO: inotify_init()");
-		exit(-1);
-	}
+	printf("[ERROR] CGO: inotify_init()");
+	exit(-1);
+}
 
-  wd = inotify_add_watch(inotifyFd, dir, IN_CREATE | IN_DELETE | IN_MODIFY);
+  wd = inotify_add_watch(inotifyFd, dir, IN_CLOSE_WRITE);
   if (wd == -1) {
 		printf("[CGO] [ERROR] WatchDirectory(): inotify_add_watch()");
 		exit(-1);
@@ -37,22 +37,22 @@ static inline void WatchDirectory(char* dir) {
   for (;;) {
     numRead = read(inotifyFd, buf, BUF_LEN);
     if (numRead == 0) {
-			printf("[ERROR] CGO: read() from inotify fd returned 0!");
-			exit(-1);
-		}
+		printf("[ERROR] CGO: read() from inotify fd returned 0!");
+		exit(-1);
+	}
 
     if (numRead == -1) {
-			printf("[ERROR] CGO: read()");
-			exit(-1);
-		}
+		printf("[ERROR] CGO: read()");
+		exit(-1);
+	}
 
     for (p = buf; p < buf + numRead; ) {
 		event = (struct inotify_event *) p;
-		// printf("[INFO] CGO: file was changed\n");
-		if (event->mask == IN_CREATE | IN_MODIFY | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO) {
+		printf("[INFO] CGO: file was changed: mask=%x, len=%d\n", event->mask, event->len);
+		if (event->mask == IN_CLOSE_WRITE) {
 			goCallbackFileChange(dir, event->name, event->mask);
 		}
-    	p += sizeof(struct inotify_event) + event->len;
+		p += sizeof(struct inotify_event) + event->len;
     }
   }
 }
@@ -78,7 +78,7 @@ import (
 // #define IN_DELETE_SELF	0x00000400	/* Self was deleted */
 func convertMaskToAction(mask int) Action {
 	switch mask {
-	case 2: // File was modified
+	case 2 | 8: // File was modified
 		return Action(FileModified)
 	case 256: // Subfile was created
 		return Action(FileAdded)

@@ -47,7 +47,7 @@ func (s *Storage) Start(ctx context.Context) error {
 			case <-s.ctx.Done():
 				return
 			case fileChange := <-s.fileChangeNotificationChannel:
-				s.handleFileChanges(fileChange)
+				go s.handleFileChanges(fileChange)
 			}
 		}
 	}()
@@ -59,30 +59,30 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 	file := fileChange.File.Name()
 	storage.BackupStarted(file, storageName)
 	s.store(file)
+	storage.BackupFinished(file, storageName)
 }
 
 func (s *Storage) store(file string) {
 	p := 0.0
-	go func() {
-		for {
-			select {
-			case <-s.ctx.Done():
-				// context has finished - exit
+	// go func() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			// context has finished - exit
+			return
+		case <-time.After(1 * time.Second):
+			p = p + 10
+			progress := &storage.Progress{
+				StorageName: storageName,
+				FileName:    file,
+				Percent:     p,
+			}
+			s.fileStorageProgressCannel <- progress
+			if p >= float64(100.0) {
+				// log.Printf("storage.fake.store(): Done uploading file [%s]\n", file)
 				return
-			case <-time.After(3 * time.Second):
-				p = p + 10
-				progress := &storage.Progress{
-					StorageName: storageName,
-					FileName:    file,
-					Percent:     p,
-				}
-				s.fileStorageProgressCannel <- progress
-				if p >= float64(100.0) {
-					storage.BackupFinished(file, storageName)
-					log.Printf("storage.fake.store(): Done uploading file [%s]\n", file)
-					return
-				}
 			}
 		}
-	}()
+	}
+	// }()
 }

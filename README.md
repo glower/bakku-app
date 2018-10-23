@@ -11,3 +11,4 @@ TODO:
 [-] store localy state of backuped files for each storage provider
 [-] on start compare states between local and remote storage
 [-] need some sort of flat DB to store info about files 
+[-] implement filters like: store jpg to google drive and store raw to S3
