@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/spf13/viper"
 )
 
 // Storage local
@@ -33,7 +34,7 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	s.name = storageName
 	s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
 	s.fileStorageProgressCannel = fileStorageProgressCannel
-	s.path = "/home/igor/storage/" // TODO: need to read this from the config or something
+	s.path = viper.Get("backup.local.path").(string)
 	return true
 }
 
@@ -81,7 +82,7 @@ func (s *Storage) store(path, file string) {
 
 	to, err := os.OpenFile(s.path+file, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		log.Fatalf("Cnnot open file [%s] to write: %v\n", s.path+file, err)
+		log.Fatalf("Cannot open file [%s] to write: %v\n", s.path+file, err)
 	}
 	defer to.Close()
 	writeBuffer := bufio.NewWriter(to)

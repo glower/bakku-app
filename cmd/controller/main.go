@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/glower/bakku-app/pkg/watchers"
 	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/r3labs/sse"
+	"github.com/spf13/viper"
 
 	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
@@ -20,6 +22,12 @@ import (
 
 func init() {
 	log.Println("init ...")
+	viper.SetConfigName("config") // name of config file (without extension)
+	viper.AddConfigPath(".")
+	err := viper.ReadInConfig() // Find and read the config file
+	if err != nil {             // Handle errors reading the config file
+		panic(fmt.Errorf("fatal error config file: %s", err))
+	}
 }
 
 // TODO: try this out: https://github.com/antage/eventsource
@@ -29,16 +37,12 @@ func setupSSE() *sse.Server {
 	return events
 }
 
-// var directoriesToWatch = []string{`C:\Users\Brown\Downloads\`}
-var directoriesToWatch = []string{`/home/igor/Downloads/`}
-
 func setupWatchers() []chan watch.FileChangeInfo {
 	list := []chan watch.FileChangeInfo{}
 	// TODO: check if the directrory is valid
 	// TODO: check if `\` is at the end of the path,  it is importand!
-
-	for _, dir := range directoriesToWatch {
-		watcher := watchers.WatchDirectoryForChanges(dir)
+	for _, dir := range viper.Get("watch").([]interface{}) {
+		watcher := watchers.WatchDirectoryForChanges(dir.(string))
 		list = append(list, watcher)
 	}
 	return list
@@ -51,7 +55,6 @@ func main() {
 
 	fsWachers := setupWatchers()
 	sseServer := setupSSE()
-	// snapshots := setupLocalStorage()
 	storageManager := storage.SetupManager(sseServer)
 	startHTTPServer(sseServer, storageManager, fsWachers)
 

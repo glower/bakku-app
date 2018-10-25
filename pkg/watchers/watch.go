@@ -12,7 +12,7 @@ import (
 
 // WatchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
 func WatchDirectoryForChanges(path string) chan watch.FileChangeInfo {
-	go UpdateSnapshot(path)
+	// go UpdateSnapshot(path)
 	changes := make(chan watch.FileChangeInfo)
 	go watch.DirectoryChangeNotification(path, changes)
 	return changes

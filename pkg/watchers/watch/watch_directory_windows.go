@@ -96,8 +96,8 @@ func setupDirectoryChangeNotification(path string) {
 }
 
 //export goCallbackFileChange
-func goCallbackFileChange(cpath, cfile *C.char, action C.int) {
+func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
-	fileChangeNotifier(path, file, int(caction))
+	fileChangeNotifier(path, file, Action(int(caction)))
 }
