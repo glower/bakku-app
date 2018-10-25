@@ -16,6 +16,7 @@ extern void goCallbackFileChange(char* path, char* file, int action);
 // https://msdn.microsoft.com/de-de/library/windows/desktop/aa365261(v=vs.85).aspx
 // https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-findfirstchangenotificationa
 static inline void WatchDirectory(char* dir) {
+	printf("[CGO] [INFO] WatchDirectory(): %s\n" ,dir);
 	HANDLE handle;
 	size_t  count;
 	DWORD waitStatus;
@@ -37,7 +38,7 @@ static inline void WatchDirectory(char* dir) {
 	ovl.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
   if (handle == INVALID_HANDLE_VALUE){
-    printf("[CGO] [ERROR] WatchDirectory(): CreateFile function failed for directroy [%s] with error [%s]\n", dir, GetLastError());
+    printf("[CGO] [ERROR] WatchDirectory(): FindFirstChangeNotification function failed for directroy [%s] with error [%s]\n", dir, GetLastError());
     ExitProcess(GetLastError());
   }
 
@@ -52,7 +53,7 @@ static inline void WatchDirectory(char* dir) {
 		waitStatus = WaitForSingleObject(ovl.hEvent, INFINITE);
 		switch (waitStatus) {
       case WAIT_OBJECT_0:
-				// printf("A file was created, renamed, or deleted in the directory\n");
+				printf("[CGO] [INFO] A file was created, renamed, or deleted\n");
 				GetOverlappedResult(handle, &ovl, &dw, FALSE);
 
 				char fileName[MAX_PATH] = "";

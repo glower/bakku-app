@@ -70,7 +70,7 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 }
 
 func (s *Storage) store(path, file string) {
-	// log.Printf(">>> Copy file from p=%s to %s%s", path, s.path, file)
+	log.Printf(">>> Copy file from p=%s to %s%s", path, s.path, file)
 	from, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("Cannot open file  [%s]: %v\n", path, err)

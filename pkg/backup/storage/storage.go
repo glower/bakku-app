@@ -115,6 +115,7 @@ func (m *Manager) ProcessFileChangeNotifications(ctx context.Context) {
 	case <-ctx.Done():
 		return
 	case change := <-m.FileChangeNotificationChannel:
+		log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.Path)
 		for name, storage := range storages {
 			log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
 			storage.FileChangeNotification() <- change // TODO: this should not block!

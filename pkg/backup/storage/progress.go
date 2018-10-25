@@ -28,7 +28,7 @@ func BackupStarted(file, storage string) bool {
 
 	// TODO: find good strategy for this case
 	if _, dup := filesInProgress[key]; dup {
-		log.Printf("BackupStarted(): file %s is in progress for the storage provider %s\n", file, storage)
+		log.Printf("storage.BackupStarted(): file %s is in progress for the storage provider %s\n", file, storage)
 		return false
 	}
 
@@ -38,6 +38,7 @@ func BackupStarted(file, storage string) bool {
 
 // BackupFinished ...
 func BackupFinished(file, storage string) {
+	log.Printf("storage.BackupFinished(): [%s]", file)
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)

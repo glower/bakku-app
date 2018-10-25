@@ -64,7 +64,6 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 
 func (s *Storage) store(file string) {
 	p := 0.0
-	// go func() {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -84,5 +83,4 @@ func (s *Storage) store(file string) {
 			}
 		}
 	}
-	// }()
 }

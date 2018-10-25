@@ -17,7 +17,7 @@ import (
 
 	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
-	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
+	// _ "github.com/glower/bakku-app/pkg/backup/storage/local"
 )
 
 func init() {
@@ -112,7 +112,7 @@ func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileC
 		for {
 			select {
 			case change := <-watcher:
-				log.Printf("event for [%s]\n", change.FileInfo.Name())
+				log.Printf("main.handleFileChangedRequests(): event for [%s]\n", change.FileInfo.Name())
 				// file the notification to the storage
 				fileChangeNotificationChannel <- &storage.FileChangeNotification{
 					File:   change.FileInfo,
@@ -122,4 +122,5 @@ func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileC
 			}
 		}
 	}
+	log.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 }

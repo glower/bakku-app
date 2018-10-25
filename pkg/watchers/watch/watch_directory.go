@@ -78,9 +78,14 @@ func register(data CallbackData, path string) {
 }
 
 func lookup(path string) CallbackData {
+	log.Printf("watch.lookup(): %s\n", path)
 	callbackMutex.Lock()
 	defer callbackMutex.Unlock()
-	return callbackFuncs[path]
+	data, ok := callbackFuncs[path]
+	if !ok {
+		log.Printf("watch.lookup(): callback data for path=%s are not found!!!\n", path)
+	}
+	return data
 }
 
 func unregister(path string) {
@@ -90,7 +95,7 @@ func unregister(path string) {
 }
 
 func fileChangeNotifier(path, file string, action Action) {
-	log.Printf("fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
+	log.Printf("watch.fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
 	filePath := strings.TrimSpace(path + file)
 	var fi os.FileInfo
 	var err error
@@ -102,6 +107,7 @@ func fileChangeNotifier(path, file string, action Action) {
 		}
 	}
 	callbackData := lookup(path)
+	log.Printf("fileChangeNotifier(): callbackData for path=[%s] are OK\n", callbackData.Path)
 
 	if fi != nil {
 		callbackData.CallbackChan <- FileChangeInfo{
@@ -109,5 +115,7 @@ func fileChangeNotifier(path, file string, action Action) {
 			FileInfo: fi,
 			FilePath: filePath,
 		}
+	} else {
+		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
 	}
 }
