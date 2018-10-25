@@ -122,5 +122,4 @@ func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileC
 			}
 		}
 	}
-	log.Println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 }

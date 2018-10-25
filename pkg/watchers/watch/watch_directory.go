@@ -107,7 +107,6 @@ func fileChangeNotifier(path, file string, action Action) {
 		}
 	}
 	callbackData := lookup(path)
-	log.Printf("fileChangeNotifier(): callbackData for path=[%s] are OK\n", callbackData.Path)
 
 	if fi != nil {
 		callbackData.CallbackChan <- FileChangeInfo{
