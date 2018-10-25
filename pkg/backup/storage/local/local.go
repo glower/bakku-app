@@ -73,7 +73,8 @@ func (s *Storage) store(path, file string) {
 	log.Printf(">>> Copy file from p=%s to %s%s", path, s.path, file)
 	from, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("Cannot open file  [%s]: %v\n", path, err)
+		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file  [%s]: %v\n", path, err)
+		return
 	}
 	defer from.Close()
 	fromStrats, _ := from.Stat()
@@ -82,7 +83,8 @@ func (s *Storage) store(path, file string) {
 
 	to, err := os.OpenFile(s.path+file, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		log.Fatalf("Cannot open file [%s] to write: %v\n", s.path+file, err)
+		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file [%s] to write: %v\n", s.path+file, err)
+		return
 	}
 	defer to.Close()
 	writeBuffer := bufio.NewWriter(to)
@@ -100,14 +102,21 @@ func (s *Storage) store(path, file string) {
 		}
 
 		// write a chunk
-		if _, err := writeBuffer.Write(buf[:n]); err != nil {
+		var written = 0
+		if written, err = writeBuffer.Write(buf[:n]); err != nil {
 			panic(err)
 		}
-		totalWritten = totalWritten + bufferSize
+		totalWritten = totalWritten + written
+		var percent float64
+		if int64(written) == totalSize {
+			percent = float64(100)
+		} else {
+			percent = float64(100 * int64(totalWritten) / totalSize)
+		}
 		progress := &storage.Progress{
 			StorageName: storageName,
 			FileName:    file,
-			Percent:     float64(100 * int64(totalWritten) / totalSize),
+			Percent:     percent,
 		}
 		s.fileStorageProgressCannel <- progress
 	}

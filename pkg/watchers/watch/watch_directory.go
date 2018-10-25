@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Action stores corresponding action from Windows api, see: https://docs.microsoft.com/en-us/windows/desktop/api/winnt/ns-winnt-_file_notify_information
@@ -107,6 +108,14 @@ func fileChangeNotifier(path, file string, action Action) {
 		}
 	}
 	callbackData := lookup(path)
+
+	// This is a hack to see if the file is written to the disk on windows
+	_, err = os.Open(filePath)
+	for err != nil {
+		// log.Printf("!!! wait: %s .....\n", err)
+		time.Sleep(1 * time.Second)
+		_, err = os.Open(filePath)
+	}
 
 	if fi != nil {
 		callbackData.CallbackChan <- FileChangeInfo{

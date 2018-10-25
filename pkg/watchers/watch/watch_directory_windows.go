@@ -31,11 +31,15 @@ static inline void WatchDirectory(char* dir) {
 	// FILE_NOTIFY_CHANGE_LAST_WRITE – Changing time of write of the files
 	// FILE_NOTIFY_CHANGE_SECURITY   – Changing in security descriptors
 	handle = FindFirstChangeNotification(
-  	dir,   // directory to watch
-		TRUE,  // do watch subtree
+  	dir,   		// directory to watch
+		TRUE,  		// do watch subtree
 		FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_DIR_NAME
 	);
-	ovl.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	ovl.hEvent = CreateEvent(
+		NULL,  		// default security attribute
+		TRUE,  		// manual reset event
+		FALSE, 		// initial state = signaled
+		NULL); 		// unnamed event object
 
   if (handle == INVALID_HANDLE_VALUE){
     printf("[CGO] [ERROR] WatchDirectory(): FindFirstChangeNotification function failed for directroy [%s] with error [%s]\n", dir, GetLastError());
@@ -54,17 +58,24 @@ static inline void WatchDirectory(char* dir) {
 		switch (waitStatus) {
       case WAIT_OBJECT_0:
 				printf("[CGO] [INFO] A file was created, renamed, or deleted\n");
-				GetOverlappedResult(handle, &ovl, &dw, FALSE);
+				GetOverlappedResult(
+					handle,  // pipe handle
+					&ovl, 	 // OVERLAPPED structure
+					&dw,     // bytes transferred
+					FALSE);  // does not wait
 
 				char fileName[MAX_PATH] = "";
 				FILE_NOTIFY_INFORMATION *fni = NULL;
-				fni = (FILE_NOTIFY_INFORMATION*)(&buffer[0]);
+				DWORD offset = 0;
 
-				if (fni->Action != 0) {
+				do {
+					fni = (FILE_NOTIFY_INFORMATION*)(&buffer[offset]);
 					wcstombs_s(&count, fileName, sizeof(fileName),  fni->FileName, (size_t)fni->FileNameLength/sizeof(WCHAR));
 					goCallbackFileChange(dir, fileName, fni->Action);
-				}
-				memset(fileName, '\0', sizeof(fileName));
+					memset(fileName, '\0', sizeof(fileName));
+        	offset += fni->NextEntryOffset;
+				} while (fni->NextEntryOffset != 0);
+
 				ResetEvent(ovl.hEvent);
 				if( ReadDirectoryChangesW( handle, buffer, sizeof(buffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, NULL, &ovl, NULL) == 0) {
 					printf("Reading Directory Change");
