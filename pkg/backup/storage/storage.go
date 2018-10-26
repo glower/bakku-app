@@ -74,7 +74,6 @@ func UnregisterStorage(name string) {
 
 // SetupManager runs all implemented storages
 func SetupManager(sseServer *sse.Server) *Manager {
-	log.Println("strorage.Run()")
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *FileChangeNotification),
 		ProgressChannel:               make(chan *Progress),
@@ -85,7 +84,8 @@ func SetupManager(sseServer *sse.Server) *Manager {
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
-			log.Errorf("Run(): can not get configuration for storage [%s]", name)
+			log.Infof("Run(): storage [%s] is not configured", name)
+			UnregisterStorage(name)
 		}
 	}
 	return m

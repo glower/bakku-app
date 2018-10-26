@@ -6,6 +6,7 @@ import (
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // Storage fake
@@ -19,17 +20,18 @@ type Storage struct {
 const storageName = "fake"
 
 func init() {
-	log.Println("storage.fake.init()")
 	storage.Register(storageName, &Storage{})
 }
 
 // Setup fake storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
-	log.Println("storage.fake.Setup()")
-	s.name = storageName
-	s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
-	s.fileStorageProgressCannel = fileStorageProgressCannel
-	return true
+	if isStorageConfigured() {
+		s.name = storageName
+		s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
+		s.fileStorageProgressCannel = fileStorageProgressCannel
+		return true
+	}
+	return false
 }
 
 // FileChangeNotification returns channel for notifications
@@ -84,4 +86,12 @@ func (s *Storage) store(file string) {
 			}
 		}
 	}()
+}
+
+func isStorageConfigured() bool {
+	isActive, ok := viper.Get("backup.fake.activeX").(bool)
+	if !ok {
+		return false
+	}
+	return isActive
 }

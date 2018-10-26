@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/viper"
 
 	// for auto import
-	// _ "github.com/glower/bakku-app/pkg/backup/storage/fake"
+	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
 	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
 )
 

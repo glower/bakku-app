@@ -24,18 +24,20 @@ const storageName = "local"
 const bufferSize = 1024 * 1024
 
 func init() {
-	log.Println("storage.local.init()")
 	storage.Register(storageName, &Storage{})
 }
 
 // Setup local storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
-	log.Println("storage.local.Setup()")
-	s.name = storageName
-	s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
-	s.fileStorageProgressCannel = fileStorageProgressCannel
-	s.path = viper.Get("backup.local.path").(string)
-	return true
+	if isStorageConfigured() {
+		log.Println("storage.local.Setup()")
+		s.name = storageName
+		s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
+		s.fileStorageProgressCannel = fileStorageProgressCannel
+		s.path = viper.Get("backup.local.path").(string)
+		return true
+	}
+	return false
 }
 
 // FileChangeNotification returns channel for notifications
@@ -124,4 +126,17 @@ func (s *Storage) store(path, file string) {
 	if err = writeBuffer.Flush(); err != nil {
 		panic(err)
 	}
+}
+
+func isStorageConfigured() bool {
+	isActive, ok := viper.Get("backup.local.active").(bool)
+	if !ok {
+		log.Printf("isStorageConfigured(): is not active: %v\n", isActive)
+		return false
+	}
+	_, ok = viper.Get("backup.local.path").(string)
+	if !ok {
+		return false
+	}
+	return isActive
 }
