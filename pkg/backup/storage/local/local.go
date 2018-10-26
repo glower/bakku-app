@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/otiai10/copy"
 	"github.com/spf13/viper"
 )
 
@@ -29,6 +30,11 @@ func init() {
 	storage.Register(storageName, &Storage{})
 }
 
+// StoreOptions ...
+type StoreOptions struct {
+	reportProgress bool
+}
+
 // Setup local storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	if isStorageConfigured() {
@@ -38,14 +44,48 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 		s.fileStorageProgressCannel = fileStorageProgressCannel
 		storagePath := filepath.Clean(viper.Get("backup.local.path").(string))
 		s.storagePath = storagePath
+
+		go s.SyncLocalFilesToBackup()
+
 		return true
 	}
 	return false
 }
 
 // SyncLocalFilesToBackup ...
-func SyncLocalFilesToBackup(path string) {
+func (s *Storage) SyncLocalFilesToBackup() {
 
+	// TODO: move this to some utils or config class, so we don't work with viper direct
+	dirs, ok := viper.Get("watch").([]interface{})
+	if !ok {
+		log.Println("SyncLocalFilesToBackup(): nothing to sync")
+		return
+	}
+
+	for _, path := range dirs {
+		path, ok := path.(string)
+		if !ok {
+			log.Println("SyncLocalFilesToBackup(): invalid path")
+			continue
+		}
+
+		log.Printf("SyncLocalFilesToBackup(): [%s]\n", path)
+		remoteSnapshotPath := fmt.Sprintf("%s%s%s/.snapshot", s.storagePath, string(os.PathSeparator), filepath.Base(path))
+		localTMPPath := fmt.Sprintf("%s%s%s%s%s%s%s/.snapshot",
+			os.TempDir(), string(os.PathSeparator),
+			"bakku-app", string(os.PathSeparator),
+			storageName, string(os.PathSeparator),
+			filepath.Base(path))
+
+		// s.get(remoteSnapshotPath, os.TempDir)
+		log.Printf("SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
+			path, remoteSnapshotPath, localTMPPath)
+		if err := copy.Copy(remoteSnapshotPath, localTMPPath); err != nil {
+			log.Printf("[ERROR] SyncLocalFilesToBackup(): cannot copy snapshot for [%s]: %v\n", path, err)
+			return
+		}
+
+	}
 }
 
 // FileChangeNotification returns channel for notifications
@@ -83,11 +123,16 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 		relativePath)
 
 	storage.BackupStarted(absolutePath, storageName)
-	s.store(from, to)
+	s.store(from, to, StoreOptions{reportProgress: true})
 	storage.BackupFinished(absolutePath, storageName)
 }
 
-func (s *Storage) store(fromPath, toPath string) {
+// get remote file from the storage
+func (s *Storage) get(fromPath, toPath string) {
+	s.store(fromPath, toPath, StoreOptions{reportProgress: false})
+}
+
+func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	log.Printf(">>> Copy file from [%s] to [%s]\n", fromPath, toPath)
 	from, err := os.Open(fromPath)
 	if err != nil {
@@ -131,18 +176,21 @@ func (s *Storage) store(fromPath, toPath string) {
 			panic(err)
 		}
 		totalWritten = totalWritten + written
-		var percent float64
-		if int64(written) == totalSize {
-			percent = float64(100)
-		} else {
-			percent = float64(100 * int64(totalWritten) / totalSize)
+
+		if opt.reportProgress {
+			var percent float64
+			if int64(written) == totalSize {
+				percent = float64(100)
+			} else {
+				percent = float64(100 * int64(totalWritten) / totalSize)
+			}
+			progress := &storage.Progress{
+				StorageName: storageName,
+				FileName:    from.Name(),
+				Percent:     percent,
+			}
+			s.fileStorageProgressCannel <- progress
 		}
-		progress := &storage.Progress{
-			StorageName: storageName,
-			FileName:    from.Name(),
-			Percent:     percent,
-		}
-		s.fileStorageProgressCannel <- progress
 	}
 
 	if err = writeBuffer.Flush(); err != nil {

@@ -16,6 +16,7 @@ import (
 func SetupWatchers() []chan watch.FileChangeInfo {
 	list := []chan watch.FileChangeInfo{}
 
+	// TODO: move this to some utils
 	dirs, ok := viper.Get("watch").([]interface{})
 	if !ok {
 		log.Println("SetupWatchers(): nothing to watch")

@@ -35,7 +35,7 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 }
 
 // SyncLocalFilesToBackup ...
-func SyncLocalFilesToBackup(path string) {
+func (s *Storage) SyncLocalFilesToBackup() {
 	// TODO
 }
 

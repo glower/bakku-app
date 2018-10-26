@@ -16,6 +16,7 @@ type Storage interface {
 	Setup(chan *Progress) bool
 	Start(ctx context.Context) error
 	FileChangeNotification() chan *FileChangeNotification
+	SyncLocalFilesToBackup()
 }
 
 // FileChangeNotification ...
@@ -100,11 +101,12 @@ func (m *Manager) SetupStorage(name string, storage Storage) {
 		cancel()
 		log.WithFields(log.Fields{
 			"error": err,
-		}).Fatalf("main: failed to setup %s bot\n", name)
+		}).Fatalf("main: failed to setup %s storage\n", name)
 	} else {
 		// store cancelling context for each storage
 		teardowns[name] = func() { cancel() }
-
+		// TODO: dose it make sence to start it for each storage???
+		// If so, we don't need a for loop over all storages
 		go m.ProcessProgressCallback(ctx)
 		go m.ProcessFileChangeNotifications(ctx)
 	}
