@@ -104,10 +104,11 @@ func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileC
 				log.Printf("main.handleFileChangedRequests(): event for [%s]\n", change.FileName)
 				// file the notification to the storage
 				fileChangeNotificationChannel <- &storage.FileChangeNotification{
-					Name:         change.FileName,
-					AbsolutePath: change.FilePath,
-					RelativePath: change.RelativePath,
-					Action:       change.Action,
+					Name:          change.FileName,
+					AbsolutePath:  change.FilePath,
+					RelativePath:  change.RelativePath,
+					Action:        change.Action,
+					DirectoryPath: change.DirectoryPath,
 				}
 			}
 		}

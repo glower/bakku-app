@@ -20,10 +20,11 @@ type Storage interface {
 
 // FileChangeNotification ...
 type FileChangeNotification struct {
-	Name         string
-	AbsolutePath string
-	RelativePath string
-	Action       watch.Action
+	Name          string
+	AbsolutePath  string
+	RelativePath  string
+	DirectoryPath string
+	Action        watch.Action
 }
 
 // Manager ...
@@ -132,7 +133,7 @@ func (m *Manager) ProcessProgressCallback(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case progress := <-m.ProgressChannel:
-			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			// log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, _ := json.Marshal(progress)
 			// file fotification for the frontend client over the SSE
 			m.SSEServer.Publish("files", &sse.Event{

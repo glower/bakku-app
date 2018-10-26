@@ -43,7 +43,8 @@ func WatchDirectoryForChanges(path string) chan watch.FileChangeInfo {
 		UpdateSnapshot(path, snapshotPath) // blocking here is ok
 		go CreateFirstBackup(path, snapshotPath, changes)
 	} else {
-		go UpdateSnapshot(path, snapshotPath)
+		// go UpdateSnapshot(path, snapshotPath)
+		UpdateSnapshot(path, snapshotPath)
 	}
 	go watch.DirectoryChangeNotification(path, changes)
 	return changes
@@ -93,10 +94,11 @@ func CreateFirstBackup(dir, snapshotPath string, changes chan watch.FileChangeIn
 		relativePath := strings.Replace(filePath, dir, "", -1)
 		// fmt.Printf("CreateFirstBackup(): relativePath=[%s]\n", relativePath)
 		changes <- watch.FileChangeInfo{
-			Action:       watch.Action(watch.FileAdded),
-			FilePath:     filePath,
-			FileName:     fileName,
-			RelativePath: relativePath,
+			Action:        watch.Action(watch.FileAdded),
+			FilePath:      filePath,
+			FileName:      fileName,
+			RelativePath:  relativePath,
+			DirectoryPath: dir,
 		}
 	}
 	iter.Release()

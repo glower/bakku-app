@@ -46,9 +46,10 @@ func ActionToString(action Action) string {
 type FileChangeInfo struct {
 	Action
 	// FileInfo os.FileInfo
-	FileName     string
-	FilePath     string
-	RelativePath string
+	FileName      string
+	FilePath      string
+	RelativePath  string
+	DirectoryPath string
 }
 
 // CallbackData struct holds information about files in the watched directory
@@ -120,10 +121,11 @@ func fileChangeNotifier(path, file string, action Action) {
 
 	if fi != nil {
 		callbackData.CallbackChan <- FileChangeInfo{
-			Action:       action,
-			FileName:     fi.Name(),
-			FilePath:     filePath,
-			RelativePath: file,
+			Action:        action,
+			FileName:      fi.Name(),
+			FilePath:      filePath,
+			RelativePath:  file,
+			DirectoryPath: path,
 		}
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)

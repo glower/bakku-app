@@ -34,6 +34,11 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	return false
 }
 
+// SyncLocalFilesToBackup ...
+func SyncLocalFilesToBackup(path string) {
+	// TODO
+}
+
 // FileChangeNotification returns channel for notifications
 func (s *Storage) FileChangeNotification() chan *storage.FileChangeNotification {
 	return s.fileChangeNotificationChannel

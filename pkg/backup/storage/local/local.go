@@ -3,9 +3,11 @@ package local
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/spf13/viper"
@@ -17,7 +19,7 @@ type Storage struct {
 	fileChangeNotificationChannel chan *storage.FileChangeNotification
 	fileStorageProgressCannel     chan *storage.Progress
 	ctx                           context.Context
-	path                          string
+	storagePath                   string
 }
 
 const storageName = "local"
@@ -34,10 +36,16 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 		s.name = storageName
 		s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
-		s.path = viper.Get("backup.local.path").(string)
+		storagePath := filepath.Clean(viper.Get("backup.local.path").(string))
+		s.storagePath = storagePath
 		return true
 	}
 	return false
+}
+
+// SyncLocalFilesToBackup ...
+func SyncLocalFilesToBackup(path string) {
+
 }
 
 // FileChangeNotification returns channel for notifications
@@ -64,18 +72,26 @@ func (s *Storage) Start(ctx context.Context) error {
 
 func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) {
 	// log.Printf("storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
-	file := fileChange.Name
-	path := fileChange.AbsolutePath
-	storage.BackupStarted(file, storageName)
-	s.store(path, file)
-	storage.BackupFinished(file, storageName)
+	absolutePath := fileChange.AbsolutePath
+	relativePath := fileChange.RelativePath
+	directoryPath := fileChange.DirectoryPath
+
+	from := absolutePath
+	to := fmt.Sprintf("%s%s%s%s%s",
+		s.storagePath, string(os.PathSeparator),
+		filepath.Base(directoryPath), string(os.PathSeparator),
+		relativePath)
+
+	storage.BackupStarted(absolutePath, storageName)
+	s.store(from, to)
+	storage.BackupFinished(absolutePath, storageName)
 }
 
-func (s *Storage) store(path, file string) {
-	log.Printf(">>> Copy file from p=%s to %s%s", path, s.path, file)
-	from, err := os.Open(path)
+func (s *Storage) store(fromPath, toPath string) {
+	log.Printf(">>> Copy file from [%s] to [%s]\n", fromPath, toPath)
+	from, err := os.Open(fromPath)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file  [%s]: %v\n", path, err)
+		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file  [%s]: %v\n", fromPath, err)
 		return
 	}
 	defer from.Close()
@@ -83,9 +99,15 @@ func (s *Storage) store(path, file string) {
 	readBuffer := bufio.NewReader(from)
 	totalSize := fromStrats.Size()
 
-	to, err := os.OpenFile(s.path+file, os.O_RDWR|os.O_CREATE, 0644)
+	// func MkdirAll(path string, perm FileMode) error
+	if err := os.MkdirAll(filepath.Dir(toPath), 0744); err != nil {
+		log.Printf("[ERROR] storage.local.handleFileChanges():  MkdirAll for [%s], %v", filepath.Dir(toPath), err)
+		return
+	}
+
+	to, err := os.OpenFile(toPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file [%s] to write: %v\n", s.path+file, err)
+		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file [%s] to write: %v\n", toPath, err)
 		return
 	}
 	defer to.Close()
@@ -117,7 +139,7 @@ func (s *Storage) store(path, file string) {
 		}
 		progress := &storage.Progress{
 			StorageName: storageName,
-			FileName:    file,
+			FileName:    from.Name(),
 			Percent:     percent,
 		}
 		s.fileStorageProgressCannel <- progress
