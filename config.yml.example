@@ -1,0 +1,8 @@
+watch: 
+ - "C:\\Users\\John\\Documents\\"
+backup: 
+ local: 
+  path: "D:\\backup\\"
+  active: true
+fake:
+  active: false
