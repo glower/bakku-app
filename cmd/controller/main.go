@@ -37,23 +37,12 @@ func setupSSE() *sse.Server {
 	return events
 }
 
-func setupWatchers() []chan watch.FileChangeInfo {
-	list := []chan watch.FileChangeInfo{}
-	// TODO: check if the directrory is valid
-	// TODO: check if `\` is at the end of the path,  it is importand!
-	for _, dir := range viper.Get("watch").([]interface{}) {
-		watcher := watchers.WatchDirectoryForChanges(dir.(string))
-		list = append(list, watcher)
-	}
-	return list
-}
-
 func main() {
 	log.Println("Starting the service ...")
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	fsWachers := setupWatchers()
+	fsWachers := watchers.SetupWatchers()
 	sseServer := setupSSE()
 	storageManager := storage.SetupManager(sseServer)
 	startHTTPServer(sseServer, storageManager, fsWachers)

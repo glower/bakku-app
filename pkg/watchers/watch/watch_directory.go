@@ -1,9 +1,9 @@
 package watch
 
 import (
+	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
@@ -96,8 +96,8 @@ func unregister(path string) {
 }
 
 func fileChangeNotifier(path, file string, action Action) {
-	log.Printf("watch.fileChangeNotifier(): [%s%s], action: %d\n", path, file, action)
-	filePath := strings.TrimSpace(path + file)
+	filePath := fmt.Sprintf("%s%s%s", path, string(os.PathSeparator), file) //strings.TrimSpace(path + file)
+	log.Printf("watch.fileChangeNotifier(): [%s], action: %d\n", filePath, action)
 	var fi os.FileInfo
 	var err error
 	if action != FileRemoved && action != FileRenamedOldName {
