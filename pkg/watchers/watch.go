@@ -80,10 +80,11 @@ func UpdateSnapshot(dir, snapshotPath string) {
 }
 
 // CreateFirstBackup ...
-func CreateFirstBackup(dir, snapshotPath string, changes chan watch.FileChangeInfo) {
+func CreateFirstBackup(dir, snapshotPath string, changes chan watch.FileChangeInfo) error {
 	db, err := leveldb.OpenFile(snapshotPath, nil)
 	if err != nil {
 		log.Printf("watchers.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
+		return err
 	}
 	defer db.Close()
 
@@ -104,4 +105,5 @@ func CreateFirstBackup(dir, snapshotPath string, changes chan watch.FileChangeIn
 	}
 	iter.Release()
 	err = iter.Error()
+	return err
 }

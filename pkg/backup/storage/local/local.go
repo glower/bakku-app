@@ -8,10 +8,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/otiai10/copy"
 	"github.com/spf13/viper"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Storage local
@@ -69,23 +71,68 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			continue
 		}
 
-		log.Printf("SyncLocalFilesToBackup(): [%s]\n", path)
-		remoteSnapshotPath := fmt.Sprintf("%s%s%s/.snapshot", s.storagePath, string(os.PathSeparator), filepath.Base(path))
+		remoteSnapshotPath := fmt.Sprintf("%s%s%s/.snapshot",
+			s.storagePath, string(os.PathSeparator),
+			filepath.Base(path))
+
 		localTMPPath := fmt.Sprintf("%s%s%s%s%s%s%s/.snapshot",
 			os.TempDir(), string(os.PathSeparator),
 			"bakku-app", string(os.PathSeparator),
 			storageName, string(os.PathSeparator),
 			filepath.Base(path))
 
-		// s.get(remoteSnapshotPath, os.TempDir)
 		log.Printf("SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshotPath, localTMPPath)
+
 		if err := copy.Copy(remoteSnapshotPath, localTMPPath); err != nil {
 			log.Printf("[ERROR] SyncLocalFilesToBackup(): cannot copy snapshot for [%s]: %v\n", path, err)
 			return
 		}
 
+		snapshotPath := fmt.Sprintf("%s%s.snapshot", path, string(os.PathSeparator))
+
+		s.syncFiles(localTMPPath, snapshotPath)
 	}
+}
+
+func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
+	dbRemote, err := leveldb.OpenFile(remoteSnapshotPath, nil)
+	if err != nil {
+		log.Printf("local.syncFiles(): can not open snapshot file [%s]: %v\n", remoteSnapshotPath, err)
+		return
+	}
+	defer dbRemote.Close()
+
+	dbLocal, err := leveldb.OpenFile(localSnapshotPath, nil)
+	if err != nil {
+		log.Printf("local.syncFiles(): can not open snapshot file [%s]: %v\n", localSnapshotPath, err)
+		return
+	}
+	defer dbLocal.Close()
+
+	iter := dbLocal.NewIterator(nil, nil)
+	for iter.Next() {
+		localFile := iter.Key()
+		localInfo := iter.Value()
+		remoteInfo, err := dbRemote.Get(localFile, nil)
+		if strings.Contains(string(localFile), ".snapshot") {
+			continue
+		}
+		if err != nil && err.Error() == "leveldb: not found" {
+			log.Printf("[INFO] key [%s] not found in the remote snapshot\n", string(localFile))
+			continue
+		}
+		if string(localInfo) != string(remoteInfo) {
+			log.Printf("[INFO] values are different for the key [%s]: local=[%s], remote=[%s]\n",
+				string(localFile), string(localInfo), string(remoteInfo))
+			continue
+		}
+		if err != nil {
+			log.Printf("[ERROR] can not get key=[%s]: %v\n", string(localFile), err)
+		}
+	}
+	iter.Release()
+	err = iter.Error()
 }
 
 // FileChangeNotification returns channel for notifications
