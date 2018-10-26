@@ -45,8 +45,10 @@ func ActionToString(action Action) string {
 // FileChangeInfo ...
 type FileChangeInfo struct {
 	Action
-	FileInfo os.FileInfo
-	FilePath string
+	// FileInfo os.FileInfo
+	FileName     string
+	FilePath     string
+	RelativePath string
 }
 
 // CallbackData struct holds information about files in the watched directory
@@ -112,16 +114,16 @@ func fileChangeNotifier(path, file string, action Action) {
 	// This is a hack to see if the file is written to the disk on windows
 	_, err = os.Open(filePath)
 	for err != nil {
-		// log.Printf("!!! wait: %s .....\n", err)
 		time.Sleep(1 * time.Second)
 		_, err = os.Open(filePath)
 	}
 
 	if fi != nil {
 		callbackData.CallbackChan <- FileChangeInfo{
-			Action:   action,
-			FileInfo: fi,
-			FilePath: filePath,
+			Action:       action,
+			FileName:     fi.Name(),
+			FilePath:     filePath,
+			RelativePath: file,
 		}
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)

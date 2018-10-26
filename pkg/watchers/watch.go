@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/spf13/viper"
@@ -36,11 +37,14 @@ func SetupWatchers() []chan watch.FileChangeInfo {
 // WatchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
 func WatchDirectoryForChanges(path string) chan watch.FileChangeInfo {
 	snapshotPath := fmt.Sprintf("%s%s.snapshot", path, string(os.PathSeparator)) // TODO: do this in some config part
+	changes := make(chan watch.FileChangeInfo)
 	if !SnapshotExist(snapshotPath) {
 		log.Printf("WatchDirectoryForChanges: snapshot for [%s] is does not exist\n", path)
+		UpdateSnapshot(path, snapshotPath) // blocking here is ok
+		go CreateFirstBackup(path, snapshotPath, changes)
+	} else {
+		go UpdateSnapshot(path, snapshotPath)
 	}
-	go UpdateSnapshot(snapshotPath)
-	changes := make(chan watch.FileChangeInfo)
 	go watch.DirectoryChangeNotification(path, changes)
 	return changes
 }
@@ -54,14 +58,15 @@ func SnapshotExist(snapshotPath string) bool {
 }
 
 // UpdateSnapshot ...
-func UpdateSnapshot(snapshotPath string) {
+func UpdateSnapshot(dir, snapshotPath string) {
 	log.Printf("UpdateSnapshot(): %s\n", snapshotPath)
 	db, err := leveldb.OpenFile(snapshotPath, nil)
 	if err != nil {
 		log.Printf("watchers.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
+		return
 	}
 	defer db.Close()
-	filepath.Walk(snapshotPath, func(path string, f os.FileInfo, err error) error {
+	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
 			key := path
 			value := fmt.Sprintf("%s:%d", f.ModTime(), f.Size())
@@ -70,4 +75,30 @@ func UpdateSnapshot(snapshotPath string) {
 		return nil
 	})
 	log.Println("UpdateSnapshot(): done")
+}
+
+// CreateFirstBackup ...
+func CreateFirstBackup(dir, snapshotPath string, changes chan watch.FileChangeInfo) {
+	db, err := leveldb.OpenFile(snapshotPath, nil)
+	if err != nil {
+		log.Printf("watchers.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
+	}
+	defer db.Close()
+
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		path := iter.Key()
+		filePath := string(path)
+		fileName := filepath.Base(filePath)
+		relativePath := strings.Replace(filePath, dir, "", -1)
+		// fmt.Printf("CreateFirstBackup(): relativePath=[%s]\n", relativePath)
+		changes <- watch.FileChangeInfo{
+			Action:       watch.Action(watch.FileAdded),
+			FilePath:     filePath,
+			FileName:     fileName,
+			RelativePath: relativePath,
+		}
+	}
+	iter.Release()
+	err = iter.Error()
 }

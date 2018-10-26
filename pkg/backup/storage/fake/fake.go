@@ -57,8 +57,8 @@ func (s *Storage) Start(ctx context.Context) error {
 }
 
 func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) {
-	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.File.Name())
-	file := fileChange.File.Name()
+	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.Name)
+	file := fileChange.Name
 	storage.BackupStarted(file, storageName)
 	s.store(file)
 }

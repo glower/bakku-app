@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"sync"
 	"time"
 
@@ -21,9 +20,10 @@ type Storage interface {
 
 // FileChangeNotification ...
 type FileChangeNotification struct {
-	File   os.FileInfo
-	Path   string
-	Action watch.Action
+	Name         string
+	AbsolutePath string
+	RelativePath string
+	Action       watch.Action
 }
 
 // Manager ...
@@ -116,7 +116,7 @@ func (m *Manager) ProcessFileChangeNotifications(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case change := <-m.FileChangeNotificationChannel:
-			log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.Path)
+			log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.AbsolutePath)
 			for name, storage := range storages {
 				log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
 				storage.FileChangeNotification() <- change

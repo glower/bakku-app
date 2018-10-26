@@ -101,12 +101,13 @@ func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileC
 		for {
 			select {
 			case change := <-watcher:
-				log.Printf("main.handleFileChangedRequests(): event for [%s]\n", change.FileInfo.Name())
+				log.Printf("main.handleFileChangedRequests(): event for [%s]\n", change.FileName)
 				// file the notification to the storage
 				fileChangeNotificationChannel <- &storage.FileChangeNotification{
-					File:   change.FileInfo,
-					Path:   change.FilePath,
-					Action: change.Action,
+					Name:         change.FileName,
+					AbsolutePath: change.FilePath,
+					RelativePath: change.RelativePath,
+					Action:       change.Action,
 				}
 			}
 		}
