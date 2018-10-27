@@ -2,17 +2,14 @@ package local
 
 import (
 	"bufio"
-	"encoding/json"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
-	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/otiai10/copy"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // SyncSnapshot syncs the snapshot dir to the storage
@@ -25,52 +22,14 @@ func (s *Storage) SyncSnapshot(from, to string) {
 }
 
 func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-	dbRemote, err := leveldb.OpenFile(remoteSnapshotPath, nil)
+	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.syncFiles(): cannot open snapshot file [%s]: leveldb.OpenFile():%v\n", remoteSnapshotPath, err)
+		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)
 		return
 	}
-	defer dbRemote.Close()
-
-	dbLocal, err := leveldb.OpenFile(localSnapshotPath, nil)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.syncFiles(): can not open snapshot file [%s]: leveldb.OpenFile():%v\n", localSnapshotPath, err)
-		return
+	for _, file := range *files {
+		s.fileChangeNotificationChannel <- &file
 	}
-	defer dbLocal.Close()
-
-	iter := dbLocal.NewIterator(nil, nil)
-	for iter.Next() {
-		localFile := iter.Key()
-		localInfo := iter.Value()
-		remoteInfo, err := dbRemote.Get(localFile, nil)
-		if strings.Contains(string(localFile), ".snapshot") {
-			continue
-		}
-		if err != nil && err.Error() == "leveldb: not found" {
-			log.Printf("storage.local.syncFiles(): key [%s] not found in the remote snapshot\n", string(localFile))
-			s.syncFile(localInfo)
-			continue
-		}
-		if string(localInfo) != string(remoteInfo) {
-			log.Printf("storage.local.syncFiles(): values are different for the key [%s]\n", string(localFile))
-			s.syncFile(localInfo)
-			continue
-		}
-		if err != nil {
-			log.Printf("[ERROR] storage.local.syncFiles(): can not get key=[%s]: dbRemote.Get(): %v\n", string(localFile), err)
-		}
-	}
-	iter.Release()
-}
-
-func (s *Storage) syncFile(localInfo []byte) {
-	log.Printf("storage.local.syncFile()\n")
-	change := types.FileChangeNotification{}
-	if err := json.Unmarshal(localInfo, &change); err != nil {
-		log.Printf("storage.local.syncFile(): cannot unmarshal data [%s]: %v\n", string(localInfo), err)
-	}
-	s.fileChangeNotificationChannel <- &change
 }
 
 // get remote file from the storage

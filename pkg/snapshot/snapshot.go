@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -106,4 +107,53 @@ func CreateFirstBackup(dir, snapshotPath string, changes chan types.FileChangeNo
 		}
 	}
 	iter.Release()
+}
+
+// Diff returns diff between two snapshots as array of FileChangeNotification
+func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNotification, error) {
+	var result []types.FileChangeNotification
+
+	dbRemote, err := leveldb.OpenFile(remoteSnapshotPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot.Diff(): cannot open snapshot file [%s]: leveldb.OpenFile(): %v", remoteSnapshotPath, err)
+	}
+	defer dbRemote.Close()
+
+	dbLocal, err := leveldb.OpenFile(localSnapshotPath, nil)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot.Diff(): can not open snapshot file [%s]: leveldb.OpenFile(): %v", localSnapshotPath, err)
+	}
+	defer dbLocal.Close()
+
+	iter := dbLocal.NewIterator(nil, nil)
+	for iter.Next() {
+		localFile := iter.Key()
+		localInfo := iter.Value()
+		remoteInfo, err := dbRemote.Get(localFile, nil)
+		if strings.Contains(string(localFile), ".snapshot") {
+			continue
+		}
+		if err != nil && err.Error() == "leveldb: not found" || string(localInfo) != string(remoteInfo) {
+			log.Printf("snapshot.Diff(): key [%s] not found or different in the remote snapshot\n", string(localFile))
+			file, err := unmurshalFileChangeNotification(localInfo)
+			if err != nil {
+				log.Printf("[ERROR] snapshot.Diff(): %s\n", err)
+				continue
+			}
+			result = append(result, file)
+		}
+		if err != nil {
+			log.Printf("[ERROR] snapshot.Diff(): can not get key=[%s]: dbRemote.Get(): %v\n", string(localFile), err)
+		}
+	}
+	iter.Release()
+	return &result, nil
+}
+
+func unmurshalFileChangeNotification(value []byte) (types.FileChangeNotification, error) {
+	change := types.FileChangeNotification{}
+	if err := json.Unmarshal(value, &change); err != nil {
+		return change, fmt.Errorf("cannot unmarshal data [%s]: %v", string(value), err)
+	}
+	return change, nil
 }
