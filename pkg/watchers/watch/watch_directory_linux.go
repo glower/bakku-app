@@ -8,59 +8,66 @@ package watch
 #include <sys/inotify.h>
 #include <limits.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <string.h>
+#include <pthread.h>
 
 #define BUF_LEN (10 * (sizeof(struct inotify_event) + NAME_MAX + 1))
 
 extern void goCallbackFileChange(char* path, char* file, int action);
 
-static inline void WatchDirectory(char* dir) {
-  int inotifyFd, wd, j;
-  char buf[BUF_LEN] __attribute__ ((aligned(8)));
-  ssize_t numRead;
-  char *p;
-  struct inotify_event *event;
+static inline void *WatchDirectory(char* dir) {
+	int inotifyFd, wd, j;
+  	char buf[BUF_LEN] __attribute__ ((aligned(8)));
+  	ssize_t numRead;
+  	char *p;
+  	struct inotify_event *event;
 
-  inotifyFd = inotify_init();
-  if (inotifyFd == -1) {
-	printf("[ERROR] CGO: inotify_init()");
-	exit(-1);
-}
+  	inotifyFd = inotify_init();
+  	if (inotifyFd == -1) {
+		printf("[ERROR] CGO: inotify_init()");
+		exit(-1);
+   	}
 
-  wd = inotify_add_watch(inotifyFd, dir, IN_CLOSE_WRITE);
-  if (wd == -1) {
+   	wd = inotify_add_watch(inotifyFd, dir, IN_CLOSE_WRITE);
+   	if (wd == -1) {
 		printf("[CGO] [ERROR] WatchDirectory(): inotify_add_watch()");
 		exit(-1);
 	}
 
-  printf("[CGO] [INFO] WatchDirectory(): watching %s\n", dir);
-
-  for (;;) {
-    numRead = read(inotifyFd, buf, BUF_LEN);
-    if (numRead == 0) {
-		printf("[ERROR] CGO: read() from inotify fd returned 0!");
-		exit(-1);
-	}
-
-    if (numRead == -1) {
-		printf("[ERROR] CGO: read()");
-		exit(-1);
-	}
-
-    for (p = buf; p < buf + numRead; ) {
-		event = (struct inotify_event *) p;
-		printf("[INFO] CGO: file was changed: mask=%x, len=%d\n", event->mask, event->len);
-		if (event->mask == IN_CLOSE_WRITE) {
-			goCallbackFileChange(dir, event->name, event->mask);
+  	printf("[CGO] [INFO] WatchDirectory(): watching %s\n", dir);
+  	for (;;) {
+    	numRead = read(inotifyFd, buf, BUF_LEN);
+    	if (numRead == 0) {
+			printf("[ERROR] CGO: read() from inotify fd returned 0!");
+			exit(-1);
 		}
-		p += sizeof(struct inotify_event) + event->len;
-    }
-  }
+
+    	if (numRead == -1) {
+			printf("[ERROR] CGO: read()");
+			exit(-1);
+		}
+
+    	for (p = buf; p < buf + numRead; ) {
+			event = (struct inotify_event *) p;
+			printf("[INFO] CGO: file was changed: mask=%x, len=%d\n", event->mask, event->len);
+			if (event->mask == IN_CLOSE_WRITE) {
+				goCallbackFileChange(dir, event->name, event->mask);
+			}
+			p += sizeof(struct inotify_event) + event->len;
+    	}
+  	}
 }
+
 */
 import "C"
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"unsafe"
+
+	"github.com/glower/bakku-app/pkg/snapshot"
 )
 
 // TODO: inotify is not recursive!!!
@@ -93,7 +100,19 @@ func convertMaskToAction(mask int) Action {
 	}
 }
 
-func setupDirectoryChangeNotification(path string) {
+func setupDirectoryChangeNotification(dir string) {
+	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
+		if strings.Contains(path, snapshot.Dir()) {
+			return nil
+		}
+		if f.IsDir() {
+			go watchDir(path)
+		}
+		return nil
+	})
+}
+
+func watchDir(path string) {
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
