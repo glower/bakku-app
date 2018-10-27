@@ -57,7 +57,7 @@ static inline void WatchDirectory(char* dir) {
 		waitStatus = WaitForSingleObject(ovl.hEvent, INFINITE);
 		switch (waitStatus) {
       case WAIT_OBJECT_0:
-				printf("[CGO] [INFO] A file was created, renamed, or deleted\n");
+				// printf("[CGO] [INFO] A file was created, renamed, or deleted\n");
 				GetOverlappedResult(
 					handle,  // pipe handle
 					&ovl, 	 // OVERLAPPED structure
@@ -71,6 +71,7 @@ static inline void WatchDirectory(char* dir) {
 				do {
 					fni = (FILE_NOTIFY_INFORMATION*)(&buffer[offset]);
 					wcstombs_s(&count, fileName, sizeof(fileName),  fni->FileName, (size_t)fni->FileNameLength/sizeof(WCHAR));
+					// printf("[CGO] [INFO] file=[%s] action=[%d] offset=[%ld]\n", fileName, fni->Action, offset);
 					goCallbackFileChange(dir, fileName, fni->Action);
 					memset(fileName, '\0', sizeof(fileName));
         	offset += fni->NextEntryOffset;

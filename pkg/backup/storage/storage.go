@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/watchers/watch"
+	"log"
+
 	"github.com/r3labs/sse"
-	log "github.com/sirupsen/logrus"
 )
 
 // Storage ...
@@ -25,11 +25,12 @@ type FileChangeNotification struct {
 	AbsolutePath  string
 	RelativePath  string
 	DirectoryPath string
-	Action        watch.Action
+	IsDir         bool
 }
 
 // Manager ...
 type Manager struct {
+	ctx                           context.Context
 	FileChangeNotificationChannel chan *FileChangeNotification
 	ProgressChannel               chan *Progress
 	SSEServer                     *sse.Server
@@ -57,13 +58,11 @@ func Register(name string, s Storage) {
 	defer storagesM.Unlock()
 
 	if _, dup := storages[name]; dup {
-		panic("storageRegister(): called twice for " + name)
+		log.Printf("[ERROR] storage.Register(): called twice for " + name)
+		return
 	}
 
-	log.WithFields(log.Fields{
-		"name": name,
-	}).Info("storage.Register(): registered")
-
+	log.Printf("storage.Register(): storage provider [%s] registered\n", name)
 	storages[name] = s
 }
 
@@ -75,54 +74,58 @@ func UnregisterStorage(name string) {
 }
 
 // SetupManager runs all implemented storages
-func SetupManager(sseServer *sse.Server) *Manager {
+func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []chan FileChangeNotification) *Manager {
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *FileChangeNotification),
 		ProgressChannel:               make(chan *Progress),
 		SSEServer:                     sseServer,
+		ctx:                           ctx,
 	}
 	for name, storage := range storages {
 		ok := storage.Setup(m.ProgressChannel)
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
-			log.Infof("Run(): storage [%s] is not configured", name)
+			log.Printf("SetupManager(): storage [%s] is not configured\n", name)
 			UnregisterStorage(name)
 		}
 	}
+
+	go m.ProcessFileChangeNotifications(ctx, notifications)
+
 	return m
 }
 
 // SetupStorage ...
 func (m *Manager) SetupStorage(name string, storage Storage) {
 	ctx, cancel := context.WithCancel(context.Background())
+	go storage.SyncLocalFilesToBackup()
 	err := storage.Start(ctx)
 	if err != nil {
 		cancel()
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatalf("main: failed to setup %s storage\n", name)
+		log.Printf("[ERROR] SetupStorage: failed to setup storage [%s]\n", name)
 	} else {
 		// store cancelling context for each storage
 		teardowns[name] = func() { cancel() }
 		// TODO: dose it make sence to start it for each storage???
 		// If so, we don't need a for loop over all storages
 		go m.ProcessProgressCallback(ctx)
-		go m.ProcessFileChangeNotifications(ctx)
 	}
 }
 
 // ProcessFileChangeNotifications sends file change notofocations to all registerd storages
-func (m *Manager) ProcessFileChangeNotifications(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case change := <-m.FileChangeNotificationChannel:
-			log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.AbsolutePath)
-			for name, storage := range storages {
-				log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-				storage.FileChangeNotification() <- change
+func (m *Manager) ProcessFileChangeNotifications(ctx context.Context, notifications []chan FileChangeNotification) {
+	for _, watcher := range notifications {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case change := <-watcher:
+				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.AbsolutePath)
+				for name, storage := range storages {
+					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
+					storage.FileChangeNotification() <- &change
+				}
 			}
 		}
 	}
@@ -162,7 +165,7 @@ func Stop() {
 
 func teardownAll() {
 	for name, teardown := range teardowns {
-		log.Infof("Teardown %s storage", name)
+		log.Printf("storage.Stop(): Teardown storage [%s]\n", name)
 		teardown()
 		UnregisterStorage(name)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/handlers"
 	"github.com/glower/bakku-app/pkg/watchers"
-	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/r3labs/sse"
 	"github.com/spf13/viper"
 
@@ -39,13 +39,14 @@ func setupSSE() *sse.Server {
 
 func main() {
 	log.Println("Starting the service ...")
+	ctx, cancel := context.WithCancel(context.Background())
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	fsWachers := watchers.SetupWatchers()
 	sseServer := setupSSE()
-	storageManager := storage.SetupManager(sseServer)
-	startHTTPServer(sseServer, storageManager, fsWachers)
+	storageManager := storage.SetupManager(ctx, sseServer, fsWachers)
+	startHTTPServer(sseServer, storageManager)
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -57,6 +58,7 @@ func main() {
 	}
 
 	log.Print("The service is shutting down...")
+	cancel()
 	sseServer.RemoveStream("files")
 	sseServer.Close()
 	storage.Stop()
@@ -66,7 +68,7 @@ func main() {
 	log.Print("Done")
 }
 
-func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager, fsWachers []chan watch.FileChangeInfo) *http.Server {
+func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager) *http.Server {
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
@@ -75,15 +77,12 @@ func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager, fsWachers
 
 	r := handlers.Resources{
 		SSEServer: sseServer,
-		FSChanges: fsWachers,
 	}
 	router := r.Router()
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: router,
 	}
-
-	go handleFileChangedRequests(sManager.FileChangeNotificationChannel, fsWachers)
 
 	go func() {
 		err := srv.ListenAndServe()
@@ -93,24 +92,4 @@ func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager, fsWachers
 	}()
 	log.Print("The service is ready to listen and serve.")
 	return srv
-}
-
-// TODO: https://go101.org/article/channel-use-cases.html (Rate Limiting)
-func handleFileChangedRequests(fileChangeNotificationChannel chan *storage.FileChangeNotification, fsWachers []chan watch.FileChangeInfo) {
-	for _, watcher := range fsWachers {
-		for {
-			select {
-			case change := <-watcher:
-				log.Printf("main.handleFileChangedRequests(): event for [%s]\n", change.FileName)
-				// file the notification to the storage
-				fileChangeNotificationChannel <- &storage.FileChangeNotification{
-					Name:          change.FileName,
-					AbsolutePath:  change.FilePath,
-					RelativePath:  change.RelativePath,
-					Action:        change.Action,
-					DirectoryPath: change.DirectoryPath,
-				}
-			}
-		}
-	}
 }

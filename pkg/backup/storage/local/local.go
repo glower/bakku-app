@@ -46,9 +46,6 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 		s.fileStorageProgressCannel = fileStorageProgressCannel
 		storagePath := filepath.Clean(viper.Get("backup.local.path").(string))
 		s.storagePath = storagePath
-
-		go s.SyncLocalFilesToBackup()
-
 		return true
 	}
 	return false
@@ -56,39 +53,42 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 
 // SyncLocalFilesToBackup ...
 func (s *Storage) SyncLocalFilesToBackup() {
-
+	log.Println("storage.local.SyncLocalFilesToBackup()")
 	// TODO: move this to some utils or config class, so we don't work with viper direct
 	dirs, ok := viper.Get("watch").([]interface{})
 	if !ok {
-		log.Println("SyncLocalFilesToBackup(): nothing to sync")
+		log.Println("[ERROR] storage.local.SyncLocalFilesToBackup(): nothing to sync")
 		return
 	}
 
 	for _, path := range dirs {
 		path, ok := path.(string)
 		if !ok {
-			log.Println("SyncLocalFilesToBackup(): invalid path")
+			log.Println("[ERROR] storage.local.SyncLocalFilesToBackup(): invalid path")
 			continue
 		}
 
-		remoteSnapshotPath := fmt.Sprintf("%s%s%s/.snapshot",
+		// TODO: use filepath.Join(...)!!!
+		remoteSnapshotPath := fmt.Sprintf("%s%s%s%s.snapshot",
 			s.storagePath, string(os.PathSeparator),
-			filepath.Base(path))
+			filepath.Base(path), string(os.PathSeparator))
 
-		localTMPPath := fmt.Sprintf("%s%s%s%s%s%s%s/.snapshot",
+		// TODO: use filepath.Join(...)!!!
+		localTMPPath := fmt.Sprintf("%s%s%s%s%s%s%s%s.snapshot",
 			os.TempDir(), string(os.PathSeparator),
 			"bakku-app", string(os.PathSeparator),
 			storageName, string(os.PathSeparator),
-			filepath.Base(path))
+			filepath.Base(path), string(os.PathSeparator))
 
-		log.Printf("SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
+		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshotPath, localTMPPath)
 
 		if err := copy.Copy(remoteSnapshotPath, localTMPPath); err != nil {
-			log.Printf("[ERROR] SyncLocalFilesToBackup(): cannot copy snapshot for [%s]: %v\n", path, err)
+			log.Printf("[ERROR] storage.local.SyncLocalFilesToBackup(): cannot copy snapshot for [%s]: %v\n", path, err)
 			return
 		}
 
+		// TODO: use filepath.Join(...)!!!
 		snapshotPath := fmt.Sprintf("%s%s.snapshot", path, string(os.PathSeparator))
 
 		s.syncFiles(localTMPPath, snapshotPath)
@@ -98,14 +98,14 @@ func (s *Storage) SyncLocalFilesToBackup() {
 func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
 	dbRemote, err := leveldb.OpenFile(remoteSnapshotPath, nil)
 	if err != nil {
-		log.Printf("local.syncFiles(): can not open snapshot file [%s]: %v\n", remoteSnapshotPath, err)
+		log.Printf("[ERROR] storage.local.syncFiles(): cannot open snapshot file [%s]: leveldb.OpenFile():%v\n", remoteSnapshotPath, err)
 		return
 	}
 	defer dbRemote.Close()
 
 	dbLocal, err := leveldb.OpenFile(localSnapshotPath, nil)
 	if err != nil {
-		log.Printf("local.syncFiles(): can not open snapshot file [%s]: %v\n", localSnapshotPath, err)
+		log.Printf("[ERROR] storage.local.syncFiles(): can not open snapshot file [%s]: leveldb.OpenFile():%v\n", localSnapshotPath, err)
 		return
 	}
 	defer dbLocal.Close()
@@ -119,16 +119,16 @@ func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
 			continue
 		}
 		if err != nil && err.Error() == "leveldb: not found" {
-			log.Printf("[INFO] key [%s] not found in the remote snapshot\n", string(localFile))
+			log.Printf("storage.local.syncFiles(): key [%s] not found in the remote snapshot\n", string(localFile))
 			continue
 		}
 		if string(localInfo) != string(remoteInfo) {
-			log.Printf("[INFO] values are different for the key [%s]: local=[%s], remote=[%s]\n",
+			log.Printf("storage.local.syncFiles(): values are different for the key [%s]: local=[%s], remote=[%s]\n",
 				string(localFile), string(localInfo), string(remoteInfo))
 			continue
 		}
 		if err != nil {
-			log.Printf("[ERROR] can not get key=[%s]: %v\n", string(localFile), err)
+			log.Printf("[ERROR] storage.local.syncFiles(): can not get key=[%s]: dbRemote.Get(): %v\n", string(localFile), err)
 		}
 	}
 	iter.Release()
@@ -163,15 +163,19 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 	relativePath := fileChange.RelativePath
 	directoryPath := fileChange.DirectoryPath
 
+	snapshotPath := fmt.Sprintf("%s%s%s", directoryPath, string(os.PathSeparator), ".snapshot")
 	from := absolutePath
 	to := fmt.Sprintf("%s%s%s%s%s",
 		s.storagePath, string(os.PathSeparator),
 		filepath.Base(directoryPath), string(os.PathSeparator),
 		relativePath)
 
-	storage.BackupStarted(absolutePath, storageName)
-	s.store(from, to, StoreOptions{reportProgress: true})
-	storage.BackupFinished(absolutePath, storageName)
+	// don't backup file if it is in progress
+	if ok := storage.BackupStarted(absolutePath, storageName); ok {
+		s.store(from, to, StoreOptions{reportProgress: true})
+		storage.BackupFinished(absolutePath, storageName)
+		storage.UpdateSnapshot(snapshotPath, absolutePath)
+	}
 }
 
 // get remote file from the storage
@@ -180,10 +184,10 @@ func (s *Storage) get(fromPath, toPath string) {
 }
 
 func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
-	log.Printf(">>> Copy file from [%s] to [%s]\n", fromPath, toPath)
+	log.Printf("storage.local.store(): Copy file from [%s] to [%s]\n", fromPath, toPath)
 	from, err := os.Open(fromPath)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file  [%s]: %v\n", fromPath, err)
+		log.Printf("[ERROR] storage.local.store(): Cannot open file  [%s]: %v\n", fromPath, err)
 		return
 	}
 	defer from.Close()
@@ -191,7 +195,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	readBuffer := bufio.NewReader(from)
 	totalSize := fromStrats.Size()
 
-	// func MkdirAll(path string, perm FileMode) error
+	log.Printf("storage.local.store(): MkdirAll for [%s]\n", filepath.Dir(toPath))
 	if err := os.MkdirAll(filepath.Dir(toPath), 0744); err != nil {
 		log.Printf("[ERROR] storage.local.handleFileChanges():  MkdirAll for [%s], %v", filepath.Dir(toPath), err)
 		return
@@ -199,7 +203,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 
 	to, err := os.OpenFile(toPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.handleFileChanges(): Cannot open file [%s] to write: %v\n", toPath, err)
+		log.Printf("[ERROR] storage.local.store(): Cannot open file [%s] to write: %v\n", toPath, err)
 		return
 	}
 	defer to.Close()

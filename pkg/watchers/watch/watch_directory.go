@@ -1,11 +1,15 @@
 package watch
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/snapshot"
 )
 
 // Action stores corresponding action from Windows api, see: https://docs.microsoft.com/en-us/windows/desktop/api/winnt/ns-winnt-_file_notify_information
@@ -43,18 +47,18 @@ func ActionToString(action Action) string {
 }
 
 // FileChangeInfo ...
-type FileChangeInfo struct {
-	Action
-	// FileInfo os.FileInfo
-	FileName      string
-	FilePath      string
-	RelativePath  string
-	DirectoryPath string
-}
+// type FileChangeInfo struct {
+// 	Action
+// 	FileName      string
+// 	FilePath      string
+// 	RelativePath  string
+// 	DirectoryPath string
+// 	IsDir         bool
+// }
 
 // CallbackData struct holds information about files in the watched directory
 type CallbackData struct {
-	CallbackChan chan FileChangeInfo
+	CallbackChan chan storage.FileChangeNotification
 	Path         string
 }
 
@@ -65,8 +69,8 @@ var callbackFuncs = make(map[string]CallbackData)
 // and a FileInfo channel for the callback notofications
 // Notofication is fired each time file in the directory is changed or some new
 // file (or sub-directory) is created
-func DirectoryChangeNotification(path string, callbackChan chan FileChangeInfo) {
-
+func DirectoryChangeNotification(path string, callbackChan chan storage.FileChangeNotification) {
+	log.Printf("watch.DirectoryChangeNotification(): path=[%s]\n", path)
 	data := CallbackData{
 		CallbackChan: callbackChan,
 		Path:         path,
@@ -82,7 +86,7 @@ func register(data CallbackData, path string) {
 }
 
 func lookup(path string) CallbackData {
-	log.Printf("watch.lookup(): %s\n", path)
+	// log.Printf("watch.lookup(): %s\n", path)
 	callbackMutex.Lock()
 	defer callbackMutex.Unlock()
 	data, ok := callbackFuncs[path]
@@ -99,8 +103,13 @@ func unregister(path string) {
 }
 
 func fileChangeNotifier(path, file string, action Action) {
-	filePath := fmt.Sprintf("%s%s%s", path, string(os.PathSeparator), file) //strings.TrimSpace(path + file)
-	log.Printf("watch.fileChangeNotifier(): [%s], action: %d\n", filePath, action)
+	if strings.Contains(file, snapshot.Dir()) {
+		// log.Printf("watch.fileChangeNotifier(): ignore snapshot file [%s]\n", file)
+		return
+	}
+
+	filePath := filepath.Join(path, file)
+	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
 	var fi os.FileInfo
 	var err error
 	if action != FileRemoved && action != FileRenamedOldName {
@@ -120,10 +129,9 @@ func fileChangeNotifier(path, file string, action Action) {
 	}
 
 	if fi != nil {
-		callbackData.CallbackChan <- FileChangeInfo{
-			Action:        action,
-			FileName:      fi.Name(),
-			FilePath:      filePath,
+		callbackData.CallbackChan <- storage.FileChangeNotification{
+			Name:          fi.Name(),
+			AbsolutePath:  filePath,
 			RelativePath:  file,
 			DirectoryPath: path,
 		}

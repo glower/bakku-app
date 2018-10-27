@@ -2,10 +2,15 @@ package storage
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	// log "github.com/sirupsen/logrus"
+	"log"
+
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Progress represents a moment of progress.
@@ -28,12 +33,17 @@ func BackupStarted(file, storage string) bool {
 
 	// TODO: find good strategy for this case
 	if _, dup := filesInProgress[key]; dup {
-		log.Printf("storage.BackupStarted(): file %s is in progress for the storage provider %s\n", file, storage)
+		log.Printf("storage.BackupStarted(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
 		return false
 	}
 
 	filesInProgress[key] = time.Now()
 	return true
+}
+
+// IsInProgress ...
+func IsInProgress(file, storage string) bool {
+	return false
 }
 
 // BackupFinished ...
@@ -43,6 +53,31 @@ func BackupFinished(file, storage string) {
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)
 	delete(filesInProgress, key)
+	// updateSnapshot()
+}
+
+// UpdateSnapshot ...
+func UpdateSnapshot(snapshotPath, absolutePath string) {
+	if strings.Contains(absolutePath, ".snapshot") {
+		return
+	}
+	log.Printf("storage.UpdateSnapshot(): %s\n", snapshotPath)
+	db, err := leveldb.OpenFile(snapshotPath, nil)
+	if err != nil {
+		log.Printf("storage.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
+		return
+	}
+	defer db.Close()
+	f, err := os.Stat(absolutePath)
+	if err != nil {
+		log.Printf("storage.UpdateSnapshot(): can not stat file [%s]: %v\n", absolutePath, err)
+		return
+	}
+	key := absolutePath
+	value := fmt.Sprintf("%s:%d", f.ModTime(), f.Size())
+	db.Put([]byte(key), []byte(value), nil)
+
+	log.Println("storage.UpdateSnapshot(): done")
 }
 
 // TotalFilesInProgres returns total number of files in progress

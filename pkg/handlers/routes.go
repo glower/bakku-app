@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/gorilla/mux"
 	"github.com/r3labs/sse"
 )
@@ -12,7 +11,7 @@ import (
 // Resources ...
 type Resources struct {
 	SSEServer *sse.Server
-	FSChanges []chan watch.FileChangeInfo
+	// FSChanges []chan watch.FileChangeInfo
 }
 
 // Router register necessary routes and returns an instance of a router.
