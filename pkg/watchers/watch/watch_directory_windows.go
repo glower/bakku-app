@@ -95,6 +95,7 @@ static inline void WatchDirectory(char* dir) {
 */
 import "C"
 import (
+	"log"
 	"strings"
 	"unsafe"
 )
@@ -113,4 +114,15 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
 	fileChangeNotifier(path, file, Action(int(caction)))
+}
+
+func lookup(path string) CallbackData {
+	// log.Printf("watch.lookup(): %s\n", path)
+	callbackMutex.Lock()
+	defer callbackMutex.Unlock()
+	data, ok := callbackFuncs[path]
+	if !ok {
+		log.Printf("watch.lookup(): callback data for path=%s are not found!!!\n", path)
+	}
+	return data
 }

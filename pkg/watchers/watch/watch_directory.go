@@ -85,17 +85,6 @@ func register(data CallbackData, path string) {
 	callbackFuncs[path] = data
 }
 
-func lookup(path string) CallbackData {
-	// log.Printf("watch.lookup(): %s\n", path)
-	callbackMutex.Lock()
-	defer callbackMutex.Unlock()
-	data, ok := callbackFuncs[path]
-	if !ok {
-		log.Printf("watch.lookup(): callback data for path=%s are not found!!!\n", path)
-	}
-	return data
-}
-
 func unregister(path string) {
 	callbackMutex.Lock()
 	defer callbackMutex.Unlock()
@@ -104,7 +93,6 @@ func unregister(path string) {
 
 func fileChangeNotifier(path, file string, action Action) {
 	if strings.Contains(file, snapshot.Dir()) {
-		// log.Printf("watch.fileChangeNotifier(): ignore snapshot file [%s]\n", file)
 		return
 	}
 
@@ -133,7 +121,7 @@ func fileChangeNotifier(path, file string, action Action) {
 			Name:          fi.Name(),
 			AbsolutePath:  filePath,
 			RelativePath:  file,
-			DirectoryPath: path,
+			DirectoryPath: callbackData.Path,
 		}
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
