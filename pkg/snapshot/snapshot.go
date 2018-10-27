@@ -1,13 +1,13 @@
 package snapshot
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/types"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -22,6 +22,11 @@ func Dir() string {
 // AppName ...
 func AppName() string {
 	return appName
+}
+
+// Path returns path for a snapshot for a given directory
+func Path(path string) string {
+	return filepath.Join(path, snapshotDirName)
 }
 
 // Exist ...
@@ -46,17 +51,36 @@ func Update(dir, snapshotPath string) {
 			return nil
 		}
 		if !f.IsDir() {
-			key := path
-			value := fmt.Sprintf("%s:%d", f.ModTime(), f.Size())
-			db.Put([]byte(key), []byte(value), nil)
+			UpdateSnapshotEntry(dir, path, f, db)
 		}
 		return nil
 	})
 	log.Println("UpdateSnapshot(): done")
 }
 
+// UpdateSnapshotEntry ...
+func UpdateSnapshotEntry(directoryPath, filePath string, f os.FileInfo, db *leveldb.DB) {
+	key := filePath
+	fileName := filepath.Base(filePath)
+	relativePath := strings.Replace(filePath, directoryPath+string(os.PathSeparator), "", -1)
+	snapshot := types.FileChangeNotification{
+		AbsolutePath:  filePath,
+		RelativePath:  relativePath,
+		DirectoryPath: directoryPath,
+		Name:          fileName,
+		Size:          f.Size(),
+		Timestamp:     f.ModTime(),
+	}
+	value, err := json.Marshal(snapshot)
+	if err != nil {
+		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
+		return
+	}
+	db.Put([]byte(key), value, nil)
+}
+
 // CreateFirstBackup ...
-func CreateFirstBackup(dir, snapshotPath string, changes chan storage.FileChangeNotification) {
+func CreateFirstBackup(dir, snapshotPath string, changes chan types.FileChangeNotification) {
 	log.Printf("watchers.CreateFirstBackup(): for=[%s]\n", dir)
 	db, err := leveldb.OpenFile(snapshotPath, nil)
 	if err != nil {
@@ -74,8 +98,7 @@ func CreateFirstBackup(dir, snapshotPath string, changes chan storage.FileChange
 		}
 		fileName := filepath.Base(filePath)
 		relativePath := strings.Replace(filePath, dir+string(os.PathSeparator), "", -1)
-		// fmt.Printf("!!!!!!!!!!!! CreateFirstBackup(): relativePath=[%s]\n", relativePath)
-		changes <- storage.FileChangeNotification{
+		changes <- types.FileChangeNotification{
 			AbsolutePath:  filePath,
 			RelativePath:  relativePath,
 			DirectoryPath: dir,
@@ -83,5 +106,4 @@ func CreateFirstBackup(dir, snapshotPath string, changes chan storage.FileChange
 		}
 	}
 	iter.Release()
-	// go watch.DirectoryChangeNotification(dir, changes)
 }

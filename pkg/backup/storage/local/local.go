@@ -1,25 +1,22 @@
 package local
 
 import (
-	"bufio"
 	"context"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/types"
 	"github.com/otiai10/copy"
 	"github.com/spf13/viper"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Storage local
 type Storage struct {
 	name                          string // storage name
-	fileChangeNotificationChannel chan *storage.FileChangeNotification
+	fileChangeNotificationChannel chan *types.FileChangeNotification
 	fileStorageProgressCannel     chan *storage.Progress
 	ctx                           context.Context
 	storagePath                   string
@@ -42,7 +39,7 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	if isStorageConfigured() {
 		log.Println("storage.local.Setup()")
 		s.name = storageName
-		s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
+		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
 		storagePath := filepath.Clean(viper.Get("backup.local.path").(string))
 		s.storagePath = storagePath
@@ -84,48 +81,8 @@ func (s *Storage) SyncLocalFilesToBackup() {
 	}
 }
 
-func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-	dbRemote, err := leveldb.OpenFile(remoteSnapshotPath, nil)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.syncFiles(): cannot open snapshot file [%s]: leveldb.OpenFile():%v\n", remoteSnapshotPath, err)
-		return
-	}
-	defer dbRemote.Close()
-
-	dbLocal, err := leveldb.OpenFile(localSnapshotPath, nil)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.syncFiles(): can not open snapshot file [%s]: leveldb.OpenFile():%v\n", localSnapshotPath, err)
-		return
-	}
-	defer dbLocal.Close()
-
-	iter := dbLocal.NewIterator(nil, nil)
-	for iter.Next() {
-		localFile := iter.Key()
-		localInfo := iter.Value()
-		remoteInfo, err := dbRemote.Get(localFile, nil)
-		if strings.Contains(string(localFile), ".snapshot") {
-			continue
-		}
-		if err != nil && err.Error() == "leveldb: not found" {
-			log.Printf("storage.local.syncFiles(): key [%s] not found in the remote snapshot\n", string(localFile))
-			continue
-		}
-		if string(localInfo) != string(remoteInfo) {
-			log.Printf("storage.local.syncFiles(): values are different for the key [%s]: local=[%s], remote=[%s]\n",
-				string(localFile), string(localInfo), string(remoteInfo))
-			continue
-		}
-		if err != nil {
-			log.Printf("[ERROR] storage.local.syncFiles(): can not get key=[%s]: dbRemote.Get(): %v\n", string(localFile), err)
-		}
-	}
-	iter.Release()
-	err = iter.Error()
-}
-
 // FileChangeNotification returns channel for notifications
-func (s *Storage) FileChangeNotification() chan *storage.FileChangeNotification {
+func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
 	return s.fileChangeNotificationChannel
 }
 
@@ -146,92 +103,23 @@ func (s *Storage) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) {
+func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	// log.Printf("storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
 	absolutePath := fileChange.AbsolutePath
 	relativePath := fileChange.RelativePath
 	directoryPath := fileChange.DirectoryPath
 
-	snapshotPath := filepath.Join(directoryPath, snapshot.Dir())
+	snapshotPath := snapshot.Path(directoryPath)
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
+	remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(directoryPath), snapshot.Dir())
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {
 		s.store(from, to, StoreOptions{reportProgress: true})
 		storage.BackupFinished(absolutePath, storageName)
-		storage.UpdateSnapshot(snapshotPath, absolutePath)
-	}
-}
-
-// get remote file from the storage
-func (s *Storage) get(fromPath, toPath string) {
-	s.store(fromPath, toPath, StoreOptions{reportProgress: false})
-}
-
-func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
-	log.Printf("storage.local.store(): Copy file from [%s] to [%s]\n", fromPath, toPath)
-	from, err := os.Open(fromPath)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.store(): Cannot open file  [%s]: %v\n", fromPath, err)
-		return
-	}
-	defer from.Close()
-	fromStrats, _ := from.Stat()
-	readBuffer := bufio.NewReader(from)
-	totalSize := fromStrats.Size()
-
-	log.Printf("storage.local.store(): MkdirAll for [%s]\n", filepath.Dir(toPath))
-	if err := os.MkdirAll(filepath.Dir(toPath), 0744); err != nil {
-		log.Printf("[ERROR] storage.local.handleFileChanges():  MkdirAll for [%s], %v", filepath.Dir(toPath), err)
-		return
-	}
-
-	to, err := os.OpenFile(toPath, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.store(): Cannot open file [%s] to write: %v\n", toPath, err)
-		return
-	}
-	defer to.Close()
-	writeBuffer := bufio.NewWriter(to)
-
-	totalWritten := 0
-	buf := make([]byte, bufferSize)
-	for {
-		// read a chunk
-		n, err := readBuffer.Read(buf)
-		if err != nil && err != io.EOF {
-			panic(err)
-		}
-		if n == 0 {
-			break
-		}
-
-		// write a chunk
-		var written = 0
-		if written, err = writeBuffer.Write(buf[:n]); err != nil {
-			panic(err)
-		}
-		totalWritten = totalWritten + written
-
-		if opt.reportProgress {
-			var percent float64
-			if int64(written) == totalSize {
-				percent = float64(100)
-			} else {
-				percent = float64(100 * int64(totalWritten) / totalSize)
-			}
-			progress := &storage.Progress{
-				StorageName: storageName,
-				FileName:    from.Name(),
-				Percent:     percent,
-			}
-			s.fileStorageProgressCannel <- progress
-		}
-	}
-
-	if err = writeBuffer.Flush(); err != nil {
-		panic(err)
+		storage.UpdateSnapshot(snapshotPath, directoryPath, absolutePath)
+		s.SyncSnapshot(snapshotPath, remoteSnapshot)
 	}
 }
 

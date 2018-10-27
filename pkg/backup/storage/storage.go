@@ -8,6 +8,7 @@ import (
 
 	"log"
 
+	"github.com/glower/bakku-app/pkg/types"
 	"github.com/r3labs/sse"
 )
 
@@ -15,23 +16,15 @@ import (
 type Storage interface {
 	Setup(chan *Progress) bool
 	Start(ctx context.Context) error
-	FileChangeNotification() chan *FileChangeNotification
+	FileChangeNotification() chan *types.FileChangeNotification
 	SyncLocalFilesToBackup()
-}
-
-// FileChangeNotification ...
-type FileChangeNotification struct {
-	Name          string
-	AbsolutePath  string
-	RelativePath  string
-	DirectoryPath string
-	IsDir         bool
+	SyncSnapshot(string, string)
 }
 
 // Manager ...
 type Manager struct {
 	ctx                           context.Context
-	FileChangeNotificationChannel chan *FileChangeNotification
+	FileChangeNotificationChannel chan *types.FileChangeNotification
 	ProgressChannel               chan *Progress
 	SSEServer                     *sse.Server
 }
@@ -74,9 +67,9 @@ func UnregisterStorage(name string) {
 }
 
 // SetupManager runs all implemented storages
-func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []chan FileChangeNotification) *Manager {
+func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []chan types.FileChangeNotification) *Manager {
 	m := &Manager{
-		FileChangeNotificationChannel: make(chan *FileChangeNotification),
+		FileChangeNotificationChannel: make(chan *types.FileChangeNotification),
 		ProgressChannel:               make(chan *Progress),
 		SSEServer:                     sseServer,
 		ctx:                           ctx,
@@ -114,7 +107,7 @@ func (m *Manager) SetupStorage(name string, storage Storage) {
 }
 
 // ProcessFileChangeNotifications sends file change notofocations to all registerd storages
-func (m *Manager) ProcessFileChangeNotifications(ctx context.Context, notifications []chan FileChangeNotification) {
+func (m *Manager) ProcessFileChangeNotifications(ctx context.Context, notifications []chan types.FileChangeNotification) {
 	for _, watcher := range notifications {
 		for {
 			select {

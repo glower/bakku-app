@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/types"
 )
 
 // Action stores corresponding action from Windows api, see: https://docs.microsoft.com/en-us/windows/desktop/api/winnt/ns-winnt-_file_notify_information
@@ -58,7 +58,7 @@ func ActionToString(action Action) string {
 
 // CallbackData struct holds information about files in the watched directory
 type CallbackData struct {
-	CallbackChan chan storage.FileChangeNotification
+	CallbackChan chan types.FileChangeNotification
 	Path         string
 }
 
@@ -69,7 +69,7 @@ var callbackFuncs = make(map[string]CallbackData)
 // and a FileInfo channel for the callback notofications
 // Notofication is fired each time file in the directory is changed or some new
 // file (or sub-directory) is created
-func DirectoryChangeNotification(path string, callbackChan chan storage.FileChangeNotification) {
+func DirectoryChangeNotification(path string, callbackChan chan types.FileChangeNotification) {
 	log.Printf("watch.DirectoryChangeNotification(): path=[%s]\n", path)
 	data := CallbackData{
 		CallbackChan: callbackChan,
@@ -129,7 +129,7 @@ func fileChangeNotifier(path, file string, action Action) {
 	}
 
 	if fi != nil {
-		callbackData.CallbackChan <- storage.FileChangeNotification{
+		callbackData.CallbackChan <- types.FileChangeNotification{
 			Name:          fi.Name(),
 			AbsolutePath:  filePath,
 			RelativePath:  file,

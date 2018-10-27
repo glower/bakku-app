@@ -4,15 +4,15 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/types"
 	"github.com/glower/bakku-app/pkg/watchers/watch"
 	"github.com/spf13/viper"
 )
 
 // SetupWatchers ...
-func SetupWatchers() []chan storage.FileChangeNotification {
-	list := []chan storage.FileChangeNotification{}
+func SetupWatchers() []chan types.FileChangeNotification {
+	list := []chan types.FileChangeNotification{}
 
 	// TODO: move this to some utils
 	dirs, ok := viper.Get("watch").([]interface{})
@@ -34,9 +34,9 @@ func SetupWatchers() []chan storage.FileChangeNotification {
 }
 
 // WatchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
-func WatchDirectoryForChanges(path string) chan storage.FileChangeNotification {
+func WatchDirectoryForChanges(path string) chan types.FileChangeNotification {
 	snapshotPath := filepath.Join(path, snapshot.Dir())
-	changes := make(chan storage.FileChangeNotification)
+	changes := make(chan types.FileChangeNotification)
 	if !snapshot.Exist(snapshotPath) {
 		log.Printf("WatchDirectoryForChanges: snapshot for [%s] is does not exist\n", path)
 		snapshot.Update(path, snapshotPath) // blocking here is ok

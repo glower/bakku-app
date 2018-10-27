@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/types"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -12,7 +13,7 @@ import (
 // Storage fake
 type Storage struct {
 	name                          string // storage name
-	fileChangeNotificationChannel chan *storage.FileChangeNotification
+	fileChangeNotificationChannel chan *types.FileChangeNotification
 	fileStorageProgressCannel     chan *storage.Progress
 	ctx                           context.Context
 }
@@ -27,7 +28,7 @@ func init() {
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	if isStorageConfigured() {
 		s.name = storageName
-		s.fileChangeNotificationChannel = make(chan *storage.FileChangeNotification)
+		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
 		return true
 	}
@@ -35,12 +36,13 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 }
 
 // SyncLocalFilesToBackup ...
-func (s *Storage) SyncLocalFilesToBackup() {
-	// TODO
-}
+func (s *Storage) SyncLocalFilesToBackup() {}
+
+// SyncSnapshot ...
+func (s *Storage) SyncSnapshot(from, to string) {}
 
 // FileChangeNotification returns channel for notifications
-func (s *Storage) FileChangeNotification() chan *storage.FileChangeNotification {
+func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
 	return s.fileChangeNotificationChannel
 }
 
@@ -61,7 +63,7 @@ func (s *Storage) Start(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) {
+func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.Name)
 	file := fileChange.Name
 	storage.BackupStarted(file, storageName)

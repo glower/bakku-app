@@ -10,6 +10,7 @@ import (
 	// log "github.com/sirupsen/logrus"
 	"log"
 
+	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -53,12 +54,11 @@ func BackupFinished(file, storage string) {
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)
 	delete(filesInProgress, key)
-	// updateSnapshot()
 }
 
 // UpdateSnapshot ...
-func UpdateSnapshot(snapshotPath, absolutePath string) {
-	if strings.Contains(absolutePath, ".snapshot") {
+func UpdateSnapshot(snapshotPath, directoryPath, absolutePath string) {
+	if strings.Contains(absolutePath, snapshot.Dir()) {
 		return
 	}
 	log.Printf("storage.UpdateSnapshot(): %s\n", snapshotPath)
@@ -73,9 +73,7 @@ func UpdateSnapshot(snapshotPath, absolutePath string) {
 		log.Printf("storage.UpdateSnapshot(): can not stat file [%s]: %v\n", absolutePath, err)
 		return
 	}
-	key := absolutePath
-	value := fmt.Sprintf("%s:%d", f.ModTime(), f.Size())
-	db.Put([]byte(key), []byte(value), nil)
+	snapshot.UpdateSnapshotEntry(directoryPath, absolutePath, f, db)
 
 	log.Println("storage.UpdateSnapshot(): done")
 }
