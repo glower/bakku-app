@@ -68,19 +68,8 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			continue
 		}
 
-		// TODO: use filepath.Join(...)!!!
 		remoteSnapshotPath := filepath.Join(s.storagePath, filepath.Base(path), snapshot.Dir())
-		//fmt.Sprintf("%s%s%s%s.snapshot",
-		// s.storagePath, string(os.PathSeparator),
-		// filepath.Base(path), string(os.PathSeparator))
-
-		// TODO: use filepath.Join(...)!!!
 		localTMPPath := filepath.Join(os.TempDir(), snapshot.AppName(), storageName, filepath.Base(path))
-		//  fmt.Sprintf("%s%s%s%s%s%s%s%s.snapshot",
-		// 	os.TempDir(), string(os.PathSeparator),
-		// 	"bakku-app", string(os.PathSeparator),
-		// 	storageName, string(os.PathSeparator),
-		// 	filepath.Base(path), string(os.PathSeparator))
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshotPath, localTMPPath)
@@ -90,9 +79,7 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			return
 		}
 
-		// TODO: use filepath.Join(...)!!!
-		snapshotPath := filepath.Join(path, snapshot.Dir()) //fmt.Sprintf("%s%s.snapshot", path, string(os.PathSeparator))
-
+		snapshotPath := filepath.Join(path, snapshot.Dir())
 		s.syncFiles(localTMPPath, snapshotPath)
 	}
 }
@@ -166,13 +153,8 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 	directoryPath := fileChange.DirectoryPath
 
 	snapshotPath := filepath.Join(directoryPath, snapshot.Dir())
-	//fmt.Sprintf("%s%s%s", directoryPath, string(os.PathSeparator), ".snapshot")
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
-	// fmt.Sprintf("%s%s%s%s%s",
-	// 	s.storagePath, string(os.PathSeparator),
-	// 	filepath.Base(directoryPath), string(os.PathSeparator),
-	// 	relativePath)
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {
