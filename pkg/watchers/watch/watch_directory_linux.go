@@ -58,7 +58,6 @@ static inline void *WatchDirectory(char* dir) {
     	}
   	}
 }
-
 */
 import "C"
 import (
@@ -69,8 +68,6 @@ import (
 
 	"github.com/glower/bakku-app/pkg/snapshot"
 )
-
-// TODO: inotify is not recursive!!!
 
 // #define IN_ACCESS		0x00000001	/* File was accessed */
 // #define IN_MODIFY		0x00000002	/* File was modified */

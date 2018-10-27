@@ -3,7 +3,6 @@ package local
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/otiai10/copy"
 	"github.com/spf13/viper"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -69,16 +69,18 @@ func (s *Storage) SyncLocalFilesToBackup() {
 		}
 
 		// TODO: use filepath.Join(...)!!!
-		remoteSnapshotPath := fmt.Sprintf("%s%s%s%s.snapshot",
-			s.storagePath, string(os.PathSeparator),
-			filepath.Base(path), string(os.PathSeparator))
+		remoteSnapshotPath := filepath.Join(s.storagePath, filepath.Base(path), snapshot.Dir())
+		//fmt.Sprintf("%s%s%s%s.snapshot",
+		// s.storagePath, string(os.PathSeparator),
+		// filepath.Base(path), string(os.PathSeparator))
 
 		// TODO: use filepath.Join(...)!!!
-		localTMPPath := fmt.Sprintf("%s%s%s%s%s%s%s%s.snapshot",
-			os.TempDir(), string(os.PathSeparator),
-			"bakku-app", string(os.PathSeparator),
-			storageName, string(os.PathSeparator),
-			filepath.Base(path), string(os.PathSeparator))
+		localTMPPath := filepath.Join(os.TempDir(), snapshot.AppName(), storageName, filepath.Base(path))
+		//  fmt.Sprintf("%s%s%s%s%s%s%s%s.snapshot",
+		// 	os.TempDir(), string(os.PathSeparator),
+		// 	"bakku-app", string(os.PathSeparator),
+		// 	storageName, string(os.PathSeparator),
+		// 	filepath.Base(path), string(os.PathSeparator))
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshotPath, localTMPPath)
@@ -89,7 +91,7 @@ func (s *Storage) SyncLocalFilesToBackup() {
 		}
 
 		// TODO: use filepath.Join(...)!!!
-		snapshotPath := fmt.Sprintf("%s%s.snapshot", path, string(os.PathSeparator))
+		snapshotPath := filepath.Join(path, snapshot.Dir()) //fmt.Sprintf("%s%s.snapshot", path, string(os.PathSeparator))
 
 		s.syncFiles(localTMPPath, snapshotPath)
 	}
@@ -163,12 +165,14 @@ func (s *Storage) handleFileChanges(fileChange *storage.FileChangeNotification) 
 	relativePath := fileChange.RelativePath
 	directoryPath := fileChange.DirectoryPath
 
-	snapshotPath := fmt.Sprintf("%s%s%s", directoryPath, string(os.PathSeparator), ".snapshot")
+	snapshotPath := filepath.Join(directoryPath, snapshot.Dir())
+	//fmt.Sprintf("%s%s%s", directoryPath, string(os.PathSeparator), ".snapshot")
 	from := absolutePath
-	to := fmt.Sprintf("%s%s%s%s%s",
-		s.storagePath, string(os.PathSeparator),
-		filepath.Base(directoryPath), string(os.PathSeparator),
-		relativePath)
+	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
+	// fmt.Sprintf("%s%s%s%s%s",
+	// 	s.storagePath, string(os.PathSeparator),
+	// 	filepath.Base(directoryPath), string(os.PathSeparator),
+	// 	relativePath)
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {

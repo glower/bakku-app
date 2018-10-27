@@ -12,10 +12,16 @@ import (
 )
 
 const snapshotDirName = ".snapshot"
+const appName = "bakku-app"
 
 // Dir ...
 func Dir() string {
 	return filepath.Join(snapshotDirName)
+}
+
+// AppName ...
+func AppName() string {
+	return appName
 }
 
 // Exist ...
