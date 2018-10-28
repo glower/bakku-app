@@ -62,6 +62,7 @@ func UpdateSnapshot(snapshotPath, directoryPath, absolutePath string) {
 		return
 	}
 	log.Printf("storage.UpdateSnapshot(): %s\n", snapshotPath)
+	// TODO: move this part to snapshot, so we don't use leveldb here
 	db, err := leveldb.OpenFile(snapshotPath, nil)
 	if err != nil {
 		log.Printf("storage.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)

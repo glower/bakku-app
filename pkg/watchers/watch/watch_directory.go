@@ -12,34 +12,16 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// Action stores corresponding action from Windows api, see: https://docs.microsoft.com/en-us/windows/desktop/api/winnt/ns-winnt-_file_notify_information
-type Action int
-
-const (
-	// Invalid action is 0
-	Invalid Action = iota
-	// FileAdded - the file was added to the directory.
-	FileAdded
-	// FileRemoved - the file was removed from the directory.
-	FileRemoved
-	// FileModified - the file was modified. This can be a change in the time stamp or attributes.
-	FileModified
-	// FileRenamedOldName - the file was renamed and this is the old name.
-	FileRenamedOldName
-	// FileRenamedNewName - the file was renamed and this is the new name.
-	FileRenamedNewName
-)
-
 // ActionToString maps Action value to string
-func ActionToString(action Action) string {
+func ActionToString(action types.Action) string {
 	switch action {
-	case FileAdded:
+	case types.FileAdded:
 		return "added"
-	case FileRemoved:
+	case types.FileRemoved:
 		return "removed"
-	case FileModified:
+	case types.FileModified:
 		return "modified"
-	case FileRenamedOldName | FileRenamedNewName:
+	case types.FileRenamedOldName | types.FileRenamedNewName:
 		return "renamed"
 	default:
 		return "invalid"
@@ -91,7 +73,7 @@ func unregister(path string) {
 	delete(callbackFuncs, path)
 }
 
-func fileChangeNotifier(path, file string, action Action) {
+func fileChangeNotifier(path, file string, action types.Action) {
 	if strings.Contains(file, snapshot.Dir()) {
 		return
 	}
@@ -100,7 +82,7 @@ func fileChangeNotifier(path, file string, action Action) {
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
 	var fi os.FileInfo
 	var err error
-	if action != FileRemoved && action != FileRenamedOldName {
+	if action != types.FileRemoved && action != types.FileRenamedOldName {
 		fi, err = os.Stat(filePath)
 		if err != nil {
 			log.Printf("[ERROR] Can not stat file [%s]: %v\n", filePath, err)
@@ -118,10 +100,12 @@ func fileChangeNotifier(path, file string, action Action) {
 
 	if fi != nil {
 		callbackData.CallbackChan <- types.FileChangeNotification{
+			Action:        action,
 			Name:          fi.Name(),
 			AbsolutePath:  filePath,
 			RelativePath:  file,
 			DirectoryPath: callbackData.Path,
+			Size:          fi.Size(),
 		}
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)

@@ -68,6 +68,7 @@ import (
 	"unsafe"
 
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/types"
 )
 
 // #define IN_ACCESS		0x00000001	/* File was accessed */
@@ -81,20 +82,20 @@ import (
 // #define IN_CREATE		0x00000100	/* Subfile was created */
 // #define IN_DELETE		0x00000200	/* Subfile was deleted */
 // #define IN_DELETE_SELF	0x00000400	/* Self was deleted */
-func convertMaskToAction(mask int) Action {
+func convertMaskToAction(mask int) types.Action {
 	switch mask {
 	case 2 | 8: // File was modified
-		return Action(FileModified)
+		return types.Action(types.FileModified)
 	case 256: // Subfile was created
-		return Action(FileAdded)
+		return types.Action(types.FileAdded)
 	case 512: // Subfile was deleted
-		return Action(FileRemoved)
+		return types.Action(types.FileRemoved)
 	case 64: // File was moved from X
-		return Action(FileRenamedOldName)
+		return types.Action(types.FileRenamedOldName)
 	case 128: // File was moved to Y
-		return Action(FileRenamedNewName)
+		return types.Action(types.FileRenamedNewName)
 	default:
-		return Action(Invalid)
+		return types.Action(types.Invalid)
 	}
 }
 

@@ -59,8 +59,9 @@ func Update(dir, snapshotPath string) {
 	log.Println("UpdateSnapshot(): done")
 }
 
-// UpdateSnapshotEntry ...
+// UpdateSnapshotEntry updates the entry in the snapshot
 func UpdateSnapshotEntry(directoryPath, filePath string, f os.FileInfo, db *leveldb.DB) {
+	host, _ := os.Hostname()
 	key := filePath
 	fileName := filepath.Base(filePath)
 	relativePath := strings.Replace(filePath, directoryPath+string(os.PathSeparator), "", -1)
@@ -71,6 +72,7 @@ func UpdateSnapshotEntry(directoryPath, filePath string, f os.FileInfo, db *leve
 		Name:          fileName,
 		Size:          f.Size(),
 		Timestamp:     f.ModTime(),
+		Machine:       host, // TODO: we can make it as part of configuration
 	}
 	value, err := json.Marshal(snapshot)
 	if err != nil {
