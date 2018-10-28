@@ -29,7 +29,7 @@ static inline void *WatchDirectory(char* dir) {
 		exit(-1);
    	}
 
-   	wd = inotify_add_watch(inotifyFd, dir, IN_CLOSE_WRITE);
+   	wd = inotify_add_watch(inotifyFd, dir, IN_CLOSE_WRITE | IN_DELETE);
    	if (wd == -1) {
 		printf("[CGO] [ERROR] WatchDirectory(): inotify_add_watch()");
 		exit(-1);
@@ -51,9 +51,7 @@ static inline void *WatchDirectory(char* dir) {
     	for (p = buf; p < buf + numRead; ) {
 			event = (struct inotify_event *) p;
 			printf("[INFO] CGO: file was changed: mask=%x, len=%d\n", event->mask, event->len);
-			if (event->mask == IN_CLOSE_WRITE) {
-				goCallbackFileChange(dir, event->name, event->mask);
-			}
+			goCallbackFileChange(dir, event->name, event->mask);
 			p += sizeof(struct inotify_event) + event->len;
     	}
   	}

@@ -82,6 +82,24 @@ func UpdateSnapshotEntry(directoryPath, filePath string, f os.FileInfo, db *leve
 	db.Put([]byte(key), value, nil)
 }
 
+// RemoveSnapshotEntry removed entry fron the snapshot file
+// TODO: maybe we don't delete file here, but only mark the file as deleted
+///      and let the user decide what to do
+func RemoveSnapshotEntry(directoryPath, filePath string) {
+	snapshotPath := Path(directoryPath)
+	log.Printf("RemoveSnapshotEntry(): remove [%s] from [%s]\n", filePath, snapshotPath)
+	db, err := leveldb.OpenFile(snapshotPath, nil)
+	if err != nil {
+		log.Printf("watchers.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
+		return
+	}
+	defer db.Close()
+	err = db.Delete([]byte(filePath), nil)
+	if err != nil {
+		log.Printf("[ERROR] snapshot.RemoveSnapshotEntry(): cannot delete entry [%s] from [%s]: %v\n", snapshotPath, filePath, err)
+	}
+}
+
 // CreateFirstBackup ...
 func CreateFirstBackup(dir, snapshotPath string, changes chan types.FileChangeNotification) {
 	log.Printf("watchers.CreateFirstBackup(): for=[%s]\n", dir)

@@ -73,6 +73,7 @@ func unregister(path string) {
 	delete(callbackFuncs, path)
 }
 
+// TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
 	if strings.Contains(file, snapshot.Dir()) {
 		return
@@ -82,14 +83,17 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
 	var fi os.FileInfo
 	var err error
+	callbackData := lookup(path)
 	if action != types.FileRemoved && action != types.FileRenamedOldName {
 		fi, err = os.Stat(filePath)
 		if err != nil {
 			log.Printf("[ERROR] Can not stat file [%s]: %v\n", filePath, err)
 			return
 		}
+	} else {
+		log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
+		snapshot.RemoveSnapshotEntry(callbackData.Path, file)
 	}
-	callbackData := lookup(path)
 
 	// This is a hack to see if the file is written to the disk on windows
 	_, err = os.Open(filePath)
