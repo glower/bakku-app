@@ -96,7 +96,7 @@ func (s *Storage) store(file string) {
 }
 
 func isStorageConfigured() bool {
-	isActive, ok := viper.Get("backup.fake.activeX").(bool)
+	isActive, ok := viper.Get("backup.fake.active").(bool)
 	if !ok {
 		return false
 	}

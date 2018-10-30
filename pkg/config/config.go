@@ -20,3 +20,21 @@ func ReadDefaultConfig() {
 		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
 }
+
+// DirectoriesToWatch returns a list of directories to watch for the file changes
+func DirectoriesToWatch() []string {
+	var result []string
+	dirs, ok := viper.Get("watch").([]interface{})
+	if !ok {
+		log.Println("config.DirectoriesToWatch(): nothing to watch")
+		return result
+	}
+	for _, dir := range dirs {
+		path, ok := dir.(string)
+		if !ok {
+			log.Println("SetupWatchers(): invalid path")
+		}
+		result = append(result, path)
+	}
+	return result
+}

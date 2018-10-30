@@ -4,30 +4,20 @@ import (
 	"log"
 	"path/filepath"
 
+	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/glower/bakku-app/pkg/watchers/watch"
-	"github.com/spf13/viper"
 )
 
-// SetupWatchers ...
+// SetupWatchers adds a watcher for a file changes in all directories from the config
 func SetupWatchers() []chan types.FileChangeNotification {
 	list := []chan types.FileChangeNotification{}
 
-	// TODO: move this to some utils
-	dirs, ok := viper.Get("watch").([]interface{})
-	if !ok {
-		log.Println("SetupWatchers(): nothing to watch")
-		return list
-	}
+	dirs := config.DirectoriesToWatch()
 
 	for _, dir := range dirs {
-		path, ok := dir.(string)
-		if !ok {
-			log.Println("SetupWatchers(): invalid path")
-			continue
-		}
-		watcher := WatchDirectoryForChanges(filepath.Clean(path))
+		watcher := WatchDirectoryForChanges(filepath.Clean(dir))
 		list = append(list, watcher)
 	}
 	return list
