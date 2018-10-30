@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,10 +9,10 @@ import (
 	"syscall"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 	"github.com/glower/bakku-app/pkg/watchers"
 	"github.com/r3labs/sse"
-	"github.com/spf13/viper"
 
 	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
@@ -22,12 +21,7 @@ import (
 
 func init() {
 	log.Println("init ...")
-	viper.SetConfigName("config") // name of config file (without extension)
-	viper.AddConfigPath(".")
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		panic(fmt.Errorf("fatal error config file: %s", err))
-	}
+	config.ReadDefaultConfig()
 }
 
 // TODO: try this out: https://github.com/antage/eventsource
