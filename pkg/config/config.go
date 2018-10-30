@@ -7,6 +7,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config is an interface for a configuration provider
+type Config interface {
+	ReadDefaultConfig()
+	DirectoriesToWatch() []string
+}
+
 const defaultConfigName = "config"
 const defaultCofigPath = "."
 

@@ -12,7 +12,7 @@ import (
 	"github.com/r3labs/sse"
 )
 
-// Storage ...
+// Storage represents an interface for a backup storage provider
 type Storage interface {
 	Setup(chan *Progress) bool
 	Start(ctx context.Context) error
