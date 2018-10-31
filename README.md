@@ -21,3 +21,5 @@ TODO (more like idea list):
 - [x] add abstraction for viper configs (config and config/storage)
 - [ ] add tests after first stable version
 - [ ] add logic what to do with deleted files
+- [ ] add logrus or something else for logging
+- [ ] add a concept for error handling (notifications?)
