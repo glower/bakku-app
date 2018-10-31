@@ -2,12 +2,12 @@ package fake
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
 
 // Storage fake
@@ -26,7 +26,8 @@ func init() {
 
 // Setup fake storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
-	if isStorageConfigured() {
+	config := conf.ProviderConf(storageName)
+	if config.Active {
 		s.name = storageName
 		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
@@ -93,12 +94,4 @@ func (s *Storage) store(file string) {
 			}
 		}
 	}()
-}
-
-func isStorageConfigured() bool {
-	isActive, ok := viper.Get("backup.fake.active").(bool)
-	if !ok {
-		return false
-	}
-	return isActive
 }

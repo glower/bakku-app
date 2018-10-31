@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/otiai10/copy"
@@ -36,12 +37,13 @@ type StoreOptions struct {
 
 // Setup local storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
-	if isStorageConfigured() {
+	config := conf.ProviderConf(storageName)
+	if config.Active {
 		log.Println("storage.local.Setup()")
 		s.name = storageName
 		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
-		storagePath := filepath.Clean(viper.Get("backup.local.path").(string))
+		storagePath := filepath.Clean(config.Path)
 		s.storagePath = storagePath
 		return true
 	}
@@ -121,17 +123,4 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 		storage.UpdateSnapshot(snapshotPath, directoryPath, absolutePath)
 		s.SyncSnapshot(snapshotPath, remoteSnapshot)
 	}
-}
-
-func isStorageConfigured() bool {
-	isActive, ok := viper.Get("backup.local.active").(bool)
-	if !ok {
-		log.Printf("isStorageConfigured(): is not active: %v\n", isActive)
-		return false
-	}
-	_, ok = viper.Get("backup.local.path").(string)
-	if !ok {
-		return false
-	}
-	return isActive
 }
