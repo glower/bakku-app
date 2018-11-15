@@ -27,7 +27,6 @@ func SetupWatchers() []chan types.FileChangeNotification {
 func WatchDirectoryForChanges(path string) chan types.FileChangeNotification {
 	log.Printf("WatchDirectoryForChanges(): %s\n", path)
 	changes := make(chan types.FileChangeNotification)
-	log.Println("!!!!!!!!!")
 	snapshot.CreateOrUpdate(path) // blocking here is ok
 	if !snapshot.Exist(path) {
 		log.Printf("WatchDirectoryForChanges: snapshot for [%s] does not exist\n", path)

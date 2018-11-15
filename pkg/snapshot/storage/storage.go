@@ -3,6 +3,8 @@ package storage
 import (
 	"log"
 	"sync"
+
+	"github.com/glower/bakku-app/pkg/config/snapshot"
 )
 
 // Snapshot ...
@@ -44,13 +46,13 @@ func Register(name string, s Snapshot) {
 	snapshotStorages[name] = s
 }
 
-const defaultSnapshotStorage = "leveldb"
-
 // GetDefault a snapshot storage implementation
 func GetDefault() Snapshot {
+	defaultSnapshotStorage := snapshot.DefaultStorage()
 	snapshotStorage, ok := snapshotStorages[defaultSnapshotStorage]
 	if ok {
 		return snapshotStorage
 	}
-	panic("defaultSnapshotStorage is not implemented")
+	log.Panicf("default snapshot storage [%s] is not implemented", defaultSnapshotStorage)
+	return nil
 }

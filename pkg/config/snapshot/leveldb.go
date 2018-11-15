@@ -16,6 +16,7 @@ type Config struct {
 const defaultSnapshotDir = ".snapshot"
 
 // snapshot:
+//   default: leveldb
 //   leveldb:
 //     sameDir: true
 //     snapshotDir: .snapshot

@@ -6,3 +6,9 @@ storage:
     active: true
   fake:
     active: false
+snapshot:
+  default: leveldb
+  leveldb:
+    sameDir: true
+    snapshotDir: .snapshot
+    active: true
