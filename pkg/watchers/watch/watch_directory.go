@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
@@ -75,9 +74,10 @@ func unregister(path string) {
 
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
-	if strings.Contains(file, snapshot.Dir()) {
-		return
-	}
+	// TODO: can we do this on some other place?
+	// if strings.Contains(file, snapshot.Dir()) {
+	// 	return
+	// }
 
 	filePath := filepath.Join(path, file)
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))

@@ -2,16 +2,9 @@ package storage
 
 import (
 	"fmt"
-	"os"
-	"strings"
+	"log"
 	"sync"
 	"time"
-
-	// log "github.com/sirupsen/logrus"
-	"log"
-
-	"github.com/glower/bakku-app/pkg/snapshot"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // Progress represents a moment of progress.
@@ -54,29 +47,6 @@ func BackupFinished(file, storage string) {
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)
 	delete(filesInProgress, key)
-}
-
-// UpdateSnapshot ...
-func UpdateSnapshot(snapshotPath, directoryPath, absolutePath string) {
-	if strings.Contains(absolutePath, snapshot.Dir()) {
-		return
-	}
-	log.Printf("storage.UpdateSnapshot(): %s\n", snapshotPath)
-	// TODO: move this part to snapshot, so we don't use leveldb here
-	db, err := leveldb.OpenFile(snapshotPath, nil)
-	if err != nil {
-		log.Printf("storage.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
-		return
-	}
-	defer db.Close()
-	f, err := os.Stat(absolutePath)
-	if err != nil {
-		log.Printf("storage.UpdateSnapshot(): can not stat file [%s]: %v\n", absolutePath, err)
-		return
-	}
-	snapshot.UpdateSnapshotEntry(directoryPath, absolutePath, f, db)
-
-	log.Println("storage.UpdateSnapshot(): done")
 }
 
 // TotalFilesInProgres returns total number of files in progress

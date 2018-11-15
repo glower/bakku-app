@@ -25,15 +25,13 @@ func SetupWatchers() []chan types.FileChangeNotification {
 
 // WatchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
 func WatchDirectoryForChanges(path string) chan types.FileChangeNotification {
-	snapshotPath := filepath.Join(path, snapshot.Dir())
 	changes := make(chan types.FileChangeNotification)
-	if !snapshot.Exist(snapshotPath) {
+	if !snapshot.Exist(path) {
 		log.Printf("WatchDirectoryForChanges: snapshot for [%s] is does not exist\n", path)
-		snapshot.Update(path, snapshotPath) // blocking here is ok
-		go snapshot.CreateFirstBackup(path, snapshotPath, changes)
+		snapshot.CreateOrUpdate(path) // blocking here is ok
+		go snapshot.CreateFirstBackup(path, changes)
 	} else {
-		// go UpdateSnapshot(path, snapshotPath)
-		snapshot.Update(path, snapshotPath)
+		snapshot.CreateOrUpdate(path)
 	}
 	go watch.DirectoryChangeNotification(path, changes)
 	return changes

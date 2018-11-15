@@ -67,7 +67,11 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			continue
 		}
 
-		remoteSnapshotPath := filepath.Join(s.storagePath, filepath.Base(path), snapshot.Dir())
+		// localSnapshotPath := snapshot.StoragePath(directoryPath)  //snapshot.Path(directoryPath)
+		// remoteSnapshotPath := snapshot.StoragePath(s.storagePath) //filepath.Join(s.storagePath, filepath.Base(directoryPath))
+
+		remoteSnapshotPath := snapshot.StoragePath(filepath.Join(s.storagePath, filepath.Base(path)))
+		//filepath.Join(s.storagePath, filepath.Base(path), snapshot.Dir())
 		localTMPPath := filepath.Join(os.TempDir(), snapshot.AppName(), storageName, filepath.Base(path))
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
@@ -78,7 +82,7 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			return
 		}
 
-		snapshotPath := filepath.Join(path, snapshot.Dir())
+		snapshotPath := snapshot.StoragePath(path) //filepath.Join(path, snapshot.Dir())
 		s.syncFiles(localTMPPath, snapshotPath)
 	}
 }
@@ -107,20 +111,21 @@ func (s *Storage) Start(ctx context.Context) error {
 
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	// log.Printf("storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
-	absolutePath := fileChange.AbsolutePath
-	relativePath := fileChange.RelativePath
-	directoryPath := fileChange.DirectoryPath
+	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
+	relativePath := fileChange.RelativePath   // buz/alice.jpg
+	directoryPath := fileChange.DirectoryPath // /foo/bar/
 
-	snapshotPath := snapshot.Path(directoryPath)
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
-	remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(directoryPath), snapshot.Dir())
+
+	localSnapshotPath := snapshot.StoragePath(directoryPath)  //snapshot.Path(directoryPath)
+	remoteSnapshotPath := snapshot.StoragePath(s.storagePath) //filepath.Join(s.storagePath, filepath.Base(directoryPath))
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {
 		s.store(from, to, StoreOptions{reportProgress: true})
 		storage.BackupFinished(absolutePath, storageName)
-		storage.UpdateSnapshot(snapshotPath, directoryPath, absolutePath)
-		s.SyncSnapshot(snapshotPath, remoteSnapshot)
+		snapshot.UpdateEntry(directoryPath, relativePath)
+		s.SyncSnapshot(localSnapshotPath, remoteSnapshotPath) // ???
 	}
 }

@@ -8,16 +8,21 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/types"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
-const snapshotDirName = ".snapshot"
+// Snapshot ...
+func Snapshot(path string) storage.Snapshot {
+	return storage.GetDefault().Path(path)
+}
+
+// const snapshotDirName = ".snapshot"
 const appName = "bakku-app"
 
 // Dir ...
 func Dir() string {
-	return filepath.Join(snapshotDirName)
+	return ""
 }
 
 // AppName ...
@@ -25,136 +30,117 @@ func AppName() string {
 	return appName
 }
 
-// Path returns path for a snapshot for a given directory
-func Path(path string) string {
-	return filepath.Join(path, snapshotDirName)
+// StoragePath returns path for a snapshot for a given directory
+func StoragePath(path string) string {
+	return Snapshot(path).SnapshotStoragePath()
 }
 
 // Exist ...
-func Exist(snapshotPath string) bool {
-	if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
-		return false
-	}
-	return true
+func Exist(path string) bool {
+	return Snapshot(path).Exist()
 }
 
-// Update ...
-func Update(dir, snapshotPath string) {
-	log.Printf("UpdateSnapshot(): %s\n", snapshotPath)
-	db, err := leveldb.OpenFile(snapshotPath, nil)
-	if err != nil {
-		log.Printf("watchers.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
-		return
-	}
-	defer db.Close()
-	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
-		if strings.Contains(path, Dir()) {
-			return nil
-		}
-		if !f.IsDir() {
-			UpdateSnapshotEntry(dir, path, f, db)
+// Create a new or update an existing snapshot entry for a given directory path
+func CreateOrUpdate(snapshotPath string) {
+	log.Printf("snapshot.Create(): path=%s\n", snapshotPath)
+	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
+		// if strings.Contains(path, Dir()) {
+		// 	return nil
+		// }
+		if !fileInfo.IsDir() {
+			updateEntry(snapshotPath, file, fileInfo)
 		}
 		return nil
 	})
 	log.Println("UpdateSnapshot(): done")
 }
 
-// UpdateSnapshotEntry updates the entry in the snapshot
-func UpdateSnapshotEntry(directoryPath, filePath string, f os.FileInfo, db *leveldb.DB) {
-	host, _ := os.Hostname()
-	key := filePath
+// UpdateEntry ...
+func UpdateEntry(snapshotPath, filePath string) {
+	absolutePath := filepath.Join(snapshotPath, filePath)
+	f, err := os.Stat(absolutePath)
+	if err != nil {
+		log.Printf("storage.UpdateEntry(): can not stat file [%s]: %v\n", absolutePath, err)
+		return
+	}
+	updateEntry(snapshotPath, filePath, f)
+}
+
+func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) {
+	host, _ := os.Hostname() // TODO: handle this error
 	fileName := filepath.Base(filePath)
-	relativePath := strings.Replace(filePath, directoryPath+string(os.PathSeparator), "", -1)
+	relativePath := strings.Replace(filePath, snapshotPath+string(os.PathSeparator), "", -1)
 	snapshot := types.FileChangeNotification{
 		AbsolutePath:  filePath,
 		RelativePath:  relativePath,
-		DirectoryPath: directoryPath,
+		DirectoryPath: snapshotPath,
 		Name:          fileName,
-		Size:          f.Size(),
-		Timestamp:     f.ModTime(),
-		Machine:       host, // TODO: we can make it as part of configuration
+		Size:          fileInfo.Size(),
+		Timestamp:     fileInfo.ModTime(),
+		Machine:       host,
 	}
+	// TODO: maybe move this part to the Add() function
 	value, err := json.Marshal(snapshot)
 	if err != nil {
 		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
 		return
 	}
-	db.Put([]byte(key), value, nil)
+
+	err = Snapshot(snapshotPath).Add(filePath, value)
+	if err != nil {
+		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
+		return
+	}
 }
 
 // RemoveSnapshotEntry removed entry fron the snapshot file
 // TODO: maybe we don't delete file here, but only mark the file as deleted
 ///      and let the user decide what to do
 func RemoveSnapshotEntry(directoryPath, filePath string) {
-	snapshotPath := Path(directoryPath)
-	log.Printf("RemoveSnapshotEntry(): remove [%s] from [%s]\n", filePath, snapshotPath)
-	db, err := leveldb.OpenFile(snapshotPath, nil)
+	log.Printf("RemoveSnapshotEntry(): remove [%s] from [%s]\n", filePath, directoryPath)
+	err := Snapshot(directoryPath).Remove(filePath)
 	if err != nil {
-		log.Printf("watchers.UpdateSnapshot(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
-		return
-	}
-	defer db.Close()
-	err = db.Delete([]byte(filePath), nil)
-	if err != nil {
-		log.Printf("[ERROR] snapshot.RemoveSnapshotEntry(): cannot delete entry [%s] from [%s]: %v\n", snapshotPath, filePath, err)
+		log.Printf("[ERROR] snapshot.RemoveSnapshotEntry(): cannot delete entry [%s] from [%s]: %v\n", directoryPath, filePath, err)
 	}
 }
 
 // CreateFirstBackup ...
-func CreateFirstBackup(dir, snapshotPath string, changes chan types.FileChangeNotification) {
-	log.Printf("watchers.CreateFirstBackup(): for=[%s]\n", dir)
-	db, err := leveldb.OpenFile(snapshotPath, nil)
+func CreateFirstBackup(snapshotPath string, changes chan types.FileChangeNotification) {
+	log.Printf("watchers.CreateFirstBackup(): for=[%s]\n", snapshotPath)
+	data, err := Snapshot(snapshotPath).GetAll()
 	if err != nil {
 		log.Printf("[ERROR] watchers.CreateFirstBackup(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
 		return
 	}
-	defer db.Close()
 
-	iter := db.NewIterator(nil, nil)
-	for iter.Next() {
-		path := iter.Key()
-		filePath := string(path)
-		if strings.Contains(filePath, Dir()) {
+	for _, fileChangeJSON := range data {
+		fileSnapshot, err := unmurshalFileChangeNotification(fileChangeJSON)
+		if err != nil {
+			log.Printf("[ERROR] snapshot.CreateFirstBackup(): %s\n", err)
 			continue
 		}
-		fileName := filepath.Base(filePath)
-		relativePath := strings.Replace(filePath, dir+string(os.PathSeparator), "", -1)
-		changes <- types.FileChangeNotification{
-			AbsolutePath:  filePath,
-			RelativePath:  relativePath,
-			DirectoryPath: dir,
-			Name:          fileName,
-		}
+		changes <- fileSnapshot
 	}
-	iter.Release()
 }
 
 // Diff returns diff between two snapshots as array of FileChangeNotification
 func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNotification, error) {
 	var result []types.FileChangeNotification
 
-	dbRemote, err := leveldb.OpenFile(remoteSnapshotPath, nil)
+	dbRemote, err := Snapshot(remoteSnapshotPath).GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("snapshot.Diff(): cannot open snapshot file [%s]: leveldb.OpenFile(): %v", remoteSnapshotPath, err)
 	}
-	defer dbRemote.Close()
 
-	dbLocal, err := leveldb.OpenFile(localSnapshotPath, nil)
+	dbLocal, err := Snapshot(localSnapshotPath).GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("snapshot.Diff(): can not open snapshot file [%s]: leveldb.OpenFile(): %v", localSnapshotPath, err)
 	}
-	defer dbLocal.Close()
 
-	iter := dbLocal.NewIterator(nil, nil)
-	for iter.Next() {
-		localFile := iter.Key()
-		localInfo := iter.Value()
-		remoteInfo, err := dbRemote.Get(localFile, nil)
-		if strings.Contains(string(localFile), ".snapshot") {
-			continue
-		}
-		if err != nil && err.Error() == "leveldb: not found" || string(localInfo) != string(remoteInfo) {
-			log.Printf("snapshot.Diff(): key [%s] not found or different in the remote snapshot\n", string(localFile))
+	for localFile, localInfo := range dbLocal {
+		remoteInfo, found := dbRemote[localFile]
+		if !found || localInfo != remoteInfo {
+			log.Printf("snapshot.Diff(): key [%s] not found or different from the remote snapshot\n", localFile)
 			file, err := unmurshalFileChangeNotification(localInfo)
 			if err != nil {
 				log.Printf("[ERROR] snapshot.Diff(): %s\n", err)
@@ -166,13 +152,12 @@ func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNoti
 			log.Printf("[ERROR] snapshot.Diff(): can not get key=[%s]: dbRemote.Get(): %v\n", string(localFile), err)
 		}
 	}
-	iter.Release()
 	return &result, nil
 }
 
-func unmurshalFileChangeNotification(value []byte) (types.FileChangeNotification, error) {
+func unmurshalFileChangeNotification(value string) (types.FileChangeNotification, error) {
 	change := types.FileChangeNotification{}
-	if err := json.Unmarshal(value, &change); err != nil {
+	if err := json.Unmarshal([]byte(value), &change); err != nil {
 		return change, fmt.Errorf("cannot unmarshal data [%s]: %v", string(value), err)
 	}
 	return change, nil
