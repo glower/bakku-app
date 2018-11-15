@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/glower/bakku-app/pkg/snapshot/storage"
+	// leveldb is default storage implementation for the snapshot
+	_ "github.com/glower/bakku-app/pkg/snapshot/storage/leveldb"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -40,9 +42,9 @@ func Exist(path string) bool {
 	return Snapshot(path).Exist()
 }
 
-// Create a new or update an existing snapshot entry for a given directory path
+// CreateOrUpdate a new or update an existing snapshot entry for a given directory path
 func CreateOrUpdate(snapshotPath string) {
-	log.Printf("snapshot.Create(): path=%s\n", snapshotPath)
+	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
 		// if strings.Contains(path, Dir()) {
 		// 	return nil
@@ -67,6 +69,7 @@ func UpdateEntry(snapshotPath, filePath string) {
 }
 
 func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) {
+	log.Printf("snapshot.updateEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
 	host, _ := os.Hostname() // TODO: handle this error
 	fileName := filepath.Base(filePath)
 	relativePath := strings.Replace(filePath, snapshotPath+string(os.PathSeparator), "", -1)

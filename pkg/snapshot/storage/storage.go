@@ -44,7 +44,13 @@ func Register(name string, s Snapshot) {
 	snapshotStorages[name] = s
 }
 
+const defaultSnapshotStorage = "leveldb"
+
 // GetDefault a snapshot storage implementation
 func GetDefault() Snapshot {
-	return snapshotStorages["leveldb"]
+	snapshotStorage, ok := snapshotStorages[defaultSnapshotStorage]
+	if ok {
+		return snapshotStorage
+	}
+	panic("defaultSnapshotStorage is not implemented")
 }
