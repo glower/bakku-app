@@ -17,7 +17,7 @@ TODO (more like idea list):
 - [x] on start compare states between local and remote storage
 - [x] need some sort of flat DB to store info about files (leveldb is used)
 - [ ] implement filters like: store jpg to google drive and store raw to S3
-- [ ] add abstraction for leveldb
+- [x] add abstraction for leveldb
 - [x] add abstraction for viper configs (config and config/storage)
 - [ ] add tests after first stable version
 - [ ] add logic what to do with deleted files

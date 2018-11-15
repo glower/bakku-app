@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/config"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/otiai10/copy"
-	"github.com/spf13/viper"
 )
 
 // Storage local
@@ -53,25 +53,10 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 // SyncLocalFilesToBackup ...
 func (s *Storage) SyncLocalFilesToBackup() {
 	log.Println("storage.local.SyncLocalFilesToBackup()")
-	// TODO: move this to some utils or config class, so we don't work with viper direct
-	dirs, ok := viper.Get("watch").([]interface{})
-	if !ok {
-		log.Println("[ERROR] storage.local.SyncLocalFilesToBackup(): nothing to sync")
-		return
-	}
+	dirs := config.DirectoriesToWatch()
 
 	for _, path := range dirs {
-		path, ok := path.(string)
-		if !ok {
-			log.Println("[ERROR] storage.local.SyncLocalFilesToBackup(): invalid path")
-			continue
-		}
-
-		// localSnapshotPath := snapshot.StoragePath(directoryPath)  //snapshot.Path(directoryPath)
-		// remoteSnapshotPath := snapshot.StoragePath(s.storagePath) //filepath.Join(s.storagePath, filepath.Base(directoryPath))
-
 		remoteSnapshotPath := snapshot.StoragePath(filepath.Join(s.storagePath, filepath.Base(path)))
-		//filepath.Join(s.storagePath, filepath.Base(path), snapshot.Dir())
 		localTMPPath := filepath.Join(os.TempDir(), snapshot.AppName(), storageName, filepath.Base(path))
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
@@ -82,7 +67,7 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			return
 		}
 
-		snapshotPath := snapshot.StoragePath(path) //filepath.Join(path, snapshot.Dir())
+		snapshotPath := snapshot.StoragePath(path)
 		s.syncFiles(localTMPPath, snapshotPath)
 	}
 }
