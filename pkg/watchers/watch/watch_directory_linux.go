@@ -97,6 +97,7 @@ func convertMaskToAction(mask int) types.Action {
 	}
 }
 
+// DirectoryChangeWacherImplementer is here to make testing easy
 type DirectoryChangeWacherImplementer struct{}
 
 // SetupDirectoryChangeNotification ...
