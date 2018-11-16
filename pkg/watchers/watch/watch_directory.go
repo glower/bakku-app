@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -87,7 +86,14 @@ func fileChangeNotifier(path, file string, action types.Action) {
 		}
 	} else {
 		log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
-		snapshot.RemoveSnapshotEntry(callbackData.Path, file)
+		callbackData.CallbackChan <- types.FileChangeNotification{
+			Action:        action,
+			Name:          filepath.Base(file),
+			AbsolutePath:  filePath,
+			RelativePath:  file,
+			DirectoryPath: callbackData.Path,
+		}
+		return
 	}
 
 	// This is a hack to see if the file is written to the disk on windows

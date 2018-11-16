@@ -20,6 +20,10 @@ TODO (more like idea list):
 - [x] add abstraction for leveldb
 - [x] add abstraction for viper configs (config and config/storage)
 - [ ] add tests after first stable version
+    - [x] add tests for basic file change notification
+    - [ ] add tests for snapshots
+    - [ ] add tests for configs
+    - [ ] add tests for storage
 - [ ] add logic what to do with deleted files
 - [ ] add logrus or something else for logging
 - [ ] add a concept for error handling (notifications?)

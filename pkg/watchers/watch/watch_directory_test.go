@@ -17,10 +17,7 @@ func (p *ProtoNotification) SetupDirectoryChangeNotification(path string) {
 	fileChangeNotifier(path, p.dir(), types.Action(p.action()))
 }
 
-func TestTileChangeNotifier(t *testing.T) {
-
-	// testDirectory := filepath.Join(os.TempDir(), "bakku-app", "tests")
-
+func TestFileChangeNotifierActions(t *testing.T) {
 	testcases := []struct {
 		Name            string
 		DirectoryToWach string
@@ -39,6 +36,12 @@ func TestTileChangeNotifier(t *testing.T) {
 			DirectoryToWach: filepath.Join(os.TempDir(), "bakku-app", "tests", "test-1"),
 			FileName:        "foo.jpg",
 			Action:          types.FileModified,
+		},
+		{
+			Name:            "scenario 3: file was deleted",
+			DirectoryToWach: filepath.Join(os.TempDir(), "bakku-app", "tests", "test-1"),
+			FileName:        "foo.jpg",
+			Action:          types.FileRemoved,
 		},
 	}
 
@@ -69,13 +72,9 @@ func TestTileChangeNotifier(t *testing.T) {
 			if change.Action != tc.Action {
 				t.Errorf("expected file action was [%d], got: [%d]", tc.Action, change.Action)
 			}
+			if change.DirectoryPath != tc.DirectoryToWach {
+				t.Errorf("expected path was [%s], got: [%s]", tc.DirectoryToWach, change.DirectoryPath)
+			}
 		})
 	}
-	// changes := make(chan types.FileChangeNotification)
-	// fakeNotifier := &DirectoryChangeWacherFakeImplementer{}
-	// go directoryChangeNotification(".", changes, fakeNotifier)
-	// change := <-changes
-	// if change.Name != "watch_directory_test.go" {
-	// 	t.Errorf("expected file name [%s] got: [%s]", "watch_directory_test.go", change.Name)
-	// }
 }

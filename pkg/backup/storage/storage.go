@@ -8,6 +8,7 @@ import (
 
 	"log"
 
+	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/r3labs/sse"
 )
@@ -112,10 +113,18 @@ func (m *Manager) ProcessFileChangeNotifications(ctx context.Context, notificati
 			case <-ctx.Done():
 				return
 			case change := <-watcher:
-				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.AbsolutePath)
-				for name, storage := range storages {
-					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-					storage.FileChangeNotification() <- &change
+				switch change.Action {
+				case types.FileRemoved:
+					log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
+					snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.RelativePath) // TODO: is here a  good place?
+				case types.FileAdded:
+				case types.FileModified:
+					log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.AbsolutePath)
+					for name, storage := range storages {
+						log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
+						storage.FileChangeNotification() <- &change
+					}
+
 				}
 			}
 		}
