@@ -27,15 +27,10 @@ func ActionToString(action types.Action) string {
 	}
 }
 
-// FileChangeInfo ...
-// type FileChangeInfo struct {
-// 	Action
-// 	FileName      string
-// 	FilePath      string
-// 	RelativePath  string
-// 	DirectoryPath string
-// 	IsDir         bool
-// }
+// DirectoryChangeWacher ...
+type DirectoryChangeWacher interface {
+	SetupDirectoryChangeNotification(string)
+}
 
 // CallbackData struct holds information about files in the watched directory
 type CallbackData struct {
@@ -46,18 +41,23 @@ type CallbackData struct {
 var callbackMutex sync.Mutex
 var callbackFuncs = make(map[string]CallbackData)
 
-// DirectoryChangeNotification expected path to the directory to watch as string
+// NewNotifier expected path to the directory to watch as string
 // and a FileInfo channel for the callback notofications
 // Notofication is fired each time file in the directory is changed or some new
 // file (or sub-directory) is created
-func DirectoryChangeNotification(path string, callbackChan chan types.FileChangeNotification) {
+func NewNotifier(path string, callbackChan chan types.FileChangeNotification) {
+	w := &DirectoryChangeWacherImplementer{}
+	directoryChangeNotification(path, callbackChan, w)
+}
+
+func directoryChangeNotification(path string, callbackChan chan types.FileChangeNotification, w DirectoryChangeWacher) {
 	log.Printf("watch.DirectoryChangeNotification(): path=[%s]\n", path)
 	data := CallbackData{
 		CallbackChan: callbackChan,
 		Path:         path,
 	}
 	register(data, path)
-	setupDirectoryChangeNotification(path)
+	w.SetupDirectoryChangeNotification(path)
 }
 
 func register(data CallbackData, path string) {
@@ -74,11 +74,6 @@ func unregister(path string) {
 
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
-	// TODO: can we do this on some other place?
-	// if strings.Contains(file, snapshot.Dir()) {
-	// 	return
-	// }
-
 	filePath := filepath.Join(path, file)
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
 	var fi os.FileInfo
@@ -87,7 +82,7 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	if action != types.FileRemoved && action != types.FileRenamedOldName {
 		fi, err = os.Stat(filePath)
 		if err != nil {
-			log.Printf("[ERROR] Can not stat file [%s]: %v\n", filePath, err)
+			log.Printf("[ERROR] watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
 			return
 		}
 	} else {

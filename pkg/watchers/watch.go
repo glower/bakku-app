@@ -32,6 +32,6 @@ func WatchDirectoryForChanges(path string) chan types.FileChangeNotification {
 		log.Printf("WatchDirectoryForChanges: snapshot for [%s] does not exist\n", path)
 		go snapshot.CreateFirstBackup(path, changes)
 	}
-	go watch.DirectoryChangeNotification(path, changes)
+	go watch.NewNotifier(path, changes)
 	return changes
 }

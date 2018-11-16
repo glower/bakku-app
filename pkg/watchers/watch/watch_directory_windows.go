@@ -98,9 +98,14 @@ import (
 	"log"
 	"strings"
 	"unsafe"
+
+	"github.com/glower/bakku-app/pkg/types"
 )
 
-func setupDirectoryChangeNotification(path string) {
+type DirectoryChangeWacherImplementer struct{}
+
+// SetupDirectoryChangeNotification ...
+func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(path string) {
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
@@ -113,7 +118,7 @@ func setupDirectoryChangeNotification(path string) {
 func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
-	fileChangeNotifier(path, file, Action(int(caction)))
+	fileChangeNotifier(path, file, types.Action(int(caction)))
 }
 
 func lookup(path string) CallbackData {

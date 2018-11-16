@@ -97,7 +97,10 @@ func convertMaskToAction(mask int) types.Action {
 	}
 }
 
-func setupDirectoryChangeNotification(dir string) {
+type DirectoryChangeWacherImplementer struct{}
+
+// SetupDirectoryChangeNotification ...
+func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(dir string) {
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if strings.Contains(path, snapshot.Dir()) {
 			return nil
