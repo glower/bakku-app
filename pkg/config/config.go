@@ -3,7 +3,10 @@ package config
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
+	home "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
@@ -14,13 +17,31 @@ type Config interface {
 }
 
 const defaultConfigName = "config"
-const defaultCofigPath = "."
+const defaultCofigPath = ".bakkuapp"
+
+// search first in the ENV variable, then in the user home
+func getConfigPath() string {
+	configPath := os.Getenv("BAKKUAPPCONF")
+	if configPath != "" {
+		return configPath
+	}
+
+	homeDir, err := home.Dir()
+	if err != nil {
+		log.Printf("getConfigPath(): cannot read home dir: %v\n", err)
+		return defaultCofigPath
+	}
+
+	configPath = filepath.Join(homeDir, defaultCofigPath)
+	return configPath
+}
 
 // ReadDefaultConfig reads default config from the default path
 func ReadDefaultConfig() {
-	log.Printf("config.ReadDefaultConfig(): read config file [%s] from [%s]\n", defaultConfigName, defaultCofigPath)
+	path := getConfigPath()
+	log.Printf("config.ReadDefaultConfig(): read config file [%s] from [%s]\n", defaultConfigName, path)
 	viper.SetConfigName(defaultConfigName) // name of config file (without extension)
-	viper.AddConfigPath(defaultCofigPath)
+	viper.AddConfigPath(path)
 	err := viper.ReadInConfig() // Find and read the config file
 	if err != nil {             // Handle errors reading the config file
 		panic(fmt.Errorf("fatal error config file: %s", err))

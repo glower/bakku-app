@@ -1,6 +1,9 @@
 watch: 
  - "C:\\Users\\John\\Documents\\"
 storage: 
+  googleDrive:
+    clientID: addMe
+    clientSecret: addMe
   local: 
     path: "D:\\backup\\"
     active: true
