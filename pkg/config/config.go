@@ -19,8 +19,8 @@ type Config interface {
 const defaultConfigName = "config"
 const defaultCofigPath = ".bakkuapp"
 
-// search first in the ENV variable, then in the user home
-func getConfigPath() string {
+// GetConfigPath returns a path to the configs of the app: search first in the ENV variable, then in the user home
+func GetConfigPath() string {
 	configPath := os.Getenv("BAKKUAPPCONF")
 	if configPath != "" {
 		return configPath
@@ -38,7 +38,7 @@ func getConfigPath() string {
 
 // ReadDefaultConfig reads default config from the default path
 func ReadDefaultConfig() {
-	path := getConfigPath()
+	path := GetConfigPath()
 	log.Printf("config.ReadDefaultConfig(): read config file [%s] from [%s]\n", defaultConfigName, path)
 	viper.SetConfigName(defaultConfigName) // name of config file (without extension)
 	viper.AddConfigPath(path)
