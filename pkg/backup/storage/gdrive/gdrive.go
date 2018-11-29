@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
 	"golang.org/x/oauth2/google"
+	drive "google.golang.org/api/drive/v3"
 )
 
 // Storage ...
@@ -25,6 +27,7 @@ type Storage struct {
 	clientID                      string
 	clientSecret                  string
 	client                        *http.Client
+	service                       *drive.Service
 }
 
 const storageName = "gdrive"
@@ -54,11 +57,31 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 			return false
 		}
 
-		config, err := google.ConfigFromJSON(b, "xxx")
+		config, err := google.ConfigFromJSON(b, drive.DriveMetadataReadonlyScope)
 		if err != nil {
 			log.Fatalf("Unable to parse client secret file to config: %v", err)
 		}
-		s.client = s.getClient(config)
+		client := s.getClient(config)
+		srv, err := drive.New(client)
+		if err != nil {
+			log.Fatalf("Unable to retrieve Drive client: %v", err)
+		}
+		s.client = client
+		s.service = srv
+
+		// Test
+		r, err := srv.Files.List().PageSize(10).Fields("nextPageToken, files(id, name)").Do()
+		if err != nil {
+			log.Fatalf("Unable to retrieve files: %v", err)
+		}
+		fmt.Println("Files:")
+		if len(r.Files) == 0 {
+			fmt.Println("No files found.")
+		} else {
+			for _, i := range r.Files {
+				fmt.Printf("%s (%s)\n", i.Name, i.Id)
+			}
+		}
 
 		return true
 	}

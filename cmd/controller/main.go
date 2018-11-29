@@ -16,6 +16,7 @@ import (
 
 	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
+	_ "github.com/glower/bakku-app/pkg/backup/storage/gdrive"
 	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
 )
 

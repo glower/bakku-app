@@ -23,24 +23,27 @@ func GoogleDriveConfig() *GDriveConfig {
 	if !conf.Active {
 		gConfig.Config = *conf
 		return gConfig
-
 	}
+
+	log.Printf(">>>>>>>>>>>>> conf: %#v\n", conf)
+
+	gConfig.Config = *conf
 
 	clientIDTpl := fmt.Sprintf("storage.%s.clientID", configName)
 	clientID, ok := viper.Get(clientIDTpl).(string)
 	if !ok {
-		log.Printf("GoogleDriveConfig(): can't find [%s]\n", clientID)
+		log.Printf("GoogleDriveConfig(): can't find [%s] in the config\n", clientIDTpl)
 		clientID = ""
 	}
-	gConfig.ClientID = clientIDTpl
+	gConfig.ClientID = clientID
 
-	clientSecretTpl := fmt.Sprintf("storage.%s.clientID", configName)
+	clientSecretTpl := fmt.Sprintf("storage.%s.clientSecret", configName)
 	clientSecret, ok := viper.Get(clientSecretTpl).(string)
 	if !ok {
-		log.Printf("GoogleDriveConfig(): can't find [%s]\n", clientSecret)
+		log.Printf("GoogleDriveConfig(): can't find [%s] in the config\n", clientSecretTpl)
 		clientSecret = ""
 	}
 	gConfig.ClientSecret = clientSecret
-
+	log.Printf(">>>>>>>>>>>>> google conf: %#v\n", gConfig)
 	return gConfig
 }

@@ -1,6 +1,6 @@
 package gdrive
 
-// https://developers.google.com/classroom/quickstart/go
+// https://developers.google.com/drive/api/v3/quickstart/go
 import (
 	"context"
 	"encoding/json"
