@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/config"
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
@@ -24,6 +25,7 @@ type Storage struct {
 	fileStorageProgressCannel     chan *storage.Progress
 	ctx                           context.Context
 	storagePath                   string
+	root                          *drive.File
 	clientID                      string
 	clientSecret                  string
 	client                        *http.Client
@@ -48,7 +50,12 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 		s.globalConfigPath = config.GetConfigPath()
 		s.clientID = gdriveConfig.ClientID
 		s.clientSecret = gdriveConfig.ClientSecret
-		s.storagePath = gdriveConfig.Path
+		defaultPath := gdriveConfig.Path
+		if defaultPath == "" {
+			defaultPath = backup.DefultFolderName()
+		}
+		s.storagePath = defaultPath
+		s.root = s.CreateFolder(s.storagePath)
 
 		credPath := filepath.Join(s.globalConfigPath, "credentials.json")
 		b, err := ioutil.ReadFile(credPath)

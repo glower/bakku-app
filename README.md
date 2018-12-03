@@ -8,7 +8,7 @@ TODO (more like idea list):
 - [x] add recursive directory notifications for linux
 - [x] write storage plugin for local file system
 - [ ] write storage plugin for S3
-- [ ] write storage plugin google drive
+- [x] write storage plugin google drive
 - [x] write local configuration (viper)
 - [ ] write REST endpoints for updating configuration
 - [ ] write GUI in electron for displaying progress
