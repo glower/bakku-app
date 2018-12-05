@@ -103,8 +103,8 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
 
-	localSnapshotPath := snapshot.StoragePath(directoryPath)  //snapshot.Path(directoryPath)
-	remoteSnapshotPath := snapshot.StoragePath(s.storagePath) //filepath.Join(s.storagePath, filepath.Base(directoryPath))
+	localSnapshotPath := snapshot.StoragePath(directoryPath)
+	remoteSnapshotPath := snapshot.StoragePath(s.storagePath)
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {
