@@ -62,6 +62,12 @@ func (s *Storage) SyncLocalFilesToBackup() {
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshotPath, localTMPPath)
 
+		// SyncLocalFilesToBackup
+		if err := os.MkdirAll(remoteSnapshotPath, 0744); err != nil {
+			log.Printf("[ERROR] storage.local.SyncLocalFilesToBackup():  MkdirAll for [%s], %v", remoteSnapshotPath, err)
+			return
+		}
+
 		if err := copy.Copy(remoteSnapshotPath, localTMPPath); err != nil {
 			log.Printf("[ERROR] storage.local.SyncLocalFilesToBackup(): cannot copy snapshot for [%s]: %v\n", path, err)
 			return

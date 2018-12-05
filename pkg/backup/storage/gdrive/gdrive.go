@@ -85,7 +85,9 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 }
 
 // SyncLocalFilesToBackup ...
-func (s *Storage) SyncLocalFilesToBackup() {}
+func (s *Storage) SyncLocalFilesToBackup() {
+	log.Printf("gdrive.SyncLocalFilesToBackup()")
+}
 
 // FileChangeNotification returns channel for notifications
 func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
