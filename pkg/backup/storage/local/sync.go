@@ -22,6 +22,7 @@ func (s *Storage) SyncSnapshot(from, to string) {
 }
 
 func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
+	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
 	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
 	if err != nil {
 		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)

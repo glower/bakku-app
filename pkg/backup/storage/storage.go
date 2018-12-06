@@ -69,6 +69,7 @@ func UnregisterStorage(name string) {
 
 // SetupManager runs all implemented storages
 func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []chan types.FileChangeNotification) *Manager {
+	log.Println("storage.SetupManager(): START")
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *types.FileChangeNotification),
 		ProgressChannel:               make(chan *Progress),
@@ -80,7 +81,7 @@ func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []ch
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
-			log.Printf("SetupManager(): storage [%s] is not configured\n", name)
+			// log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
 			UnregisterStorage(name)
 		}
 	}
@@ -92,12 +93,13 @@ func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []ch
 
 // SetupStorage ...
 func (m *Manager) SetupStorage(name string, storage Storage) {
+	log.Printf("SetupStorage(): [%s]\n", name)
 	ctx, cancel := context.WithCancel(context.Background())
-	go storage.SyncLocalFilesToBackup()
+	// go storage.SyncLocalFilesToBackup() // !!!!!!!!!!!!!!!!!!!?????????????????
 	err := storage.Start(ctx)
 	if err != nil {
 		cancel()
-		log.Printf("[ERROR] SetupStorage: failed to setup storage [%s]\n", name)
+		log.Printf("[ERROR] SetupStorage(): failed to setup storage [%s]\n", name)
 	} else {
 		// store cancelling context for each storage
 		teardowns[name] = func() { cancel() }
@@ -117,14 +119,14 @@ func (m *Manager) ProcessFileChangeNotifications(ctx context.Context, notificati
 				case types.FileRemoved:
 					log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
 					snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.RelativePath) // TODO: is here a  good place?
-				case types.FileAdded:
-				case types.FileModified:
-					log.Printf("storage.ProcessFileChangeNotifications(): file=[%s]\n", change.AbsolutePath)
+				case types.FileAdded, types.FileModified:
+					log.Printf("storage.ProcessFileChangeNotifications(): FileAdded|FileModified! file=[%s]\n", change.AbsolutePath)
 					for name, storage := range storages {
 						log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
 						storage.FileChangeNotification() <- &change
 					}
-
+				default:
+					log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", change)
 				}
 			}
 		}

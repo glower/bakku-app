@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/config"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
@@ -52,12 +53,12 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 
 // SyncLocalFilesToBackup ...
 func (s *Storage) SyncLocalFilesToBackup() {
-	log.Println("storage.local.SyncLocalFilesToBackup()")
 	dirs := config.DirectoriesToWatch()
 
 	for _, path := range dirs {
+		log.Printf("storage.local.SyncLocalFilesToBackup(): %s\n", path)
 		remoteSnapshotPath := snapshot.StoragePath(filepath.Join(s.storagePath, filepath.Base(path)))
-		localTMPPath := filepath.Join(os.TempDir(), snapshot.AppName(), storageName, filepath.Base(path))
+		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshotPath, localTMPPath)
@@ -73,8 +74,8 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			return
 		}
 
-		snapshotPath := snapshot.StoragePath(path)
-		s.syncFiles(localTMPPath, snapshotPath)
+		// snapshotPath := snapshot.StoragePath(path)
+		s.syncFiles(localTMPPath, path)
 	}
 }
 

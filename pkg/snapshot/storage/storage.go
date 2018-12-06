@@ -9,7 +9,7 @@ import (
 
 // Snapshot ...
 type Snapshot interface {
-	Register() bool
+	Setup() bool
 	Path(path string) Snapshot
 	SnapshotStoragePath() string
 	Exist() bool
@@ -27,11 +27,11 @@ var (
 // Register a snapshot storage implementation by name.
 func Register(name string, s Snapshot) {
 	if name == "" {
-		panic("storage.Register(): could not register a StorageFactory with an empty name")
+		panic("snapshot.Register(): could not register a StorageFactory with an empty name")
 	}
 
 	if s == nil {
-		panic("storage.Register(): could not register a nil Storage interface")
+		panic("snapshot.Register(): could not register a nil Storage interface")
 	}
 
 	snapshotStoragesM.Lock()
@@ -42,17 +42,19 @@ func Register(name string, s Snapshot) {
 		return
 	}
 
-	log.Printf("storage.Register(): storage provider [%s] registered\n", name)
+	log.Printf("snapshot.Register(): snapshot provider [%s] registered\n", name)
+	s.Setup()
 	snapshotStorages[name] = s
 }
 
 // GetDefault a snapshot storage implementation
 func GetDefault() Snapshot {
 	defaultSnapshotStorage := snapshot.DefaultStorage()
+	// log.Printf("snapshot.GetDefault(): %s\n", defaultSnapshotStorage)
 	snapshotStorage, ok := snapshotStorages[defaultSnapshotStorage]
 	if ok {
 		return snapshotStorage
 	}
-	log.Panicf("default snapshot storage [%s] is not implemented", defaultSnapshotStorage)
+	log.Panicf("[ERROR] snapshot.GetDefault(): default snapshot storage [%s] is not implemented", defaultSnapshotStorage)
 	return nil
 }

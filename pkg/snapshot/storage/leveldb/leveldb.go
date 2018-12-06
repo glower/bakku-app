@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/glower/bakku-app/pkg/config/snapshot"
-	"github.com/glower/bakku-app/pkg/snapshot/storage"
+	snapshotStorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -20,18 +20,18 @@ type Snapshot struct {
 const snapshotStorageName = "leveldb"
 
 func init() {
-	storage.Register(snapshotStorageName, &Snapshot{})
+	snapshotStorage.Register(snapshotStorageName, &Snapshot{})
 }
 
 // Path ...
-func (s *Snapshot) Path(path string) storage.Snapshot {
+func (s *Snapshot) Path(path string) snapshotStorage.Snapshot {
 	s.snapshotPath = filepath.Join(path, s.snapshotDirName)
 	return s
 }
 
 // SnapshotStoragePath returns a path where the snapshot data are stored
 func (s *Snapshot) SnapshotStoragePath() string {
-	return filepath.Join(s.snapshotPath, s.snapshotDirName)
+	return s.snapshotPath
 }
 
 // Exist ...
@@ -42,9 +42,8 @@ func (s *Snapshot) Exist() bool {
 	return true
 }
 
-// Register new snapshot storage implementation
-func (s *Snapshot) Register() bool {
-	// config := snapshot.Config("leveldb")
+// Setup new snapshot storage implementation
+func (s *Snapshot) Setup() bool { // TODO: do we need bool here?
 	config := snapshot.Conf()
 	if config.Active {
 		s.snapshotDirName = config.SnapshotDir
@@ -57,9 +56,11 @@ func (s *Snapshot) Register() bool {
 // Add info about file to the snapshot
 func (s *Snapshot) Add(filePath string, value []byte) error {
 	// we don't add snapshot files to the snapshot
+	// log.Printf("leveldb.Add(): add [%s] to %s\n", filePath, s.snapshotPath)
 	if strings.Contains(filePath, s.snapshotDirName) {
 		return nil
 	}
+	// log.Printf("Add(): leveldb.OpenFile(): %s\n", s.snapshotPath)
 	db, err := leveldb.OpenFile(s.snapshotPath, nil)
 	if err != nil {
 		return err
@@ -75,6 +76,7 @@ func (s *Snapshot) Add(filePath string, value []byte) error {
 
 // Get information about the file from the snapshot
 func (s *Snapshot) Get(file string) (string, error) {
+	// log.Printf("Get(): leveldb.OpenFile(): %s\n", s.snapshotPath)
 	db, err := leveldb.OpenFile(s.snapshotPath, nil)
 	if err != nil {
 		return "", err
@@ -90,6 +92,7 @@ func (s *Snapshot) Get(file string) (string, error) {
 
 // Remove  file from the snapshot storage
 func (s *Snapshot) Remove(file string) error {
+	// log.Printf("Remove(): leveldb.OpenFile(): %s\n", s.snapshotPath)
 	db, err := leveldb.OpenFile(s.snapshotPath, nil)
 	if err != nil {
 		return err
@@ -105,14 +108,13 @@ func (s *Snapshot) Remove(file string) error {
 
 // GetAll entries from the snapshot storage
 func (s *Snapshot) GetAll() (map[string]string, error) {
+	// log.Printf("GetAll(): leveldb.OpenFile(): %s\n", s.snapshotPath)
 	db, err := leveldb.OpenFile(s.snapshotPath, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
-	// x := map[type]type
 	result := make(map[string]string)
-	// dir := s.snapshotPath
 	iter := db.NewIterator(nil, nil)
 	for iter.Next() {
 		filePath := string(iter.Key())

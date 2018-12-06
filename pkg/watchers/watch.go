@@ -17,21 +17,18 @@ func SetupWatchers() []chan types.FileChangeNotification {
 	log.Printf("SetupWatchers(): for %v\n", dirs)
 
 	for _, dir := range dirs {
-		watcher := WatchDirectoryForChanges(filepath.Clean(dir))
+		//  callbackChan chan types.FileChangeNotification
+		watcher := watchDirectoryForChanges(filepath.Clean(dir))
 		list = append(list, watcher)
 	}
 	return list
 }
 
-// WatchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
-func WatchDirectoryForChanges(path string) chan types.FileChangeNotification {
-	log.Printf("WatchDirectoryForChanges(): %s\n", path)
+// watchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
+func watchDirectoryForChanges(path string) chan types.FileChangeNotification {
+	log.Printf("watchDirectoryForChanges(): [%s]\n", path)
 	changes := make(chan types.FileChangeNotification)
-	snapshot.CreateOrUpdate(path) // blocking here is ok
-	if !snapshot.Exist(path) {
-		log.Printf("WatchDirectoryForChanges: snapshot for [%s] does not exist\n", path)
-		go snapshot.CreateFirstBackup(path, changes)
-	}
+	go snapshot.CreateOrUpdate(path, changes)
 	go watch.NewNotifier(path, changes)
 	return changes
 }

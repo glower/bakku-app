@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	// "github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/snapshot/storage"
 	// leveldb is default storage implementation for the snapshot
 	_ "github.com/glower/bakku-app/pkg/snapshot/storage/leveldb"
@@ -19,17 +20,9 @@ func Snapshot(path string) storage.Snapshot {
 	return storage.GetDefault().Path(path)
 }
 
-// const snapshotDirName = ".snapshot"
-const appName = "bakku-app"
-
 // Dir ...
 func Dir() string {
 	return ""
-}
-
-// AppName ...
-func AppName() string {
-	return appName
 }
 
 // StoragePath returns path for a snapshot for a given directory
@@ -43,18 +36,25 @@ func Exist(path string) bool {
 }
 
 // CreateOrUpdate a new or update an existing snapshot entry for a given directory path
-func CreateOrUpdate(snapshotPath string) {
+func CreateOrUpdate(snapshotPath string, callbackChan chan types.FileChangeNotification) {
 	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
+	firstTimeBackup := false
+	if !Exist(snapshotPath) {
+		firstTimeBackup = true
+	}
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
-		// if strings.Contains(path, Dir()) {
-		// 	return nil
-		// }
+		// if snapshotPath
 		if !fileInfo.IsDir() {
-			updateEntry(snapshotPath, file, fileInfo)
+			entry, err := updateEntry(snapshotPath, file, fileInfo)
+			if firstTimeBackup && err == nil {
+				// entry.Action = types.Action(types.FileAdded)
+				log.Printf(">>>>>>>>>>>>>>>> CreateOrUpdate(): first time backup for [%#v] !!!!", entry)
+				callbackChan <- *entry
+			}
 		}
 		return nil
 	})
-	log.Println("UpdateSnapshot(): done")
+	log.Println("CreateOrUpdate(): done")
 }
 
 // UpdateEntry ...
@@ -68,12 +68,13 @@ func UpdateEntry(snapshotPath, filePath string) {
 	updateEntry(snapshotPath, filePath, f)
 }
 
-func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) {
-	log.Printf("snapshot.updateEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
+func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
+	// log.Printf("snapshot.updateEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
 	host, _ := os.Hostname() // TODO: handle this error
 	fileName := filepath.Base(filePath)
 	relativePath := strings.Replace(filePath, snapshotPath+string(os.PathSeparator), "", -1)
 	snapshot := types.FileChangeNotification{
+		Action:        types.Action(types.FileAdded),
 		AbsolutePath:  filePath,
 		RelativePath:  relativePath,
 		DirectoryPath: snapshotPath,
@@ -86,14 +87,15 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) {
 	value, err := json.Marshal(snapshot)
 	if err != nil {
 		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
-		return
+		return nil, err
 	}
 
 	err = Snapshot(snapshotPath).Add(filePath, value)
 	if err != nil {
 		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
-		return
+		return nil, err
 	}
+	return &snapshot, err
 }
 
 // RemoveSnapshotEntry removed entry fron the snapshot file
@@ -107,27 +109,28 @@ func RemoveSnapshotEntry(directoryPath, filePath string) {
 	}
 }
 
-// CreateFirstBackup ...
-func CreateFirstBackup(snapshotPath string, changes chan types.FileChangeNotification) {
-	log.Printf("watchers.CreateFirstBackup(): for=[%s]\n", snapshotPath)
-	data, err := Snapshot(snapshotPath).GetAll()
-	if err != nil {
-		log.Printf("[ERROR] watchers.CreateFirstBackup(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
-		return
-	}
+// func createFirstBackup(snapshotPath string, changes chan types.FileChangeNotification) {
+// 	log.Printf(">>>>>>>> watchers.createFirstBackup(): for=[%s]\n", snapshotPath)
+// 	data, err := Snapshot(snapshotPath).GetAll()
+// 	if err != nil {
+// 		log.Printf("[ERROR] watchers.CreateFirstBackup(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
+// 		return
+// 	}
 
-	for _, fileChangeJSON := range data {
-		fileSnapshot, err := unmurshalFileChangeNotification(fileChangeJSON)
-		if err != nil {
-			log.Printf("[ERROR] snapshot.CreateFirstBackup(): %s\n", err)
-			continue
-		}
-		changes <- fileSnapshot
-	}
-}
+// 	for _, fileChangeJSON := range data {
+// 		fileSnapshot, err := unmurshalFileChangeNotification(fileChangeJSON)
+// 		if err != nil {
+// 			log.Printf("[ERROR] snapshot.CreateFirstBackup(): %s\n", err)
+// 			continue
+// 		}
+// 		log.Printf(">>> createFirstBackup(): backup %s\n", fileSnapshot)
+// 		changes <- fileSnapshot
+// 	}
+// }
 
 // Diff returns diff between two snapshots as array of FileChangeNotification
 func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNotification, error) {
+	log.Printf("snapshot.Diff(): remote=[%s] local=[%s]", remoteSnapshotPath, localSnapshotPath)
 	var result []types.FileChangeNotification
 
 	dbRemote, err := Snapshot(remoteSnapshotPath).GetAll()

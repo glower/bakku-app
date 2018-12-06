@@ -21,7 +21,7 @@ const (
 	// Invalid action is 0
 	Invalid Action = iota
 	// FileAdded - the file was added to the directory.
-	FileAdded
+	FileAdded // 1
 	// FileRemoved - the file was removed from the directory.
 	FileRemoved
 	// FileModified - the file was modified. This can be a change in the time stamp or attributes.

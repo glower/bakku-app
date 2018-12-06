@@ -6,13 +6,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// snapshot:
-//   default: leveldb
-//   leveldb:
-//     sameDir: true
-//     snapshotDir: .snapshot
-//     active: true
-
 const defaultStorageImplementationName = "leveldb"
 
 // DefaultStorage returns name of a default storage implementation as a string
