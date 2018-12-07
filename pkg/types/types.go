@@ -5,13 +5,14 @@ import "time"
 // FileChangeNotification ...
 type FileChangeNotification struct {
 	Action
-	Machine       string
-	Name          string
-	AbsolutePath  string
-	RelativePath  string
-	DirectoryPath string
-	Size          int64
-	Timestamp     time.Time
+	Machine            string
+	Name               string
+	AbsolutePath       string
+	RelativePath       string
+	DirectoryPath      string
+	WatchDirectoryName string
+	Size               int64
+	Timestamp          time.Time
 }
 
 // Action represents what happens with the file

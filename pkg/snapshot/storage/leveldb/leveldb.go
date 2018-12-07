@@ -12,7 +12,7 @@ import (
 
 // Snapshot ...
 type Snapshot struct {
-	snapshotPath    string
+	snapshotPath    string // /foo/bar/.snapshot
 	snapshotDirName string // .snapshot
 	sameDir         bool
 }

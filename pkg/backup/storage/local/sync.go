@@ -14,7 +14,7 @@ import (
 
 // SyncSnapshot syncs the snapshot dir to the storage
 func (s *Storage) SyncSnapshot(from, to string) {
-	// log.Printf("storage.local.SyncSnapshot(): copy snapshot form [%s] to [%s]\n", from, to)
+	log.Printf("storage.local.SyncSnapshot(): copy snapshot form [%s] to [%s]\n", from, to)
 	if err := copy.Copy(from, to); err != nil {
 		log.Printf("[ERROR] storage.local.SyncSnapshot(): cannot copy snapshot for [%s]: %v\n", from, err)
 		return

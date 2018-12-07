@@ -102,7 +102,7 @@ func (s *Storage) Start(ctx context.Context) error {
 }
 
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
-	// log.Printf("storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
+	log.Printf("!!! storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
 	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
 	relativePath := fileChange.RelativePath   // buz/alice.jpg
 	directoryPath := fileChange.DirectoryPath // /foo/bar/
@@ -111,7 +111,7 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
 
 	localSnapshotPath := snapshot.StoragePath(directoryPath)
-	remoteSnapshotPath := snapshot.StoragePath(s.storagePath)
+	remoteSnapshotPath := snapshot.StoragePath(filepath.Join(s.storagePath, fileChange.WatchDirectoryName))
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {

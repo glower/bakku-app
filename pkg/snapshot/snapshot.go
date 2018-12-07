@@ -47,8 +47,6 @@ func CreateOrUpdate(snapshotPath string, callbackChan chan types.FileChangeNotif
 		if !fileInfo.IsDir() {
 			entry, err := updateEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
-				// entry.Action = types.Action(types.FileAdded)
-				log.Printf(">>>>>>>>>>>>>>>> CreateOrUpdate(): first time backup for [%#v] !!!!", entry)
 				callbackChan <- *entry
 			}
 		}
@@ -74,14 +72,15 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.Fi
 	fileName := filepath.Base(filePath)
 	relativePath := strings.Replace(filePath, snapshotPath+string(os.PathSeparator), "", -1)
 	snapshot := types.FileChangeNotification{
-		Action:        types.Action(types.FileAdded),
-		AbsolutePath:  filePath,
-		RelativePath:  relativePath,
-		DirectoryPath: snapshotPath,
-		Name:          fileName,
-		Size:          fileInfo.Size(),
-		Timestamp:     fileInfo.ModTime(),
-		Machine:       host,
+		Action:             types.Action(types.FileAdded),
+		WatchDirectoryName: filepath.Base(snapshotPath),
+		AbsolutePath:       filePath,
+		RelativePath:       relativePath,
+		DirectoryPath:      snapshotPath,
+		Name:               fileName,
+		Size:               fileInfo.Size(),
+		Timestamp:          fileInfo.ModTime(),
+		Machine:            host,
 	}
 	// TODO: maybe move this part to the Add() function
 	value, err := json.Marshal(snapshot)
