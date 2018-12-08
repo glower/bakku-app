@@ -229,6 +229,19 @@
   version = "v0.3.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:e773bdd89184a75509f4c0f25051fb14efd80c45f12b338e8240e29a1cf8dcbb"
+  name = "google.golang.org/api"
+  packages = [
+    "drive/v3",
+    "gensupport",
+    "googleapi",
+    "googleapi/internal/uritemplates",
+  ]
+  pruneopts = "UT"
+  revision = "1a5ef82f9af45ef51c486291ef2b0a16d82fdb95"
+
+[[projects]]
   digest = "1:d2a8db567a76203e3b41c1f632d86485ffd57f8e650a0d1b19d240671c2fddd7"
   name = "google.golang.org/appengine"
   packages = [
@@ -275,6 +288,7 @@
     "github.com/syndtr/goleveldb/leveldb",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
+    "google.golang.org/api/drive/v3",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
