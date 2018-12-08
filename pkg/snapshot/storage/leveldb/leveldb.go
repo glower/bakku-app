@@ -21,6 +21,7 @@ type Snapshot struct {
 const snapshotStorageName = "leveldb"
 
 func init() {
+	log.Println("snapshot.leveldb.init()")
 	snapshotStorage.Register(snapshotStorageName, &Snapshot{})
 }
 
@@ -51,6 +52,7 @@ func (s *Snapshot) Exist() bool {
 // Setup new snapshot storage implementation
 func (s *Snapshot) Setup() bool { // TODO: do we need bool here?
 	config := snapshot.Conf()
+	log.Printf("leveldb.Setup(): %#v\n", config)
 	if config.Active {
 		s.snapshotDirName = config.SnapshotDir
 		s.sameDir = config.SameDir

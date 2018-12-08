@@ -99,13 +99,16 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
+// DirectoryChangeWacherImplementer is here to make testing easy
 type DirectoryChangeWacherImplementer struct{}
 
 // SetupDirectoryChangeNotification ...
 func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(path string) {
+	log.Printf("windows.SetupDirectoryChangeNotification(): for [%s]\n", path)
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
@@ -118,11 +121,14 @@ func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(path
 func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
+	if strings.Contains(file, snapshot.Dir()) {
+		// log.Println("goCallbackFileChange(): snapshot changes, ignore")
+		return
+	}
 	fileChangeNotifier(path, file, types.Action(int(caction)))
 }
 
 func lookup(path string) CallbackData {
-	// log.Printf("watch.lookup(): %s\n", path)
 	callbackMutex.Lock()
 	defer callbackMutex.Unlock()
 	data, ok := callbackFuncs[path]

@@ -37,6 +37,7 @@ func Exist(path string) bool {
 // CreateOrUpdate a new or update an existing snapshot entry for a given directory path
 func CreateOrUpdate(snapshotPath string, callbackChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
 	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
+	storage.Init()
 	firstTimeBackup := false
 	if !Exist(snapshotPath) {
 		firstTimeBackup = true

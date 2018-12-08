@@ -30,9 +30,9 @@ const (
 	// FileAdded - the file was added to the directory.
 	FileAdded // 1
 	// FileRemoved - the file was removed from the directory.
-	FileRemoved
+	FileRemoved // 2
 	// FileModified - the file was modified. This can be a change in the time stamp or attributes.
-	FileModified
+	FileModified // 3
 	// FileRenamedOldName - the file was renamed and this is the old name.
 	FileRenamedOldName
 	// FileRenamedNewName - the file was renamed and this is the new name.

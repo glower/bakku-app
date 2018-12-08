@@ -73,7 +73,7 @@ func unregister(path string) {
 
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
-	log.Printf(">>> watch.fileChangeNotifier(): path:[%s] file:[%s]\n", path, file)
+	log.Printf(">>> watch.fileChangeNotifier(): path:[%s] file:[%s] action:[%d]\n", path, file, action)
 
 	filePath := filepath.Join(path, file)
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))

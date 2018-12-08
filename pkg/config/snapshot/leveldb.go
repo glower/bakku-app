@@ -27,21 +27,21 @@ func Conf() *Config {
 	var conf Config
 	snapshotDir, ok := viper.Get("snapshot.leveldb.snapshotDir").(string)
 	if !ok {
-		log.Printf("SnapshotConf(): can't find [%s]\n", snapshotDir)
+		log.Printf("SnapshotConf(): can't find [snapshot.leveldb.snapshotDir] in the config file, using default value [%s]\n", defaultSnapshotDir)
 		snapshotDir = defaultSnapshotDir
 	}
 	conf.SnapshotDir = snapshotDir
 
 	active, ok := viper.Get("snapshot.leveldb.active").(bool)
 	if !ok {
-		log.Printf("snapshot.Conf(): can't find [%v]\n", active)
+		log.Printf("snapshot.Conf(): can't find [snapshot.leveldb.active] in the config file, using default value [true]\n")
 		active = true
 	}
 	conf.Active = active
 
 	sameDir, ok := viper.Get("snapshot.leveldb.sameDir").(bool)
 	if !ok {
-		log.Printf("snapshot.Conf(): can't find [%v]\n", sameDir)
+		log.Printf("snapshot.Conf(): can't find [snapshot.leveldb.sameDir] in the config file, using default value [true]\n")
 		active = true
 	}
 	conf.SameDir = sameDir

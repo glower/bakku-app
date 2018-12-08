@@ -44,8 +44,16 @@ func Register(name string, s Snapshot) {
 	}
 
 	log.Printf("snapshot.Register(): snapshot provider [%s] registered\n", name)
-	s.Setup()
+	// s.Setup()
 	snapshotStorages[name] = s
+}
+
+// Init ...
+func Init() {
+	for name, snapshotStorage := range snapshotStorages {
+		snapshotStorage.Setup()
+		log.Printf("snapshot.storage.Init(): [%s]\n", name)
+	}
 }
 
 // GetDefault a snapshot storage implementation

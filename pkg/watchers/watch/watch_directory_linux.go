@@ -102,7 +102,7 @@ type DirectoryChangeWacherImplementer struct{}
 
 // SetupDirectoryChangeNotification ...
 func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(dir string) {
-	log.Printf("!!!! linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
+	log.Printf("linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if strings.Contains(path, snapshot.Dir()) {
 			return nil
