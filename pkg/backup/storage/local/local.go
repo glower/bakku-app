@@ -28,6 +28,7 @@ const storageName = "local"
 const bufferSize = 1024 * 1024
 
 func init() {
+	log.Println("local.init()")
 	storage.Register(storageName, &Storage{})
 }
 
@@ -38,9 +39,9 @@ type StoreOptions struct {
 
 // Setup local storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
+	log.Println("local.Setup()")
 	config := conf.ProviderConf(storageName)
 	if config.Active {
-		log.Println("storage.local.Setup()")
 		s.name = storageName
 		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
