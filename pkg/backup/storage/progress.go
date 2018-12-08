@@ -42,7 +42,8 @@ func IsInProgress(file, storage string) bool {
 
 // BackupFinished ...
 func BackupFinished(file, storage string) {
-	log.Printf("storage.BackupFinished(): [%s]", file)
+	log.Printf("storage.BackupFinished(): [%s]\n", file)
+	log.Printf("-------------------------------------------------------\n\n\n")
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)

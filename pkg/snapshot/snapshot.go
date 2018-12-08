@@ -10,6 +10,7 @@ import (
 
 	"github.com/glower/bakku-app/pkg/snapshot/storage"
 	// leveldb is default storage implementation for the snapshot
+	_ "github.com/glower/bakku-app/pkg/snapshot/storage/bolt"
 	_ "github.com/glower/bakku-app/pkg/snapshot/storage/leveldb"
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -43,7 +44,6 @@ func CreateOrUpdate(snapshotPath string, callbackChan chan<- types.FileChangeNot
 		firstTimeBackup = true
 	}
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
-		// if snapshotPath
 		if !fileInfo.IsDir() {
 			entry, err := updateEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
@@ -56,7 +56,6 @@ func CreateOrUpdate(snapshotPath string, callbackChan chan<- types.FileChangeNot
 		log.Printf("CreateOrUpdate(): done with new scan for [%s], send signal ...\n", snapshotPath)
 		changesDoneChan <- true
 	}
-	log.Println("CreateOrUpdate(): done")
 }
 
 // UpdateEntry ...
@@ -64,10 +63,13 @@ func UpdateEntry(snapshotPath, filePath string) {
 	absolutePath := filepath.Join(snapshotPath, filePath)
 	f, err := os.Stat(absolutePath)
 	if err != nil {
-		log.Printf("storage.UpdateEntry(): can not stat file [%s]: %v\n", absolutePath, err)
+		log.Panicf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
 		return
 	}
-	updateEntry(snapshotPath, filePath, f)
+	_, err = updateEntry(snapshotPath, absolutePath, f)
+	if err != nil {
+		log.Panicf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, filePath, err)
+	}
 }
 
 func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
@@ -89,13 +91,11 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.Fi
 	// TODO: maybe move this part to the Add() function
 	value, err := json.Marshal(snapshot)
 	if err != nil {
-		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
 		return nil, err
 	}
 
 	err = Snapshot(snapshotPath).Add(filePath, value)
 	if err != nil {
-		log.Printf("snapshot.Update(): cannot Marshal to json %#v: %v\n", snapshot, err)
 		return nil, err
 	}
 	return &snapshot, err
@@ -114,23 +114,32 @@ func RemoveSnapshotEntry(directoryPath, filePath string) {
 
 // Diff returns diff between two snapshots as array of FileChangeNotification
 func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNotification, error) {
-	log.Printf("snapshot.Diff(): remote=[%s] local=[%s]", remoteSnapshotPath, localSnapshotPath)
+	log.Printf("snapshot.Diff(): remote snapshot:[%s] local snapshot: [%s]", remoteSnapshotPath, localSnapshotPath)
 	var result []types.FileChangeNotification
 
 	dbRemote, err := Snapshot(remoteSnapshotPath).GetAll()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot.Diff(): cannot open snapshot for the path [%s]: %v", remoteSnapshotPath, err)
+		return nil, fmt.Errorf("snapshot.Diff(): can't open snapshot for the path [%s]: %v", remoteSnapshotPath, err)
 	}
 
 	dbLocal, err := Snapshot(localSnapshotPath).GetAll()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot.Diff(): can not open snapshot for the path [%s]: %v", localSnapshotPath, err)
+		return nil, fmt.Errorf("snapshot.Diff(): can't open snapshot for the path [%s]: %v", localSnapshotPath, err)
 	}
 
 	for localFile, localInfo := range dbLocal {
 		remoteInfo, found := dbRemote[localFile]
 		if !found || localInfo != remoteInfo {
-			log.Printf("snapshot.Diff(): key [%s] not found or different from the remote snapshot\n", localFile)
+
+			if !found {
+				log.Printf("snapshot.Diff(): file [%s] is not found in the remote snapshot\n", localFile)
+			} else {
+				log.Println("------------------------------------- diff -------------------------------------")
+				log.Printf("local:  %s\n", localInfo)
+				log.Printf("repote: %s\n", remoteInfo)
+				log.Println("------------------------------------- diff -------------------------------------")
+			}
+
 			file, err := unmurshalFileChangeNotification(localInfo)
 			if err != nil {
 				log.Printf("[ERROR] snapshot.Diff(): %s\n", err)

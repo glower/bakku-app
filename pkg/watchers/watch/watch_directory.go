@@ -81,30 +81,25 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	if action != types.FileRemoved && action != types.FileRenamedOldName {
 		fileInfo, err = os.Stat(filePath)
 		if err != nil {
-			log.Printf("[ERROR] watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
+			log.Printf("watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
 			return
 		}
 	} else {
 		log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
 		// TODO: do we need all this info for delete action?
 		callbackData.CallbackChan <- types.FileChangeNotification{
-			AbsolutePath:  filePath,
-			Action:        action,
-			DirectoryPath: callbackData.Path,
-			Name:          filepath.Base(file),
-			RelativePath:  file,
-			// Timestamp:          fileInfo.ModTime(),
+			AbsolutePath:       filePath,
+			Action:             action,
+			DirectoryPath:      callbackData.Path,
+			Name:               filepath.Base(file),
+			RelativePath:       file,
 			WatchDirectoryName: filepath.Base(callbackData.Path),
 		}
 		return
 	}
 
 	if fileInfo != nil {
-		host, err := os.Hostname() // TODO: handle this error
-		if err != nil {
-			log.Printf("Can't get host name: %v\n", err)
-			host = "xxx"
-		}
+		host, _ := os.Hostname() // TODO: handle this error
 		callbackData.CallbackChan <- types.FileChangeNotification{
 			AbsolutePath:       filePath,
 			Action:             action,

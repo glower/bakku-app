@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const defaultStorageImplementationName = "leveldb"
+const defaultStorageImplementationName = "boltdb"
 
 // DefaultStorage returns name of a default storage implementation as a string
 func DefaultStorage() string {

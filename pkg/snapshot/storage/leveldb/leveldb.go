@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/config/snapshot"
 	snapshotStorage "github.com/glower/bakku-app/pkg/snapshot/storage"
@@ -63,18 +64,14 @@ func (s *Snapshot) Setup() bool { // TODO: do we need bool here?
 
 // Add info about file to the snapshot
 func (s *Snapshot) Add(filePath string, value []byte) error {
-	// log.Printf("leveldb.Add(): add [%s] to %s\n", filePath, s.snapshotPath)
+	log.Printf("leveldb.Add(): add [%s] to %s\n", filePath, s.snapshotPath)
 	if strings.Contains(filePath, s.snapshotDirName) {
 		return nil
 	}
-	// log.Printf("Add(): leveldb.OpenFile(): %s\n", s.snapshotPath)
-	db, err := leveldb.OpenFile(s.snapshotPath, nil)
-	if err != nil {
-		return err
-	}
+	db := s.openDB()
 	defer db.Close()
 
-	err = db.Put([]byte(filePath), value, nil)
+	err := db.Put([]byte(filePath), value, nil)
 	if err != nil {
 		return err
 	}
@@ -84,10 +81,7 @@ func (s *Snapshot) Add(filePath string, value []byte) error {
 // Get information about the file from the snapshot
 func (s *Snapshot) Get(file string) (string, error) {
 	// log.Printf("Get(): leveldb.OpenFile(): %s\n", s.snapshotPath)
-	db, err := leveldb.OpenFile(s.snapshotPath, nil)
-	if err != nil {
-		return "", err
-	}
+	db := s.openDB()
 	defer db.Close()
 
 	value, err := db.Get([]byte(file), nil)
@@ -100,13 +94,10 @@ func (s *Snapshot) Get(file string) (string, error) {
 // Remove  file from the snapshot storage
 func (s *Snapshot) Remove(file string) error {
 	// log.Printf("Remove(): leveldb.OpenFile(): %s\n", s.snapshotPath)
-	db, err := leveldb.OpenFile(s.snapshotPath, nil)
-	if err != nil {
-		return err
-	}
+	db := s.openDB()
 	defer db.Close()
 
-	err = db.Delete([]byte(file), nil)
+	err := db.Delete([]byte(file), nil)
 	if err != nil {
 		return err
 	}
@@ -116,10 +107,7 @@ func (s *Snapshot) Remove(file string) error {
 // GetAll entries from the snapshot storage
 func (s *Snapshot) GetAll() (map[string]string, error) {
 	log.Printf("GetAll(): leveldb.OpenFile(): %s\n", s.snapshotPath)
-	db, err := leveldb.OpenFile(s.snapshotPath, nil)
-	if err != nil {
-		return nil, err
-	}
+	db := s.openDB()
 	defer db.Close()
 	result := make(map[string]string)
 	iter := db.NewIterator(nil, nil)
@@ -130,4 +118,26 @@ func (s *Snapshot) GetAll() (map[string]string, error) {
 	}
 	iter.Release()
 	return result, nil
+}
+
+const usedByAnotherProcess = "The process cannot access the file because it is being used by another process."
+
+func (s *Snapshot) openDB() *leveldb.DB {
+	var cnt int
+	db, err := leveldb.OpenFile(s.snapshotPath, nil)
+	if err != nil && err.Error() != usedByAnotherProcess {
+		log.Panicf("leveldb.openDB(): %v\n", err)
+	}
+	for err != nil && err.Error() == usedByAnotherProcess {
+		time.Sleep(1 * time.Second)
+		db, err = leveldb.OpenFile(s.snapshotPath, nil)
+		if err != nil && err.Error() != usedByAnotherProcess {
+			log.Panicf("leveldb.openDB(): %v\n", err)
+		}
+		cnt++
+		if cnt > 10 {
+			log.Panicf("leveldb.openDB(): can't access file for more as 10 seconds: %v\n", err)
+		}
+	}
+	return db
 }

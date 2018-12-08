@@ -117,9 +117,9 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
 				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.RelativePath) // TODO: is here a  good place?
 			case types.FileAdded, types.FileModified:
-				log.Printf("storage.ProcessFileChangeNotifications(): FileAdded|FileModified! file=[%s]\n", change.AbsolutePath)
-				for name, storage := range storages {
-					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
+				// log.Printf("storage.processeFileChangeNotifications(): FileAdded|FileModified file=[%s]\n", change.AbsolutePath)
+				for _, storage := range storages {
+					// log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
 					storage.FileChangeNotification() <- &change
 				}
 			default:
@@ -136,9 +136,9 @@ func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
 		case <-ctx.Done():
 			return
 		case <-done:
-			for name, _ := range storages {
+			for name, storage := range storages {
 				log.Printf("storage.processeFilesScanDoneNotifications(): sync backups for [%s]\n", name)
-				// go storage.SyncLocalFilesToBackup() // !!!
+				go storage.SyncLocalFilesToBackup() // !!!
 			}
 		}
 	}

@@ -54,24 +54,19 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 
 // SyncLocalFilesToBackup ...
 func (s *Storage) SyncLocalFilesToBackup() {
+	log.Println("local.SyncLocalFilesToBackup(): START")
 	dirs := config.DirectoriesToWatch()
-
 	for _, path := range dirs {
 		log.Printf("storage.local.SyncLocalFilesToBackup(): %s\n", path)
-		remoteSnapshotPath := snapshot.StoragePath(filepath.Join(s.storagePath, filepath.Base(path)))
+		remoteSnapshot := snapshot.StoragePath(filepath.Join(s.storagePath, filepath.Base(path)))
 		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
+		localTMPFile := filepath.Join(localTMPPath, ".snapshot")
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
-			path, remoteSnapshotPath, localTMPPath)
+			path, remoteSnapshot, localTMPFile)
 
-		// SyncLocalFilesToBackup
-		if err := os.MkdirAll(remoteSnapshotPath, 0744); err != nil {
-			log.Printf("[ERROR] storage.local.SyncLocalFilesToBackup():  MkdirAll for [%s], %v", remoteSnapshotPath, err)
-			return
-		}
-
-		if err := copy.Copy(remoteSnapshotPath, localTMPPath); err != nil {
-			log.Printf("[ERROR] storage.local.SyncLocalFilesToBackup(): cannot copy snapshot for [%s]: %v\n", path, err)
+		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
+			log.Printf("[ERROR] storage.local.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
 			return
 		}
 
@@ -86,7 +81,6 @@ func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
 
 // Start local storage
 func (s *Storage) Start(ctx context.Context) error {
-	log.Println("storage.local.Start()")
 	s.ctx = ctx
 	go func() {
 		for {
@@ -102,7 +96,7 @@ func (s *Storage) Start(ctx context.Context) error {
 }
 
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
-	log.Printf("storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
+	log.Printf("local.handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
 	relativePath := fileChange.RelativePath   // buz/alice.jpg
 	directoryPath := fileChange.DirectoryPath // /foo/bar/
@@ -110,14 +104,14 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
 
-	localSnapshotPath := snapshot.StoragePath(directoryPath)
-	remoteSnapshotPath := snapshot.StoragePath(filepath.Join(s.storagePath, fileChange.WatchDirectoryName))
-
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(from, storageName); ok {
 		s.store(from, to, StoreOptions{reportProgress: true})
 		storage.BackupFinished(absolutePath, storageName)
+
+		// TODO: first time sync?
 		snapshot.UpdateEntry(directoryPath, relativePath)
-		s.SyncSnapshot(localSnapshotPath, remoteSnapshotPath) // ???
+		remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName)
+		s.SyncSnapshot(directoryPath, remoteSnapshotPath)
 	}
 }

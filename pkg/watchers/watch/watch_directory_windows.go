@@ -125,6 +125,7 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := types.Action(int(caction))
+
 	if strings.Contains(file, snapshot.Dir()) {
 		return
 	}
@@ -152,7 +153,6 @@ func waitForFile(filePath string) {
 	var cnt int
 	_, err := os.Stat(filePath)
 	for err != nil {
-		// log.Printf("waitForFile(): [%s] %d ...\n", filePath, cnt)
 		time.Sleep(1 * time.Second)
 		_, err = os.Stat(filePath)
 		cnt++
