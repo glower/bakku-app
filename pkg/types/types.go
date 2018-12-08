@@ -15,6 +15,12 @@ type FileChangeNotification struct {
 	Timestamp          time.Time
 }
 
+// Notifications ...
+type Notifications struct {
+	FileChangeChan chan FileChangeNotification
+	DoneChan       chan bool
+}
+
 // Action represents what happens with the file
 type Action int
 

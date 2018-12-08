@@ -74,7 +74,6 @@ func (s *Storage) SyncLocalFilesToBackup() {
 			return
 		}
 
-		// snapshotPath := snapshot.StoragePath(path)
 		s.syncFiles(localTMPPath, path)
 	}
 }
@@ -102,7 +101,7 @@ func (s *Storage) Start(ctx context.Context) error {
 }
 
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
-	log.Printf("!!! storage.local.handleFileChanges(): File [%#v] has been changed\n", fileChange)
+	log.Printf("storage.local.handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
 	relativePath := fileChange.RelativePath   // buz/alice.jpg
 	directoryPath := fileChange.DirectoryPath // /foo/bar/

@@ -68,8 +68,7 @@ func UnregisterStorage(name string) {
 }
 
 // SetupManager runs all implemented storages
-func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []chan types.FileChangeNotification) *Manager {
-	log.Println("storage.SetupManager(): START")
+func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []types.Notifications) *Manager {
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *types.FileChangeNotification),
 		ProgressChannel:               make(chan *Progress),
@@ -86,7 +85,7 @@ func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []ch
 		}
 	}
 
-	go m.ProcessFileChangeNotifications(ctx, notifications)
+	go m.ProcessNotifications(ctx, notifications)
 
 	return m
 }
@@ -95,7 +94,7 @@ func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []ch
 func (m *Manager) SetupStorage(name string, storage Storage) {
 	log.Printf("SetupStorage(): [%s]\n", name)
 	ctx, cancel := context.WithCancel(context.Background())
-	// go storage.SyncLocalFilesToBackup() // !!!!!!!!!!!!!!!!!!!?????????????????
+	// go storage.SyncLocalFilesToBackup()
 	err := storage.Start(ctx)
 	if err != nil {
 		cancel()
@@ -107,29 +106,50 @@ func (m *Manager) SetupStorage(name string, storage Storage) {
 	}
 }
 
-// ProcessFileChangeNotifications sends file change notofocations to all registerd storages
-func (m *Manager) ProcessFileChangeNotifications(ctx context.Context, notifications []chan types.FileChangeNotification) {
-	for _, watcher := range notifications {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case change := <-watcher:
-				switch change.Action {
-				case types.FileRemoved:
-					log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
-					snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.RelativePath) // TODO: is here a  good place?
-				case types.FileAdded, types.FileModified:
-					log.Printf("storage.ProcessFileChangeNotifications(): FileAdded|FileModified! file=[%s]\n", change.AbsolutePath)
-					for name, storage := range storages {
-						log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-						storage.FileChangeNotification() <- &change
-					}
-				default:
-					log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", change)
+func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.FileChangeNotification) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case change := <-watcher:
+			switch change.Action {
+			case types.FileRemoved:
+				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
+				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.RelativePath) // TODO: is here a  good place?
+			case types.FileAdded, types.FileModified:
+				log.Printf("storage.ProcessFileChangeNotifications(): FileAdded|FileModified! file=[%s]\n", change.AbsolutePath)
+				for name, storage := range storages {
+					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
+					storage.FileChangeNotification() <- &change
 				}
+			default:
+				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", change)
 			}
 		}
+	}
+}
+
+func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
+	log.Println("processeFilesScanDoneNotifications(): setup channels")
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-done:
+			for name, storage := range storages {
+				log.Printf("storage.processeFilesScanDoneNotifications(): sync backups for [%s]\n", name)
+				go storage.SyncLocalFilesToBackup()
+			}
+		}
+	}
+}
+
+// ProcessNotifications sends file change notofocations to all registerd storages
+func (m *Manager) ProcessNotifications(ctx context.Context, notifications []types.Notifications) {
+	log.Println("backup.ProcessNotifications(): setup channels")
+	for _, notification := range notifications {
+		go processeFileChangeNotifications(ctx, notification.FileChangeChan)
+		go processeFilesScanDoneNotifications(ctx, notification.DoneChan)
 	}
 }
 

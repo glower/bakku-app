@@ -1,6 +1,7 @@
 package leveldb
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,7 +56,6 @@ func (s *Snapshot) Setup() bool { // TODO: do we need bool here?
 
 // Add info about file to the snapshot
 func (s *Snapshot) Add(filePath string, value []byte) error {
-	// we don't add snapshot files to the snapshot
 	// log.Printf("leveldb.Add(): add [%s] to %s\n", filePath, s.snapshotPath)
 	if strings.Contains(filePath, s.snapshotDirName) {
 		return nil
@@ -108,7 +108,7 @@ func (s *Snapshot) Remove(file string) error {
 
 // GetAll entries from the snapshot storage
 func (s *Snapshot) GetAll() (map[string]string, error) {
-	// log.Printf("GetAll(): leveldb.OpenFile(): %s\n", s.snapshotPath)
+	log.Printf("GetAll(): leveldb.OpenFile(): %s\n", s.snapshotPath)
 	db, err := leveldb.OpenFile(s.snapshotPath, nil)
 	if err != nil {
 		return nil, err

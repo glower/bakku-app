@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	// "github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/snapshot/storage"
 	// leveldb is default storage implementation for the snapshot
 	_ "github.com/glower/bakku-app/pkg/snapshot/storage/leveldb"
@@ -36,7 +35,7 @@ func Exist(path string) bool {
 }
 
 // CreateOrUpdate a new or update an existing snapshot entry for a given directory path
-func CreateOrUpdate(snapshotPath string, callbackChan chan types.FileChangeNotification) {
+func CreateOrUpdate(snapshotPath string, callbackChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
 	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
 	firstTimeBackup := false
 	if !Exist(snapshotPath) {
@@ -52,6 +51,10 @@ func CreateOrUpdate(snapshotPath string, callbackChan chan types.FileChangeNotif
 		}
 		return nil
 	})
+	if !firstTimeBackup {
+		log.Printf("CreateOrUpdate(): done with new scan for [%s], send signal ...\n", snapshotPath)
+		changesDoneChan <- true
+	}
 	log.Println("CreateOrUpdate(): done")
 }
 
@@ -108,25 +111,6 @@ func RemoveSnapshotEntry(directoryPath, filePath string) {
 	}
 }
 
-// func createFirstBackup(snapshotPath string, changes chan types.FileChangeNotification) {
-// 	log.Printf(">>>>>>>> watchers.createFirstBackup(): for=[%s]\n", snapshotPath)
-// 	data, err := Snapshot(snapshotPath).GetAll()
-// 	if err != nil {
-// 		log.Printf("[ERROR] watchers.CreateFirstBackup(): can not open snapshot file [%s]: %v\n", snapshotPath, err)
-// 		return
-// 	}
-
-// 	for _, fileChangeJSON := range data {
-// 		fileSnapshot, err := unmurshalFileChangeNotification(fileChangeJSON)
-// 		if err != nil {
-// 			log.Printf("[ERROR] snapshot.CreateFirstBackup(): %s\n", err)
-// 			continue
-// 		}
-// 		log.Printf(">>> createFirstBackup(): backup %s\n", fileSnapshot)
-// 		changes <- fileSnapshot
-// 	}
-// }
-
 // Diff returns diff between two snapshots as array of FileChangeNotification
 func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNotification, error) {
 	log.Printf("snapshot.Diff(): remote=[%s] local=[%s]", remoteSnapshotPath, localSnapshotPath)
@@ -134,12 +118,12 @@ func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNoti
 
 	dbRemote, err := Snapshot(remoteSnapshotPath).GetAll()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot.Diff(): cannot open snapshot file [%s]: leveldb.OpenFile(): %v", remoteSnapshotPath, err)
+		return nil, fmt.Errorf("snapshot.Diff(): cannot open snapshot for the path [%s]: %v", remoteSnapshotPath, err)
 	}
 
 	dbLocal, err := Snapshot(localSnapshotPath).GetAll()
 	if err != nil {
-		return nil, fmt.Errorf("snapshot.Diff(): can not open snapshot file [%s]: leveldb.OpenFile(): %v", localSnapshotPath, err)
+		return nil, fmt.Errorf("snapshot.Diff(): can not open snapshot for the path [%s]: %v", localSnapshotPath, err)
 	}
 
 	for localFile, localInfo := range dbLocal {

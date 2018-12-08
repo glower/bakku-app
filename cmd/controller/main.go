@@ -38,9 +38,9 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	fsWachers := watchers.SetupWatchers()
+	notifications := watchers.SetupWatchers()
 	sseServer := setupSSE()
-	storageManager := storage.SetupManager(ctx, sseServer, fsWachers)
+	storageManager := storage.SetupManager(ctx, sseServer, notifications)
 	startHTTPServer(sseServer, storageManager)
 
 	// server will block here untill we got SIGTERM/kill
