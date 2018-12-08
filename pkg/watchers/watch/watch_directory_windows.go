@@ -56,7 +56,7 @@ static inline void WatchDirectory(char* dir) {
 	while (TRUE) {
 		waitStatus = WaitForSingleObject(ovl.hEvent, INFINITE);
 		switch (waitStatus) {
-      case WAIT_OBJECT_0:
+      		case WAIT_OBJECT_0:
 				// printf("[CGO] [INFO] A file was created, renamed, or deleted\n");
 				GetOverlappedResult(
 					handle,  // pipe handle
@@ -74,29 +74,32 @@ static inline void WatchDirectory(char* dir) {
 					// printf("[CGO] [INFO] file=[%s] action=[%d] offset=[%ld]\n", fileName, fni->Action, offset);
 					goCallbackFileChange(dir, fileName, fni->Action);
 					memset(fileName, '\0', sizeof(fileName));
-        	offset += fni->NextEntryOffset;
+					offset += fni->NextEntryOffset;
 				} while (fni->NextEntryOffset != 0);
 
 				ResetEvent(ovl.hEvent);
 				if( ReadDirectoryChangesW( handle, buffer, sizeof(buffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, NULL, &ovl, NULL) == 0) {
 					printf("Reading Directory Change");
 				}
-        break;
-      case WAIT_TIMEOUT:
-        printf("\nNo changes in the timeout period.\n");
-        break;
-      default:
-        printf("\n ERROR: Unhandled status.\n");
-        ExitProcess(GetLastError());
-        break;
-    }
-  }
+				break;
+			case WAIT_TIMEOUT:
+				printf("\nNo changes in the timeout period.\n");
+				break;
+			default:
+				printf("\n ERROR: Unhandled status.\n");
+				ExitProcess(GetLastError());
+				break;
+    	}
+  	}
 }
 */
 import "C"
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/glower/bakku-app/pkg/snapshot"
@@ -121,11 +124,18 @@ func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(path
 func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
+	action := types.Action(int(caction))
 	if strings.Contains(file, snapshot.Dir()) {
-		// log.Println("goCallbackFileChange(): snapshot changes, ignore")
 		return
 	}
-	fileChangeNotifier(path, file, types.Action(int(caction)))
+
+	// This is a hack to see if the file is written to the disk on windows
+	if action != types.FileRemoved {
+		filePath := filepath.Join(path, file)
+		waitForFile(filePath)
+	}
+
+	fileChangeNotifier(path, file, action)
 }
 
 func lookup(path string) CallbackData {
@@ -136,4 +146,19 @@ func lookup(path string) CallbackData {
 		log.Printf("watch.lookup(): callback data for path=%s are not found!!!\n", path)
 	}
 	return data
+}
+
+func waitForFile(filePath string) {
+	var cnt int
+	_, err := os.Stat(filePath)
+	for err != nil {
+		// log.Printf("waitForFile(): [%s] %d ...\n", filePath, cnt)
+		time.Sleep(1 * time.Second)
+		_, err = os.Stat(filePath)
+		cnt++
+		if cnt > 10 {
+			log.Printf("waitForFile(): stop waiting for [%s] after 10 seconds\n", filePath)
+			break
+		}
+	}
 }

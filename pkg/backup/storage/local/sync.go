@@ -19,6 +19,7 @@ func (s *Storage) SyncSnapshot(from, to string) {
 		log.Printf("[ERROR] storage.local.SyncSnapshot(): cannot copy snapshot for [%s]: %v\n", from, err)
 		return
 	}
+	log.Printf("storage.local.SyncSnapshot(): DONE\n")
 }
 
 func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
