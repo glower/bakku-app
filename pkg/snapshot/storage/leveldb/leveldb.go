@@ -30,9 +30,14 @@ func (s *Snapshot) Path(path string) snapshotStorage.Snapshot {
 	return s
 }
 
-// SnapshotStoragePath returns a path where the snapshot data are stored
+// SnapshotStoragePath returns an absolute path where the snapshot data are stored
 func (s *Snapshot) SnapshotStoragePath() string {
 	return s.snapshotPath
+}
+
+// SnapshotStoragePathName ...
+func (s *Snapshot) SnapshotStoragePathName() string {
+	return s.snapshotDirName
 }
 
 // Exist ...

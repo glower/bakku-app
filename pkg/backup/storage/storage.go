@@ -136,9 +136,9 @@ func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
 		case <-ctx.Done():
 			return
 		case <-done:
-			for name, storage := range storages {
+			for name, _ := range storages {
 				log.Printf("storage.processeFilesScanDoneNotifications(): sync backups for [%s]\n", name)
-				go storage.SyncLocalFilesToBackup()
+				// go storage.SyncLocalFilesToBackup() // !!!
 			}
 		}
 	}

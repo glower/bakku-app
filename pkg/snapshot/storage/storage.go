@@ -12,6 +12,7 @@ type Snapshot interface {
 	Setup() bool
 	Path(path string) Snapshot
 	SnapshotStoragePath() string
+	SnapshotStoragePathName() string
 	Exist() bool
 	Add(string, []byte) error
 	GetAll() (map[string]string, error)

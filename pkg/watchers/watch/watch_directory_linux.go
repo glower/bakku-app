@@ -82,7 +82,7 @@ import (
 // #define IN_DELETE_SELF	0x00000400	/* Self was deleted */
 func convertMaskToAction(mask int) types.Action {
 	switch mask {
-	case 2 | 8: // File was modified
+	case 2, 8: // File was modified
 		return types.Action(types.FileModified)
 	case 256: // Subfile was created
 		return types.Action(types.FileAdded)
@@ -102,6 +102,7 @@ type DirectoryChangeWacherImplementer struct{}
 
 // SetupDirectoryChangeNotification ...
 func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(dir string) {
+	log.Printf("!!!! linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if strings.Contains(path, snapshot.Dir()) {
 			return nil

@@ -73,25 +73,32 @@ func unregister(path string) {
 
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
+	log.Printf(">>> watch.fileChangeNotifier(): path:[%s] file:[%s]\n", path, file)
+
 	filePath := filepath.Join(path, file)
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
-	var fi os.FileInfo
+	var fileInfo os.FileInfo
 	var err error
 	callbackData := lookup(path)
+	log.Printf(">>> watch.fileChangeNotifier(): callbackData:[%#v]\n", callbackData)
+
 	if action != types.FileRemoved && action != types.FileRenamedOldName {
-		fi, err = os.Stat(filePath)
+		fileInfo, err = os.Stat(filePath)
 		if err != nil {
 			log.Printf("[ERROR] watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
 			return
 		}
 	} else {
 		log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
+		// TODO: do we need all this info for delete action?
 		callbackData.CallbackChan <- types.FileChangeNotification{
-			Action:        action,
-			Name:          filepath.Base(file),
-			AbsolutePath:  filePath,
-			RelativePath:  file,
-			DirectoryPath: callbackData.Path,
+			AbsolutePath:       filePath,
+			Action:             action,
+			DirectoryPath:      callbackData.Path,
+			Name:               filepath.Base(file),
+			RelativePath:       file,
+			Timestamp:          fileInfo.ModTime(),
+			WatchDirectoryName: filepath.Base(callbackData.Path),
 		}
 		return
 	}
@@ -103,14 +110,18 @@ func fileChangeNotifier(path, file string, action types.Action) {
 		_, err = os.Open(filePath)
 	}
 
-	if fi != nil {
+	if fileInfo != nil {
+		host, _ := os.Hostname() // TODO: handle this error
 		callbackData.CallbackChan <- types.FileChangeNotification{
-			Action:        action,
-			Name:          fi.Name(),
-			AbsolutePath:  filePath,
-			RelativePath:  file,
-			DirectoryPath: callbackData.Path,
-			Size:          fi.Size(),
+			AbsolutePath:       filePath,
+			Action:             action,
+			DirectoryPath:      callbackData.Path,
+			Machine:            host,
+			Name:               fileInfo.Name(),
+			RelativePath:       file,
+			Size:               fileInfo.Size(),
+			Timestamp:          fileInfo.ModTime(),
+			WatchDirectoryName: filepath.Base(callbackData.Path),
 		}
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)

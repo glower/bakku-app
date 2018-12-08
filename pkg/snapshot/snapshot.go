@@ -21,7 +21,7 @@ func Snapshot(path string) storage.Snapshot {
 
 // Dir ...
 func Dir() string {
-	return ""
+	return storage.GetDefault().SnapshotStoragePathName()
 }
 
 // StoragePath returns path for a snapshot for a given directory
@@ -75,15 +75,15 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.Fi
 	fileName := filepath.Base(filePath)
 	relativePath := strings.Replace(filePath, snapshotPath+string(os.PathSeparator), "", -1)
 	snapshot := types.FileChangeNotification{
-		Action:             types.Action(types.FileAdded),
-		WatchDirectoryName: filepath.Base(snapshotPath),
 		AbsolutePath:       filePath,
-		RelativePath:       relativePath,
+		Action:             types.Action(types.FileAdded),
 		DirectoryPath:      snapshotPath,
+		Machine:            host,
 		Name:               fileName,
+		RelativePath:       relativePath,
 		Size:               fileInfo.Size(),
 		Timestamp:          fileInfo.ModTime(),
-		Machine:            host,
+		WatchDirectoryName: filepath.Base(snapshotPath),
 	}
 	// TODO: maybe move this part to the Add() function
 	value, err := json.Marshal(snapshot)
