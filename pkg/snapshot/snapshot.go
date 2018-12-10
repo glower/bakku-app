@@ -9,45 +9,59 @@ import (
 	"strings"
 
 	"github.com/glower/bakku-app/pkg/snapshot/storage"
-	// leveldb is default storage implementation for the snapshot
-	_ "github.com/glower/bakku-app/pkg/snapshot/storage/bolt"
-	_ "github.com/glower/bakku-app/pkg/snapshot/storage/leveldb"
+	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// Snapshot ...
-func Snapshot(path string) storage.Snapshot {
-	return storage.GetDefault().Path(path)
-}
-
-// Dir ...
-func Dir() string {
-	return storage.GetDefault().SnapshotStoragePathName()
-}
-
-// StoragePath returns path for a snapshot for a given directory
-func StoragePath(path string) string {
-	return Snapshot(path).SnapshotStoragePath()
-}
-
 // Exist ...
 func Exist(path string) bool {
-	return Snapshot(path).Exist()
+	return storage.GetByPath(path).Exist()
+}
+
+// Snapshot ...
+func Snapshot(path string) storage.Storager {
+	return storage.GetByPath(path)
+}
+
+// FileName ...
+func FileName(path string) string {
+	return storage.GetByPath(path).FileName()
+}
+
+// FilePath ...
+func FilePath(path string) string {
+	return storage.GetByPath(path).FilePath()
+}
+
+// New ...
+func New(path string) *types.Notifications {
+	snapshot := boltdb.New(path)
+	storage.Register(path, snapshot)
+	changesChan := make(chan types.FileChangeNotification)
+	changesDoneChan := make(chan bool)
+
+	go CreateOrUpdate(path, changesChan, changesDoneChan)
+
+	return &types.Notifications{
+		FileChangeChan: changesChan,
+		DoneChan:       changesDoneChan,
+	}
 }
 
 // CreateOrUpdate a new or update an existing snapshot entry for a given directory path
-func CreateOrUpdate(snapshotPath string, callbackChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
+func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
 	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
-	storage.Init()
+
 	firstTimeBackup := false
 	if !Exist(snapshotPath) {
+		// storage.Init(snapshotPath)
 		firstTimeBackup = true
 	}
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
 		if !fileInfo.IsDir() {
 			entry, err := updateEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
-				callbackChan <- *entry
+				fileChangeChan <- *entry
 			}
 		}
 		return nil
@@ -117,7 +131,7 @@ func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNoti
 	log.Printf("snapshot.Diff(): remote snapshot:[%s] local snapshot: [%s]", remoteSnapshotPath, localSnapshotPath)
 	var result []types.FileChangeNotification
 
-	dbRemote, err := Snapshot(remoteSnapshotPath).GetAll()
+	dbRemote, err := boltdb.New(remoteSnapshotPath).GetAll()
 	if err != nil {
 		return nil, fmt.Errorf("snapshot.Diff(): can't open snapshot for the path [%s]: %v", remoteSnapshotPath, err)
 	}

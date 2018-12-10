@@ -12,10 +12,10 @@ import (
 	"github.com/otiai10/copy"
 )
 
-// SyncSnapshot syncs the snapshot dir to the storage
+// SyncSnapshot syncs the snapshot file to the storage
 func (s *Storage) SyncSnapshot(from, to string) {
 	if err := copy.Copy(from, to); err != nil {
-		log.Printf("!!! [INFO] storage.local.SyncSnapshot(): can't copy snapshot for [%s]: %v\n", from, err)
+		log.Printf("[INFO] storage.local.SyncSnapshot(): can't copy snapshot for [%s]: %v\n", from, err)
 	}
 }
 

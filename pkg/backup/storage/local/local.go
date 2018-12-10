@@ -22,6 +22,7 @@ type Storage struct {
 	fileStorageProgressCannel     chan *storage.Progress
 	ctx                           context.Context
 	storagePath                   string
+	snapshotPath                  string
 }
 
 const storageName = "local"
@@ -58,9 +59,11 @@ func (s *Storage) SyncLocalFilesToBackup() {
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
 		log.Printf("storage.local.SyncLocalFilesToBackup(): %s\n", path)
-		remoteSnapshot := snapshot.StoragePath(filepath.Join(s.storagePath, filepath.Base(path)))
+
+		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
+
 		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
-		localTMPFile := filepath.Join(localTMPPath, ".snapshot")
+		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
 
 		log.Printf("storage.local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 			path, remoteSnapshot, localTMPFile)

@@ -60,7 +60,6 @@ func main() {
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first
 	// srv.Shutdown(context.Background())
-	log.Print("Done")
 }
 
 func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager) *http.Server {

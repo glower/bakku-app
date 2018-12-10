@@ -126,7 +126,7 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := types.Action(int(caction))
 
-	if strings.Contains(file, snapshot.Dir()) {
+	if strings.Contains(file, snapshot.FileName(path)) {
 		return
 	}
 
