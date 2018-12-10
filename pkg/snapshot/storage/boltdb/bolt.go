@@ -86,6 +86,7 @@ func (s *Storage) Get(file string) (string, error) {
 
 // Remove  file from the snapshot storage
 func (s *Storage) Remove(file string) error {
+	// log.Printf("bolt.Remove(): remove file [%s] from snapshot\n", filePath)
 	db := s.openDB()
 	defer db.Close()
 

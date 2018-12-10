@@ -100,6 +100,11 @@ func (s *Storage) Start(ctx context.Context) error {
 
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	log.Printf("local.handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
+	// This should't happen, but anuway
+	if fileChange.Action == types.FileRemoved {
+		log.Printf("local.handleFileChanges(): file is removed from the local storage, ignore this for now\n")
+		return
+	}
 	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
 	relativePath := fileChange.RelativePath   // buz/alice.jpg
 	directoryPath := fileChange.DirectoryPath // /foo/bar/

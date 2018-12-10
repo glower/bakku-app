@@ -133,7 +133,9 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	// This is a hack to see if the file is written to the disk on windows
 	if action != types.FileRemoved {
 		filePath := filepath.Join(path, file)
-		waitForFile(filePath)
+		if ok := waitForFile(filePath); !ok {
+			return
+		}
 	}
 
 	fileChangeNotifier(path, file, action)
@@ -149,7 +151,7 @@ func lookup(path string) CallbackData {
 	return data
 }
 
-func waitForFile(filePath string) {
+func waitForFile(filePath string) bool {
 	var cnt int
 	_, err := os.Stat(filePath)
 	for err != nil {
@@ -158,7 +160,9 @@ func waitForFile(filePath string) {
 		cnt++
 		if cnt > 10 {
 			log.Printf("waitForFile(): stop waiting for [%s] after 10 seconds\n", filePath)
-			break
+			return false
+			// break
 		}
 	}
+	return true
 }

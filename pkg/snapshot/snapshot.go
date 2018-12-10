@@ -77,7 +77,7 @@ func UpdateEntry(snapshotPath, filePath string) {
 	absolutePath := filepath.Join(snapshotPath, filePath)
 	f, err := os.Stat(absolutePath)
 	if err != nil {
-		log.Panicf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
+		log.Printf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
 		return
 	}
 	_, err = updateEntry(snapshotPath, absolutePath, f)

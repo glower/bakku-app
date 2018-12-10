@@ -5,19 +5,19 @@ This is my fun project to get some practice in golang. The idea is to store chan
 This version is unstable and under development, don't have any tests here.
 
 TODO (more like idea list):
-- [x] add recursive directory notifications for linux
+- [x] add recursive directory notifications for linux (not perfect)
 - [x] write storage plugin for local file system
 - [ ] write storage plugin for S3
-- [x] write storage plugin google drive
+- [x] write storage plugin google drive (not ready)
 - [x] write local configuration (viper)
 - [ ] write REST endpoints for updating configuration
 - [ ] write GUI in electron for displaying progress
 - [x] scan and backup all files from the directory on the first run
-- [x] store local state of the backuped files for each storage provider (leveldb files are stored)
+- [x] store local state of the backuped files for each storage provider (leveldb files are stored)(was changed to boltdb)
 - [x] on start compare states between local and remote storage
-- [x] need some sort of flat DB to store info about files (leveldb is used)
+- [x] need some sort of flat DB to store info about files (leveldb is used)(was changed to boltdb)
 - [ ] implement filters like: store jpg to google drive and store raw to S3
-- [x] add abstraction for leveldb
+- [x] add abstraction for leveldb (was changed to boltdb)
 - [x] add abstraction for viper configs (config and config/storage)
 - [ ] add tests after first stable version
     - [x] add tests for basic file change notification
@@ -25,5 +25,6 @@ TODO (more like idea list):
     - [ ] add tests for configs
     - [ ] add tests for storage
 - [ ] add logic what to do with deleted files
+- [ ] add logic for renaming of the files (not working now)
 - [ ] add logrus or something else for logging
 - [ ] add a concept for error handling (notifications?)

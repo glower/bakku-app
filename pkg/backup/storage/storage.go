@@ -115,7 +115,7 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 			switch change.Action {
 			case types.FileRemoved:
 				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
-				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.RelativePath) // TODO: is here a  good place?
+				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.AbsolutePath) // TODO: is here a  good place?
 			case types.FileAdded, types.FileModified:
 				// log.Printf("storage.processeFileChangeNotifications(): FileAdded|FileModified file=[%s]\n", change.AbsolutePath)
 				for _, storage := range storages {
