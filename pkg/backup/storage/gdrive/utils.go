@@ -5,9 +5,12 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	drive "google.golang.org/api/drive/v3"
 )
+
+var mu sync.Mutex
 
 // CreateFolder Creates a new folder in gdrive
 func (s *Storage) CreateFolder(name string) *drive.File {
@@ -39,6 +42,8 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 
 // FindOrCreateSubFolder ...
 func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File {
+	mu.Lock()
+	defer mu.Unlock()
 	log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
 
 	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents", name, parentFolderID)
