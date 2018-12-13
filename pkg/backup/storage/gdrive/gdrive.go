@@ -2,19 +2,22 @@ package gdrive
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/config"
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
+	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
+	"github.com/otiai10/copy"
 	"golang.org/x/oauth2/google"
 	drive "google.golang.org/api/drive/v3"
 )
@@ -47,7 +50,8 @@ func (s *Storage) SyncSnapshot(from, to string) {}
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 	gdriveConfig := gdrive.GoogleDriveConfig()
 	if gdriveConfig.Active {
-		log.Println("storage.gdrive.Setup()")
+		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
+		s.fileStorageProgressCannel = fileStorageProgressCannel
 
 		s.globalConfigPath = config.GetConfigPath()
 		s.clientID = gdriveConfig.ClientID
@@ -61,32 +65,62 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 		credPath := filepath.Join(s.globalConfigPath, "credentials.json")
 		b, err := ioutil.ReadFile(credPath)
 		if err != nil {
-			log.Fatalf("gdrive.Setup(): Unable to read credentials file [%s]: %v", credPath, err)
+			log.Fatalf("[ERROR] gdrive.Setup(): Unable to read credentials file [%s]: %v", credPath, err)
 			return false
 		}
 
 		config, err := google.ConfigFromJSON(b, drive.DriveScope)
 		if err != nil {
-			log.Fatalf("gdrive.Setup(): Unable to parse client secret file to config: %v", err)
+			log.Fatalf("[ERROR] gdrive.Setup(): Unable to parse client secret file to config: %v", err)
 		}
 		client := s.getClient(config)
 		srv, err := drive.New(client)
 		if err != nil {
-			log.Fatalf("gdrive.Setup(): Unable to retrieve Drive client: %v", err)
+			log.Fatalf("[ERROR] gdrive.Setup(): Unable to retrieve Drive client: %v", err)
 		}
 		s.client = client
 		s.service = srv
 
 		s.root = s.CreateFolder(s.storagePath)
-
 		return true
 	}
 	return false
 }
 
-// SyncLocalFilesToBackup ...
+// SyncLocalFilesToBackup XXXX
 func (s *Storage) SyncLocalFilesToBackup() {
-	log.Printf("gdrive.SyncLocalFilesToBackup()")
+	log.Println("gdrive.SyncLocalFilesToBackup(): START")
+	dirs := config.DirectoriesToWatch()
+	for _, path := range dirs {
+		log.Printf("gdrive.SyncLocalFilesToBackup(): %s\n", path)
+
+		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
+		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
+		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
+
+		log.Printf("gdrive.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
+			path, remoteSnapshot, localTMPFile)
+
+		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
+			log.Printf("[ERROR] gdrive.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
+			return
+		}
+
+		s.syncFiles(localTMPPath, path)
+	}
+}
+
+// syncFiles XXXX
+func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
+	log.Printf("gdrive.syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
+	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
+	if err != nil {
+		log.Printf("[ERROR] gdrive.syncFiles(): %v\n", err)
+		return
+	}
+	for _, file := range *files {
+		s.fileChangeNotificationChannel <- &file
+	}
 }
 
 // FileChangeNotification returns channel for notifications
@@ -96,13 +130,13 @@ func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
 
 // Start local storage
 func (s *Storage) Start(ctx context.Context) error {
-	log.Println("storage.local.Start()")
 	s.ctx = ctx
 	go func() {
 		for {
 			select {
 			case <-s.ctx.Done():
 				return
+			// TODO: we need to add here some limits !
 			case fileChange := <-s.fileChangeNotificationChannel:
 				go s.handleFileChanges(fileChange)
 			}
@@ -113,7 +147,7 @@ func (s *Storage) Start(ctx context.Context) error {
 
 // TODO: move me to storage/backup namespace!
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
-	log.Printf("gdrive.handleFileChanges(): File [%#v] has been changed\n", fileChange)
+	log.Printf("gdrive.handleFileChanges(): File [%v] has been changed\n", fileChange)
 	absolutePath := fileChange.AbsolutePath // /foo/bar/buz/alice.jpg
 	relativePath := fileChange.RelativePath // buz/alice.jpg
 	// directoryPath := fileChange.DirectoryPath // /foo/bar/
@@ -134,9 +168,11 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 }
 
 func (s *Storage) store(fromPath, toPath string) {
+	sleepRandom()
+	log.Printf("gdrive.store(): %s > %s\n", fromPath, toPath)
 	from, err := os.Open(fromPath)
 	if err != nil {
-		log.Printf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", fromPath, err)
+		log.Fatalf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", fromPath, err)
 		return
 	}
 	defer from.Close()
@@ -149,11 +185,9 @@ func (s *Storage) store(fromPath, toPath string) {
 	}
 	res, err := s.service.Files.Create(f).Media(from).Do()
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Fatalf("[ERROR] gdrive.store(): %v", err)
 	}
-	fmt.Printf("%s, %s, %s\n", res.Name, res.Id, res.MimeType)
-
-	// fromStrats, _ := from.Stat()
+	log.Printf("gdrive.store(): %s, %s, %s DONE\n", res.Name, res.Id, res.MimeType)
 }
 
 func remotePath(absolutePath, relativePath string) string {
@@ -166,4 +200,9 @@ func remotePath(absolutePath, relativePath string) string {
 		}
 	}
 	return strings.Join(result, string(os.PathSeparator))
+}
+
+func sleepRandom() {
+	r := 500000 + rand.Intn(4000000)
+	time.Sleep(time.Duration(r) * time.Microsecond)
 }

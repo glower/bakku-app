@@ -80,7 +80,7 @@ func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []ty
 		if ok {
 			m.SetupStorage(name, storage)
 		} else {
-			// log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
+			log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
 			UnregisterStorage(name)
 		}
 	}
@@ -98,7 +98,7 @@ func (m *Manager) SetupStorage(name string, storage Storage) {
 	err := storage.Start(ctx)
 	if err != nil {
 		cancel()
-		log.Printf("[ERROR] SetupStorage(): failed to setup storage [%s]\n", name)
+		log.Panicf("[ERROR] SetupStorage(): failed to setup storage [%s]\n", name)
 	} else {
 		// store cancelling context for each storage
 		teardowns[name] = func() { cancel() }
@@ -136,9 +136,9 @@ func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
 		case <-ctx.Done():
 			return
 		case <-done:
-			for name, storage := range storages {
+			for name := range storages {
 				log.Printf("storage.processeFilesScanDoneNotifications(): sync backups for [%s]\n", name)
-				go storage.SyncLocalFilesToBackup() // !!!
+				// go storage.SyncLocalFilesToBackup() //
 			}
 		}
 	}

@@ -50,7 +50,7 @@ func Conf() *Config {
 	}
 	conf.BucketName = bucketName
 
-	sameDir, ok := viper.Get("snapshot.leveldb.sameDir").(bool)
+	sameDir, ok := viper.Get("snapshot.sameDir").(bool)
 	if !ok {
 		log.Printf("snapshot.Conf(): can't find [snapshot.sameDir] in the config file, using default value [true]\n")
 		sameDir = true

@@ -37,8 +37,10 @@ func New(path string) storage.Storager {
 // Exist ...
 func (s *Storage) Exist() bool {
 	if _, err := os.Stat(s.DBFilePath); os.IsNotExist(err) {
+		log.Printf("snapshot.storage.boltdb.Exist(): snapshot for [%s] is not present!\n", s.DBFilePath)
 		return false
 	}
+	log.Printf("snapshot.storage.boltdb.Exist(): snapshot for [%s] rxist\n", s.DBFilePath)
 	return true
 }
 

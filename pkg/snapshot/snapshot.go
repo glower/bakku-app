@@ -54,20 +54,20 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 
 	firstTimeBackup := false
 	if !Exist(snapshotPath) {
-		// storage.Init(snapshotPath)
 		firstTimeBackup = true
 	}
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
 		if !fileInfo.IsDir() {
 			entry, err := updateEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
+				log.Printf(">>> snapshot.CreateOrUpdate(): first backup for: %v\n", entry)
 				fileChangeChan <- *entry
 			}
 		}
 		return nil
 	})
 	if !firstTimeBackup {
-		log.Printf("CreateOrUpdate(): done with new scan for [%s], send signal ...\n", snapshotPath)
+		log.Printf("!!! CreateOrUpdate(): done with new scan for [%s], send signal ...\n", snapshotPath)
 		changesDoneChan <- true
 	}
 }
