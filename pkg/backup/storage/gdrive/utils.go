@@ -15,7 +15,8 @@ var mu sync.Mutex
 // CreateFolder Creates a new folder in gdrive
 func (s *Storage) CreateFolder(name string) *drive.File {
 	log.Printf("gdrive.CreateFolder(): name=%s\n", name)
-
+	// mu.Lock()
+	// defer mu.Unlock()
 	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s'", name)
 	folders, err := s.service.Files.List().Q(q).Do()
 	if err != nil {
@@ -42,10 +43,9 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 
 // FindOrCreateSubFolder ...
 func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File {
-	mu.Lock()
-	defer mu.Unlock()
 	log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
-
+	// mu.Lock()
+	// defer mu.Unlock()
 	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents", name, parentFolderID)
 	folders, err := s.service.Files.List().Q(q).Do()
 	if err != nil {
@@ -78,6 +78,8 @@ func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File
 // CreateAllFolders creates all folders from the path like /foo/bar/buz
 // and returns last folder in the path
 func (s *Storage) CreateAllFolders(path string) *drive.File {
+	mu.Lock()
+	defer mu.Unlock()
 	log.Printf("gdirve.CreateAllFolders(): %s\n", path)
 	paths := strings.Split(path, string(os.PathSeparator))
 	parentID := s.root.Id

@@ -203,6 +203,6 @@ func remotePath(absolutePath, relativePath string) string {
 }
 
 func sleepRandom() {
-	r := 500000 + rand.Intn(4000000)
+	r := 500000 + rand.Intn(2000000)
 	time.Sleep(time.Duration(r) * time.Microsecond)
 }
