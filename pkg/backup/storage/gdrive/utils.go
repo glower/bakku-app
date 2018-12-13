@@ -15,26 +15,19 @@ var mu sync.Mutex
 // CreateFolder Creates a new folder in gdrive
 func (s *Storage) CreateFolder(name string) *drive.File {
 	log.Printf("gdrive.CreateFolder(): name=%s\n", name)
-	// mu.Lock()
-	// defer mu.Unlock()
-	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s'", name)
-	folders, err := s.service.Files.List().Q(q).Do()
+
+	folder, err := s.FindFolder(name, &FindFileOptions{})
 	if err != nil {
-		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to do the query [%s]: %v\n", q, err)
+		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
+	}
+	if err == nil && folder != nil {
+		return folder
 	}
 
-	if len(folders.Files) == 1 {
-		return folders.Files[0]
-	}
-	if len(folders.Files) > 1 {
-		log.Panicf("[ERROR] gdrive.CreateFolder(): Too many folders found:\n")
-		for _, folder := range folders.Files {
-			log.Printf("	Name: %s, ID: %s\n", folder.Name, folder.Id)
-		}
-		return folders.Files[0]
-	}
-
-	createFolder, err := s.service.Files.Create(&drive.File{Name: name, MimeType: "application/vnd.google-apps.folder"}).Do()
+	createFolder, err := s.service.Files.Create(&drive.File{
+		Name: name, MimeType: "application/vnd.google-apps.folder",
+		FolderColorRgb: "7FB069", // ASPARAGUS
+	}).Do()
 	if err != nil {
 		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
 	}
@@ -44,24 +37,13 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 // FindOrCreateSubFolder ...
 func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File {
 	log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
-	// mu.Lock()
-	// defer mu.Unlock()
-	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents", name, parentFolderID)
-	folders, err := s.service.Files.List().Q(q).Do()
-	if err != nil {
-		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to do the query [%s]: %v\n", q, err)
-	}
 
-	if len(folders.Files) == 1 {
-		log.Printf(">>> gdrive.FindFolder(): folder [%s] found\n", name)
-		return folders.Files[0]
+	folder, err := s.FindFolder(name, &FindFileOptions{ParentFolderID: parentFolderID})
+	if err != nil {
+		log.Panicf("[ERROR] gdrive.FindOrCreateSubFolder(): Unable to create folder [%s]: %v\n", name, err)
 	}
-	if len(folders.Files) > 1 {
-		for _, folder := range folders.Files {
-			log.Printf(">>> 	Name: %s, ID: %s\n", folder.Name, folder.Id)
-		}
-		log.Panicf("[ERROR] gdrive.CreateFolder(): Too many folders found!\n")
-		return folders.Files[0]
+	if err == nil && folder != nil {
+		return folder
 	}
 
 	createFolder, err := s.service.Files.Create(&drive.File{
@@ -89,4 +71,35 @@ func (s *Storage) CreateAllFolders(path string) *drive.File {
 		parentID = f.Id
 	}
 	return f
+}
+
+type FindFileOptions struct {
+	ParentFolderID string
+}
+
+// FindFolder returns a folder by name if a single folder is found or an error. If no folder is found, return nil
+func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File, error) {
+	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s'", name)
+	if params.ParentFolderID != "" {
+		q = fmt.Sprintf("%s and '%s' in parents", q, params.ParentFolderID)
+	}
+
+	// q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents", name, parentFolderID)
+	folders, err := s.service.Files.List().Q(q).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(folders.Files) == 1 {
+		log.Printf(">>> gdrive.FindFolder(): folder [%s] found\n", name)
+		return folders.Files[0], nil
+	}
+	if len(folders.Files) > 1 {
+		for _, folder := range folders.Files {
+			log.Printf(">>> 	Name: %s, ID: %s\n", folder.Name, folder.Id)
+		}
+
+		return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
+	}
+	return nil, nil
 }
