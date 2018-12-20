@@ -11,8 +11,8 @@ const configName = "googleDrive"
 // GDriveConfig is a struct for Google drive storage configuration
 type GDriveConfig struct {
 	Config
-	ClientID     string
-	ClientSecret string
+	TokenFile       string
+	CredentialsFile string
 }
 
 // GoogleDriveConfig ...
@@ -26,20 +26,20 @@ func GoogleDriveConfig() *GDriveConfig {
 
 	gConfig.Config = *conf
 
-	clientIDTpl := fmt.Sprintf("storage.%s.clientID", configName)
-	clientID, ok := viper.Get(clientIDTpl).(string)
+	tokenFileTpl := fmt.Sprintf("storage.%s.tokenFile", configName)
+	tokenFile, ok := viper.Get(tokenFileTpl).(string)
 	if !ok {
-		// log.Printf("GoogleDriveConfig(): can't find [%s] in the config\n", clientIDTpl)
-		clientID = ""
+		// log.Printf("GoogleDriveConfig(): can't find [%s] in the config\n", tokenFileTpl)
+		tokenFile = ""
 	}
-	gConfig.ClientID = clientID
+	gConfig.TokenFile = tokenFile
 
-	clientSecretTpl := fmt.Sprintf("storage.%s.clientSecret", configName)
-	clientSecret, ok := viper.Get(clientSecretTpl).(string)
+	credentialsFileTpl := fmt.Sprintf("storage.%s.credentialsFile", configName)
+	credentialsFile, ok := viper.Get(credentialsFileTpl).(string)
 	if !ok {
-		// log.Printf("GoogleDriveConfig(): can't find [%s] in the config\n", clientSecretTpl)
-		clientSecret = ""
+		// log.Printf("GoogleDriveConfig(): can't find [%s] in the config\n", credentialsFile)
+		credentialsFile = ""
 	}
-	gConfig.ClientSecret = clientSecret
+	gConfig.CredentialsFile = credentialsFile
 	return gConfig
 }

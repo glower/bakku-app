@@ -2,16 +2,16 @@ watch:
  - "C:\\Users\\John\\Documents\\"
 storage: 
   googleDrive:
-    clientID: addMe
-    clientSecret: addMe
-  local: 
+    path: ""
+    tokenFile: "token.json"
+    credentialsFile: "credentials.json"
+    active: true
+  local:
     path: "D:\\backup\\"
     active: true
   fake:
     active: false
 snapshot:
-  default: leveldb
-  leveldb:
-    sameDir: true
-    snapshotDir: .snapshot
-    active: true
+  sameDir: true
+  bucketName: snapshot
+  fileName: .snapshot

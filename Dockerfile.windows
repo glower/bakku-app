@@ -1,8 +1,3 @@
-# How To Use:
-# docker build -t bakkuapp-win -f Dockerfile.windows .
-# docker run --name bakkuapp-win bakkuapp-win:latest
-# docker cp bakkuapp-win:/bin/bakku-app.exe bin/
-# docker rm  bakkuapp-win
 FROM golang:latest
 
 RUN apt-get update

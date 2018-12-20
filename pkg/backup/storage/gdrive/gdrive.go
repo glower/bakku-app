@@ -31,8 +31,8 @@ type Storage struct {
 	ctx                           context.Context
 	storagePath                   string
 	root                          *drive.File
-	clientID                      string
-	clientSecret                  string
+	tokenFile                     string
+	credentialsFile               string
 	client                        *http.Client
 	service                       *drive.Service
 }
@@ -54,8 +54,8 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
 		s.fileStorageProgressCannel = fileStorageProgressCannel
 
 		s.globalConfigPath = config.GetConfigPath()
-		s.clientID = gdriveConfig.ClientID
-		s.clientSecret = gdriveConfig.ClientSecret
+		s.credentialsFile = gdriveConfig.CredentialsFile
+		s.tokenFile = gdriveConfig.TokenFile
 		defaultPath := gdriveConfig.Path
 		if defaultPath == "" {
 			defaultPath = backup.DefultFolderName()
