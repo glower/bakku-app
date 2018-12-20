@@ -65,7 +65,6 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -104,9 +103,6 @@ type DirectoryChangeWacherImplementer struct{}
 func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(dir string) {
 	log.Printf("linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
-		if strings.Contains(path, snapshot.Dir()) {
-			return nil
-		}
 		if f.IsDir() {
 			go watchDir(path)
 		}
