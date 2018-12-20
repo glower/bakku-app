@@ -5,6 +5,10 @@ This is my fun project to get some practice in golang. The idea is to store chan
 This version is unstable and under development, don't have any tests here.
 
 TODO (more like idea list):
+- [ ] refactor code duplication in storage/gdrive and storage/local
+- [ ] refactor snapshot code to work with different storages in the same time
+- [ ] refactor sync of snapshot
+- [ ] automate Windows build
 - [x] add recursive directory notifications for linux (not perfect)
 - [x] write storage plugin for local file system
 - [ ] write storage plugin for S3

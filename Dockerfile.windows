@@ -1,0 +1,15 @@
+# How To Use:
+# docker build -t bakkuapp-win -f Dockerfile.windows .
+# docker run --name bakkuapp-win bakkuapp-win:latest
+# docker cp bakkuapp-win:/bin/bakku-app.exe bin/
+# docker rm  bakkuapp-win
+FROM golang:latest
+
+RUN apt-get update
+RUN apt-get install -y gcc-multilib
+RUN apt-get install -y gcc-mingw-w64
+
+COPY . /go/src/github.com/glower/bakku-app
+WORKDIR /go/src/github.com/glower/bakku-app
+RUN GOOS=windows GOARCH=386 CGO_ENABLED=1 CXX=i686-w64-mingw32-g++ CC=i686-w64-mingw32-gcc \
+    go build -o /bin/bakku-app.exe cmd/bakku-app/main.go
