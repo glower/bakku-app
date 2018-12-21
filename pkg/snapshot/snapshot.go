@@ -58,7 +58,7 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 	}
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
 		if !fileInfo.IsDir() {
-			entry, err := updateEntry(snapshotPath, file, fileInfo)
+			entry, err := getEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
 				log.Printf(">>> snapshot.CreateOrUpdate(): first backup for: %v\n", entry)
 				fileChangeChan <- *entry
@@ -73,7 +73,7 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 }
 
 // UpdateEntry ...
-func UpdateEntry(snapshotPath, filePath string) {
+func UpdateEntry(snapshotPath, filePath, storageName string) {
 	absolutePath := filepath.Join(snapshotPath, filePath)
 	f, err := os.Stat(absolutePath)
 	if err != nil {
@@ -86,7 +86,7 @@ func UpdateEntry(snapshotPath, filePath string) {
 	}
 }
 
-func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
+func generateFileEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
 	// log.Printf("snapshot.updateEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
 	host, _ := os.Hostname() // TODO: handle this error
 	fileName := filepath.Base(filePath)
@@ -102,16 +102,16 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.Fi
 		Timestamp:          fileInfo.ModTime(),
 		WatchDirectoryName: filepath.Base(snapshotPath),
 	}
-	// TODO: maybe move this part to the Add() function
+
 	value, err := json.Marshal(snapshot)
 	if err != nil {
 		return nil, err
 	}
 
-	err = Snapshot(snapshotPath).Add(filePath, value)
-	if err != nil {
-		return nil, err
-	}
+	// err = Snapshot(snapshotPath).Add(filePath, value)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return &snapshot, err
 }
 

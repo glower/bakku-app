@@ -11,9 +11,9 @@ type Storager interface {
 	Exist() bool
 	FilePath() string
 	FileName() string
-	Get(string) (string, error)
-	GetAll() (map[string]string, error)
-	Remove(string) error
+	Get(string, string) (string, error)
+	GetAll(string) (map[string]string, error)
+	Remove(string, string) error
 }
 
 var (
