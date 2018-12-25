@@ -148,9 +148,9 @@ func (s *Storage) Start(ctx context.Context) error {
 // TODO: move me to storage/backup namespace!
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	log.Printf("gdrive.handleFileChanges(): File [%v] has been changed\n", fileChange)
-	absolutePath := fileChange.AbsolutePath // /foo/bar/buz/alice.jpg
-	relativePath := fileChange.RelativePath // buz/alice.jpg
-	// directoryPath := fileChange.DirectoryPath // /foo/bar/
+	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
+	relativePath := fileChange.RelativePath   // buz/alice.jpg
+	directoryPath := fileChange.DirectoryPath // /foo/bar/
 
 	from := absolutePath
 	to := remotePath(absolutePath, relativePath)
@@ -162,7 +162,8 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {
 		s.store(from, to)
 		storage.BackupFinished(absolutePath, storageName)
-		// snapshot.UpdateEntry(directoryPath, relativePath)
+		snapshot.UpdateEntry(directoryPath, relativePath, storageName)
+
 		// s.SyncSnapshot(localSnapshotPath, remoteSnapshotPath)
 	}
 }

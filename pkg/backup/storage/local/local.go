@@ -100,7 +100,7 @@ func (s *Storage) Start(ctx context.Context) error {
 
 func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	log.Printf("local.handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
-	// This should't happen, but anuway
+	// This should't happen, but anyway
 	if fileChange.Action == types.FileRemoved {
 		log.Printf("local.handleFileChanges(): file is removed from the local storage, ignore this for now\n")
 		return
@@ -119,6 +119,7 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 
 		// TODO: first time sync?
 		snapshot.UpdateEntry(directoryPath, relativePath, storageName)
+
 		remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName)
 		s.SyncSnapshot(directoryPath, remoteSnapshotPath)
 	}

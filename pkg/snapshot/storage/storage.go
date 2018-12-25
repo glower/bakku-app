@@ -7,7 +7,7 @@ import (
 
 // Storager ...
 type Storager interface {
-	Add(string, []byte) error
+	Add(string, string, []byte) error
 	Exist() bool
 	FilePath() string
 	FileName() string
