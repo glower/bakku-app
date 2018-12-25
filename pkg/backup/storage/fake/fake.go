@@ -2,7 +2,6 @@ package fake
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
@@ -21,7 +20,7 @@ type Storage struct {
 const storageName = "fake"
 
 func init() {
-	storage.Register(storageName, &Storage{})
+	// storage.Register(storageName, &Storage{})
 }
 
 // Setup fake storage
@@ -47,29 +46,12 @@ func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
 	return s.fileChangeNotificationChannel
 }
 
-// Start fake storage
-func (s *Storage) Start(ctx context.Context) error {
-	log.Println("storage.fake.Start()")
-	s.ctx = ctx
-	go func() {
-		for {
-			select {
-			case <-s.ctx.Done():
-				return
-			case fileChange := <-s.fileChangeNotificationChannel:
-				s.handleFileChanges(fileChange)
-			}
-		}
-	}()
-	return nil
-}
-
-func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
-	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.Name)
-	file := fileChange.Name
-	storage.BackupStarted(file, storageName)
-	s.store(file)
-}
+// func (s *Storage) HandleFileChanges(fileChange *types.FileChangeNotification) {
+// 	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.Name)
+// 	file := fileChange.Name
+// 	storage.BackupStarted(file, storageName)
+// 	s.store(file)
+// }
 
 func (s *Storage) store(file string) {
 	p := 0.0
@@ -88,7 +70,7 @@ func (s *Storage) store(file string) {
 				}
 				s.fileStorageProgressCannel <- progress
 				if p >= float64(100.0) {
-					storage.BackupFinished(file, storageName)
+					// storage.BackupFinished(file, storageName)
 					return
 				}
 			}

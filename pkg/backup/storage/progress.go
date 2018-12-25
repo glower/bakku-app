@@ -5,6 +5,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"github.com/glower/bakku-app/pkg/types"
 )
 
 // Progress represents a moment of progress.
@@ -20,7 +22,8 @@ var (
 )
 
 // BackupStarted ...
-func BackupStarted(file, storage string) bool {
+func BackupStarted(fileChange *types.FileChangeNotification, storage string) bool {
+	file := fileChange.AbsolutePath
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)
@@ -41,8 +44,9 @@ func IsInProgress(file, storage string) bool {
 }
 
 // BackupFinished ...
-func BackupFinished(file, storage string) {
-	log.Printf("storage.BackupFinished(): [%s]\n", file)
+func BackupFinished(fileChange *types.FileChangeNotification, storage string) {
+	file := fileChange.AbsolutePath
+	log.Printf("storage.BackupFinished(): [%s] to [%s]\n", file, storage)
 	log.Printf("-------------------------------------------------------\n\n\n")
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()

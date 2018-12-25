@@ -80,16 +80,20 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 // }
 
 // UpdateEntry ...
-func UpdateEntry(snapshotPath, filePath, storageName string) {
-	absolutePath := filepath.Join(snapshotPath, filePath)
+func UpdateEntry(fileChange *types.FileChangeNotification, storageName string) {
+	// absolutePath := filepath.Join(snapshotPath, filePath)
+	absolutePath := fileChange.AbsolutePath  // /foo/bar/buz/alice.jpg
+	relativePath := fileChange.RelativePath  // buz/alice.jpg
+	snapshotPath := fileChange.DirectoryPath // /foo/bar/
+
 	fileInfo, err := os.Stat(absolutePath)
 	if err != nil {
 		log.Printf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
 		return
 	}
-	entry, err := generateFileEntry(snapshotPath, filePath, fileInfo)
+	entry, err := generateFileEntry(snapshotPath, relativePath, fileInfo)
 	if err != nil {
-		log.Printf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, filePath, err)
+		log.Printf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, relativePath, err)
 		return
 	}
 	err = updateEntry(snapshotPath, storageName, entry)
@@ -138,10 +142,11 @@ func generateFileEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*ty
 ///      and let the user decide what to do
 func RemoveSnapshotEntry(directoryPath, filePath string) {
 	log.Printf("RemoveSnapshotEntry(): remove [%s] from [%s]\n", filePath, directoryPath)
-	err := Snapshot(directoryPath).Remove(filePath, "default")
-	if err != nil {
-		log.Printf("[ERROR] snapshot.RemoveSnapshotEntry(): cannot delete entry [%s] from [%s]: %v\n", directoryPath, filePath, err)
-	}
+	// TODO: fix me!
+	// err := Snapshot(directoryPath).Remove(filePath, "default")
+	// if err != nil {
+	// 	log.Printf("[ERROR] snapshot.RemoveSnapshotEntry(): cannot delete entry [%s] from [%s]: %v\n", directoryPath, filePath, err)
+	// }
 }
 
 // Diff returns diff between two snapshots as array of FileChangeNotification
