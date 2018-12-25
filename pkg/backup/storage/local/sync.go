@@ -12,10 +12,10 @@ import (
 )
 
 // SyncSnapshot syncs the snapshot file to the storage
-func (s *Storage) SyncSnapshot(from, to string) {
-	log.Printf("local.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
-	s.store(from, to, StoreOptions{reportProgress: false})
-}
+// func (s *Storage) SyncSnapshot(from, to string) {
+// 	log.Printf("local.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
+// 	s.store(from, to, StoreOptions{reportProgress: false})
+// }
 
 func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
 	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)

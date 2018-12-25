@@ -16,10 +16,11 @@ import (
 // Storage represents an interface for a backup storage provider
 type Storage interface {
 	Setup(chan *Progress) bool
-	Start(ctx context.Context) error
-	FileChangeNotification() chan *types.FileChangeNotification
+
+	SyncSnapshot(*types.FileChangeNotification)
+	Store(*types.FileChangeNotification)
+
 	SyncLocalFilesToBackup()
-	SyncSnapshot(string, string)
 }
 
 // Manager ...
@@ -94,16 +95,8 @@ func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []ty
 func (m *Manager) SetupStorage(name string, storage Storage) {
 	log.Printf("SetupStorage(): [%s]\n", name)
 	ctx, cancel := context.WithCancel(context.Background())
-	// go storage.SyncLocalFilesToBackup()
-	err := storage.Start(ctx)
-	if err != nil {
-		cancel()
-		log.Panicf("[ERROR] SetupStorage(): failed to setup storage [%s]\n", name)
-	} else {
-		// store cancelling context for each storage
-		teardowns[name] = func() { cancel() }
-		go m.ProcessProgressCallback(ctx)
-	}
+	teardowns[name] = func() { cancel() }
+	go m.ProcessProgressCallback(ctx)
 }
 
 func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.FileChangeNotification) {
@@ -118,14 +111,26 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.AbsolutePath) // TODO: is here a  good place?
 			case types.FileAdded, types.FileModified:
 				// log.Printf("storage.processeFileChangeNotifications(): FileAdded|FileModified file=[%s]\n", change.AbsolutePath)
-				for _, storage := range storages {
-					// log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-					storage.FileChangeNotification() <- &change
+				for name, storage := range storages {
+					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
+					go handleFileChanges(&change, storage, name)
 				}
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", change)
 			}
 		}
+	}
+}
+
+func handleFileChanges(fileChange *types.FileChangeNotification, s Storage, storageName string) {
+	log.Printf("handleFileChanges(): File [%v] has been changed\n", fileChange)
+
+	// don't backup file if it is in progress
+	if ok := BackupStarted(fileChange, storageName); ok {
+		s.Store(fileChange)
+		BackupFinished(fileChange, storageName)
+		snapshot.UpdateEntry(fileChange, storageName)
+		s.SyncSnapshot(fileChange)
 	}
 }
 
