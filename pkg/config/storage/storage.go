@@ -20,7 +20,7 @@ func ProviderConf(name string) *Config {
 	storagePathTpl := fmt.Sprintf("storage.%s.path", name)
 	path, ok := viper.Get(storagePathTpl).(string)
 	if !ok {
-		log.Printf("ProviderConf(): can't find [%s]\n", storagePathTpl)
+		log.Printf("config.storage.ProviderConf(): can't find [%s]\n", storagePathTpl)
 		path = ""
 	}
 	conf.Path = path
@@ -34,4 +34,21 @@ func ProviderConf(name string) *Config {
 	conf.Active = active
 
 	return &conf
+}
+
+// Active returns a list of all active storages
+func Active() ([]string, error) {
+	var result []string
+	storages, ok := viper.Get("storage").(map[string]interface{})
+	if !ok {
+		log.Printf("[ERROR] config.storage.Active(): can't find storage configuration\n")
+		return result, fmt.Errorf("can't find storage configuration")
+	}
+	for name := range storages {
+		storage := ProviderConf(name)
+		if storage.Active {
+			result = append(result, storage.Name)
+		}
+	}
+	return result, nil
 }

@@ -14,6 +14,8 @@ import (
 
 // SyncSnapshot syncs the snapshot file to the storage
 func (s *Storage) SyncSnapshot(from, to string) {
+	log.Printf("local.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
+	// copy one file here
 	if err := copy.Copy(from, to); err != nil {
 		log.Printf("[INFO] storage.local.SyncSnapshot(): can't copy snapshot for [%s]: %v\n", from, err)
 	}

@@ -33,8 +33,8 @@ func FilePath(path string) string {
 	return storage.GetByPath(path).FilePath()
 }
 
-// New ...
-func New(path string) *types.Notifications {
+// New creates new channals for file notifications
+func New(path string, storages []string) *types.Notifications {
 	snapshot := boltdb.New(path)
 	storage.Register(path, snapshot)
 	changesChan := make(chan types.FileChangeNotification)
@@ -58,7 +58,7 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 	}
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
 		if !fileInfo.IsDir() {
-			entry, err := updateEntry(snapshotPath, file, fileInfo)
+			entry, err := generateFileEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
 				log.Printf(">>> snapshot.CreateOrUpdate(): first backup for: %v\n", entry)
 				fileChangeChan <- *entry
@@ -72,21 +72,48 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 	}
 }
 
+// func fileChanged(snapshotPath, filePath string, fileInfo os.FileInfo) bool {
+// 	err := Snapshot(snapshotPath).Add(filePath, value)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// }
+
 // UpdateEntry ...
-func UpdateEntry(snapshotPath, filePath string) {
+func UpdateEntry(snapshotPath, filePath, storageName string) {
 	absolutePath := filepath.Join(snapshotPath, filePath)
-	f, err := os.Stat(absolutePath)
+	fileInfo, err := os.Stat(absolutePath)
 	if err != nil {
 		log.Printf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
 		return
 	}
-	_, err = updateEntry(snapshotPath, absolutePath, f)
+	entry, err := generateFileEntry(snapshotPath, filePath, fileInfo)
 	if err != nil {
-		log.Panicf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, filePath, err)
+		log.Printf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, filePath, err)
+		return
+	}
+	err = updateEntry(snapshotPath, storageName, entry)
+	if err != nil {
+		log.Printf("[ERROR] storage.UpdateEntry(): can't update file entry file [%s]: %v\n", absolutePath, err)
+		return
 	}
 }
 
-func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
+func updateEntry(snapshotPath, storageName string, entry *types.FileChangeNotification) error {
+	value, err := json.Marshal(entry)
+	if err != nil {
+		return err
+	}
+
+	// func (s *Storage) Add(filePath, bucketName string, value []byte) error {
+	err = Snapshot(snapshotPath).Add(entry.AbsolutePath, storageName, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func generateFileEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
 	// log.Printf("snapshot.updateEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
 	host, _ := os.Hostname() // TODO: handle this error
 	fileName := filepath.Base(filePath)
@@ -102,17 +129,8 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.Fi
 		Timestamp:          fileInfo.ModTime(),
 		WatchDirectoryName: filepath.Base(snapshotPath),
 	}
-	// TODO: maybe move this part to the Add() function
-	value, err := json.Marshal(snapshot)
-	if err != nil {
-		return nil, err
-	}
 
-	err = Snapshot(snapshotPath).Add(filePath, value)
-	if err != nil {
-		return nil, err
-	}
-	return &snapshot, err
+	return &snapshot, nil
 }
 
 // RemoveSnapshotEntry removed entry fron the snapshot file
@@ -120,7 +138,7 @@ func updateEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.Fi
 ///      and let the user decide what to do
 func RemoveSnapshotEntry(directoryPath, filePath string) {
 	log.Printf("RemoveSnapshotEntry(): remove [%s] from [%s]\n", filePath, directoryPath)
-	err := Snapshot(directoryPath).Remove(filePath)
+	err := Snapshot(directoryPath).Remove(filePath, "default")
 	if err != nil {
 		log.Printf("[ERROR] snapshot.RemoveSnapshotEntry(): cannot delete entry [%s] from [%s]: %v\n", directoryPath, filePath, err)
 	}
@@ -131,12 +149,12 @@ func Diff(remoteSnapshotPath, localSnapshotPath string) (*[]types.FileChangeNoti
 	log.Printf("snapshot.Diff(): remote snapshot:[%s] local snapshot: [%s]", remoteSnapshotPath, localSnapshotPath)
 	var result []types.FileChangeNotification
 
-	dbRemote, err := boltdb.New(remoteSnapshotPath).GetAll()
+	dbRemote, err := boltdb.New(remoteSnapshotPath).GetAll("TODO")
 	if err != nil {
 		return nil, fmt.Errorf("snapshot.Diff(): can't open snapshot for the path [%s]: %v", remoteSnapshotPath, err)
 	}
 
-	dbLocal, err := Snapshot(localSnapshotPath).GetAll()
+	dbLocal, err := Snapshot(localSnapshotPath).GetAll("TODO")
 	if err != nil {
 		return nil, fmt.Errorf("snapshot.Diff(): can't open snapshot for the path [%s]: %v", localSnapshotPath, err)
 	}

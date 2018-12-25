@@ -54,8 +54,8 @@ func (s *Storage) FileName() string {
 	return s.DBFileName
 }
 
-// Add info about file to the snapshot
-func (s *Storage) Add(filePath string, value []byte) error {
+// Add info about file to the snapshot, filePath is the key and bucketName is the name of the backup storage
+func (s *Storage) Add(filePath, bucketName string, value []byte) error {
 	// log.Printf("bolt.Add(): add [%s] to %s\n", filePath, s.snapshotDBPath)
 	if strings.Contains(filePath, s.DBFileName) {
 		return nil
@@ -64,7 +64,7 @@ func (s *Storage) Add(filePath string, value []byte) error {
 	defer db.Close()
 
 	db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists(s.DBBucketName)
+		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
 			return err
 		}
@@ -74,12 +74,12 @@ func (s *Storage) Add(filePath string, value []byte) error {
 }
 
 // Get information about the file from the snapshot
-func (s *Storage) Get(file string) (string, error) {
+func (s *Storage) Get(file, bucketName string) (string, error) {
 	db := s.openDB()
 	defer db.Close()
 	var value []byte
 	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(s.DBBucketName)
+		b := tx.Bucket([]byte(bucketName))
 		value = b.Get([]byte(file))
 		return nil
 	})
@@ -87,13 +87,13 @@ func (s *Storage) Get(file string) (string, error) {
 }
 
 // Remove  file from the snapshot storage
-func (s *Storage) Remove(file string) error {
+func (s *Storage) Remove(file, bucketName string) error {
 	// log.Printf("bolt.Remove(): remove file [%s] from snapshot\n", filePath)
 	db := s.openDB()
 	defer db.Close()
 
 	db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(s.DBBucketName)
+		b := tx.Bucket([]byte(bucketName))
 		err := b.Delete([]byte(file))
 		return err
 	})
@@ -101,13 +101,13 @@ func (s *Storage) Remove(file string) error {
 }
 
 // GetAll entries from the snapshot storage
-func (s *Storage) GetAll() (map[string]string, error) {
+func (s *Storage) GetAll(bucketName string) (map[string]string, error) {
 	db := s.openDB()
 	defer db.Close()
 	result := make(map[string]string)
 
 	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(s.DBBucketName)
+		b := tx.Bucket([]byte(bucketName))
 
 		b.ForEach(func(k, v []byte) error {
 			filePath := string(k)
