@@ -44,7 +44,9 @@ func init() {
 }
 
 // SyncSnapshot syncs the snapshot dir to the storage
-func (s *Storage) SyncSnapshot(from, to string) {}
+func (s *Storage) SyncSnapshot(from, to string) {
+	log.Printf("gdrive.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
+}
 
 // Setup gdrive storage
 func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
@@ -156,7 +158,6 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 	to := remotePath(absolutePath, relativePath)
 
 	// localSnapshotPath := snapshot.StoragePath(directoryPath)
-	// remoteSnapshotPath := snapshot.StoragePath(s.storagePath)
 
 	// don't backup file if it is in progress
 	if ok := storage.BackupStarted(absolutePath, storageName); ok {
@@ -164,7 +165,8 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 		storage.BackupFinished(absolutePath, storageName)
 		snapshot.UpdateEntry(directoryPath, relativePath, storageName)
 
-		// s.SyncSnapshot(localSnapshotPath, remoteSnapshotPath)
+		remoteSnapshotPath := remotePath(absolutePath, relativePath)
+		s.SyncSnapshot(directoryPath, remoteSnapshotPath)
 	}
 }
 
