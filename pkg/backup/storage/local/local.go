@@ -119,7 +119,8 @@ func (s *Storage) handleFileChanges(fileChange *types.FileChangeNotification) {
 
 		// TODO: first time sync?
 		snapshot.UpdateEntry(directoryPath, relativePath, storageName)
-		remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName)
-		s.SyncSnapshot(directoryPath, remoteSnapshotPath)
+		remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
+		localSnapshotPath := snapshot.FilePath(directoryPath)
+		s.SyncSnapshot(localSnapshotPath, remoteSnapshotPath)
 	}
 }
