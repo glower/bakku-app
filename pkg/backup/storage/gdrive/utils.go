@@ -10,12 +10,15 @@ import (
 	drive "google.golang.org/api/drive/v3"
 )
 
+type FindFileOptions struct {
+	ParentFolderID string
+}
+
 var mu sync.Mutex
 
 // CreateFolder Creates a new folder in gdrive
 func (s *Storage) CreateFolder(name string) *drive.File {
-	log.Printf("gdrive.CreateFolder(): name=%s\n", name)
-
+	// log.Printf("gdrive.CreateFolder(): name=%s\n", name)
 	folder, err := s.FindFolder(name, &FindFileOptions{})
 	if err != nil {
 		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
@@ -28,6 +31,7 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 		Name: name, MimeType: "application/vnd.google-apps.folder",
 		FolderColorRgb: "7FB069", // ASPARAGUS
 	}).Do()
+
 	if err != nil {
 		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
 	}
@@ -36,8 +40,7 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 
 // FindOrCreateSubFolder ...
 func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File {
-	log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
-
+	// log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
 	folder, err := s.FindFolder(name, &FindFileOptions{ParentFolderID: parentFolderID})
 	if err != nil {
 		log.Panicf("[ERROR] gdrive.FindOrCreateSubFolder(): Unable to create folder [%s]: %v\n", name, err)
@@ -53,7 +56,6 @@ func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File
 	if err != nil {
 		log.Panicf("[ERROR] gdrive.CreateSubFolder(): Unable to create folder [%s] as subfolder of [%s]: %v\n", name, parentFolderID, err)
 	}
-	log.Printf(">>> New folder [%s] is created\n", name)
 	return createFolder
 }
 
@@ -73,10 +75,6 @@ func (s *Storage) CreateAllFolders(path string) *drive.File {
 	return f
 }
 
-type FindFileOptions struct {
-	ParentFolderID string
-}
-
 // FindFolder returns a folder by name if a single folder is found or an error. If no folder is found, return nil
 func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File, error) {
 	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s'", name)
@@ -91,7 +89,6 @@ func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File,
 	}
 
 	if len(folders.Files) == 1 {
-		log.Printf(">>> gdrive.FindFolder(): folder [%s] found\n", name)
 		return folders.Files[0], nil
 	}
 	if len(folders.Files) > 1 {

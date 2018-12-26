@@ -19,7 +19,7 @@ import (
 type Storage struct {
 	name                          string // storage name
 	fileChangeNotificationChannel chan *types.FileChangeNotification
-	fileStorageProgressCannel     chan *storage.Progress
+	fileStorageProgressCannel     chan *backup.Progress
 	ctx                           context.Context
 	storagePath                   string
 	snapshotPath                  string
@@ -39,8 +39,7 @@ type StoreOptions struct {
 }
 
 // Setup local storage
-func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
-	log.Println("local.Setup()")
+func (s *Storage) Setup(fileStorageProgressCannel chan *backup.Progress) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
@@ -79,19 +78,11 @@ func (s *Storage) SyncLocalFilesToBackup() {
 
 // Store ...
 func (s *Storage) Store(fileChange *types.FileChangeNotification) {
-	absolutePath := fileChange.AbsolutePath   // /foo/bar/buz/alice.jpg
-	relativePath := fileChange.RelativePath   // buz/alice.jpg
-	directoryPath := fileChange.DirectoryPath // /foo/bar/
+	absolutePath := fileChange.AbsolutePath
+	relativePath := fileChange.RelativePath
+	directoryPath := fileChange.DirectoryPath
 
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
 	s.store(from, to, StoreOptions{reportProgress: true})
-}
-
-// SyncSnapshot syncs the snapshot dir to the storage
-func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
-	directoryPath := fileChange.DirectoryPath
-	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
-	localSnapshotPath := snapshot.FilePath(directoryPath)
-	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
 }

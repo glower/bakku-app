@@ -7,15 +7,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/types"
 )
 
-// SyncSnapshot syncs the snapshot file to the storage
-// func (s *Storage) SyncSnapshot(from, to string) {
-// 	log.Printf("local.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
-// 	s.store(from, to, StoreOptions{reportProgress: false})
-// }
+// SyncSnapshot syncs the snapshot dir to the storage
+func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
+	directoryPath := fileChange.DirectoryPath
+	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
+	localSnapshotPath := snapshot.FilePath(directoryPath)
+	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
+}
 
 func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
 	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
@@ -96,7 +99,7 @@ func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name st
 		percent = float64(100 * int64(totalWritten) / totalSize)
 	}
 
-	progress := &storage.Progress{
+	progress := &backup.Progress{
 		StorageName: storageName,
 		FileName:    name,
 		Percent:     percent,

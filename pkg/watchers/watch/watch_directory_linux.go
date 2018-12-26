@@ -134,7 +134,5 @@ func lookup(path string) CallbackData {
 			return data
 		}
 	}
-
-	log.Printf("watch.lookup(): callback data for path=%s are not found!!!\n", path)
 	return CallbackData{}
 }
