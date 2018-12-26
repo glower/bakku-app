@@ -34,7 +34,7 @@ const (
 	// FileModified - the file was modified. This can be a change in the time stamp or attributes.
 	FileModified // 3
 	// FileRenamedOldName - the file was renamed and this is the old name.
-	FileRenamedOldName
+	FileRenamedOldName // 4
 	// FileRenamedNewName - the file was renamed and this is the new name.
-	FileRenamedNewName
+	FileRenamedNewName // 5
 )

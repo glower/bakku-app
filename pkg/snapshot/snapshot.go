@@ -67,7 +67,6 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 		return nil
 	})
 	if !firstTimeBackup {
-		log.Printf("!!! CreateOrUpdate(): done with new scan for [%s], send signal ...\n", snapshotPath)
 		changesDoneChan <- true
 	}
 }

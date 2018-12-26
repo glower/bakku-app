@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -13,7 +13,7 @@ import (
 type Storage struct {
 	name                          string // storage name
 	fileChangeNotificationChannel chan *types.FileChangeNotification
-	fileStorageProgressCannel     chan *storage.Progress
+	fileStorageProgressCannel     chan *backup.Progress
 	ctx                           context.Context
 }
 
@@ -24,7 +24,7 @@ func init() {
 }
 
 // Setup fake storage
-func (s *Storage) Setup(fileStorageProgressCannel chan *storage.Progress) bool {
+func (s *Storage) Setup(fileStorageProgressCannel chan *backup.Progress) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
@@ -63,14 +63,14 @@ func (s *Storage) store(file string) {
 				return
 			case <-time.After(1 * time.Second):
 				p = p + 50
-				progress := &storage.Progress{
+				progress := &backup.Progress{
 					StorageName: storageName,
 					FileName:    file,
 					Percent:     p,
 				}
 				s.fileStorageProgressCannel <- progress
 				if p >= float64(100.0) {
-					// storage.BackupFinished(file, storageName)
+					// backup.Finished(file, storageName)
 					return
 				}
 			}

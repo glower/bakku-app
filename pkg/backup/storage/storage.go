@@ -8,6 +8,7 @@ import (
 
 	"log"
 
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/r3labs/sse"
@@ -15,11 +16,9 @@ import (
 
 // Storage represents an interface for a backup storage provider
 type Storage interface {
-	Setup(chan *Progress) bool
-
+	Setup(chan *backup.Progress) bool
 	SyncSnapshot(*types.FileChangeNotification)
 	Store(*types.FileChangeNotification)
-
 	SyncLocalFilesToBackup()
 }
 
@@ -27,7 +26,7 @@ type Storage interface {
 type Manager struct {
 	ctx                           context.Context
 	FileChangeNotificationChannel chan *types.FileChangeNotification
-	ProgressChannel               chan *Progress
+	ProgressChannel               chan *backup.Progress
 	SSEServer                     *sse.Server
 }
 
@@ -72,7 +71,7 @@ func UnregisterStorage(name string) {
 func SetupManager(ctx context.Context, sseServer *sse.Server, notifications []types.Notifications) *Manager {
 	m := &Manager{
 		FileChangeNotificationChannel: make(chan *types.FileChangeNotification),
-		ProgressChannel:               make(chan *Progress),
+		ProgressChannel:               make(chan *backup.Progress),
 		SSEServer:                     sseServer,
 		ctx:                           ctx,
 	}
@@ -109,8 +108,8 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 			case types.FileRemoved:
 				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
 				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.AbsolutePath) // TODO: is here a  good place?
-			case types.FileAdded, types.FileModified:
-				// log.Printf("storage.processeFileChangeNotifications(): FileAdded|FileModified file=[%s]\n", change.AbsolutePath)
+			case types.FileAdded, types.FileModified, types.FileRenamedNewName:
+				// log.Printf("storage.processeFileChangeNotifications(): FileAdded|FileModified|FileRenamedNewName file=[%s]\n", change.AbsolutePath)
 				for name, storage := range storages {
 					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
 					go handleFileChanges(&change, storage, name)
@@ -123,12 +122,13 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 }
 
 func handleFileChanges(fileChange *types.FileChangeNotification, s Storage, storageName string) {
-	log.Printf("handleFileChanges(): File [%v] has been changed\n", fileChange)
+	log.Printf("handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
 
 	// don't backup file if it is in progress
-	if ok := BackupStarted(fileChange, storageName); ok {
+	if !backup.InProgress(fileChange, storageName) {
+		backup.Start(fileChange, storageName)
 		s.Store(fileChange)
-		BackupFinished(fileChange, storageName)
+		backup.Finished(fileChange, storageName)
 		snapshot.UpdateEntry(fileChange, storageName)
 		s.SyncSnapshot(fileChange)
 	}
@@ -181,7 +181,7 @@ func Stop() {
 	for {
 		select {
 		case <-time.After(1 * time.Second):
-			if TotalFilesInProgres() == 0 {
+			if backup.TotalFilesInProgres() == 0 {
 				teardownAll()
 				return
 			}

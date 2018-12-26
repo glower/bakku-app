@@ -146,7 +146,7 @@ func lookup(path string) CallbackData {
 	defer callbackMutex.Unlock()
 	data, ok := callbackFuncs[path]
 	if !ok {
-		log.Printf("watch.lookup(): callback data for path=%s are not found!!!\n", path)
+		log.Printf("watch.lookup(): callback data for path=%s are not found\n", path)
 	}
 	return data
 }

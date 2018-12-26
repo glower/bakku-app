@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/glower/bakku-app/pkg/types"
@@ -73,7 +74,12 @@ func unregister(path string) {
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
 	filePath := filepath.Join(path, file)
+	if isTemporaryFile(filePath) {
+		return
+	}
+
 	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
+
 	var fileInfo os.FileInfo
 	var err error
 	callbackData := lookup(path)
@@ -84,19 +90,21 @@ func fileChangeNotifier(path, file string, action types.Action) {
 			log.Printf("watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
 			return
 		}
-	} else {
-		log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
-		// TODO: do we need all this info for delete action?
-		callbackData.CallbackChan <- types.FileChangeNotification{
-			AbsolutePath:       filePath,
-			Action:             action,
-			DirectoryPath:      callbackData.Path,
-			Name:               filepath.Base(file),
-			RelativePath:       file,
-			WatchDirectoryName: filepath.Base(callbackData.Path),
-		}
-		return
 	}
+	// TODO: fix this! windows sends here some wrong notifications!
+	// else {
+	// 	// log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
+	// 	// TODO: do we need all this info for delete action?
+	// 	callbackData.CallbackChan <- types.FileChangeNotification{
+	// 		AbsolutePath:       filePath,
+	// 		Action:             action,
+	// 		DirectoryPath:      callbackData.Path,
+	// 		Name:               filepath.Base(file),
+	// 		RelativePath:       file,
+	// 		WatchDirectoryName: filepath.Base(callbackData.Path),
+	// 	}
+	// 	return
+	// }
 
 	if fileInfo != nil {
 		host, _ := os.Hostname() // TODO: handle this error
@@ -114,4 +122,15 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
 	}
+}
+
+var tmpFiles = []string{"crdownload"}
+
+func isTemporaryFile(fileName string) bool {
+	for _, name := range tmpFiles {
+		if strings.Contains(fileName, name) {
+			return true
+		}
+	}
+	return false
 }
