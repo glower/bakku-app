@@ -44,6 +44,7 @@ func LookupForFileNotification(path string) (chan bool, bool) {
 
 // FileNotificationWaiter will send fileData to the chan stored in CallbackData after 5 seconds if no signal is
 // received on waitChan.
+// TODO: this can be done better with a general type of channel and any data
 func FileNotificationWaiter(waitChan chan bool, callbackChan chan types.FileChangeNotification, fileData *types.FileChangeNotification) {
 	cnt := 0
 	for {

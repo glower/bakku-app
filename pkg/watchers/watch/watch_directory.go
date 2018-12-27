@@ -107,7 +107,6 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	log.Printf("watch.fileChangeNotifier(): file [%s] action [%s]\n", filePath, ActionToString(action))
 
 	if fileInfo != nil {
-
 		wait, exists := notifications.LookupForFileNotification(filePath)
 		if exists {
 			wait <- true
@@ -139,11 +138,9 @@ func fileChangeNotifier(path, file string, action types.Action) {
 			WatchDirectoryName: filepath.Base(callbackData.Path),
 		}
 
-		go notifications.FileNotificationWaiter(waitChan, callbackData, data)
+		go notifications.FileNotificationWaiter(waitChan, callbackData.CallbackChan, data)
 
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
 	}
 }
-
-// -------------------------------------------------------------
