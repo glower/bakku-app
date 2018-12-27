@@ -4,12 +4,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/glower/bakku-app/pkg/types"
-	mime "github.com/glower/bakku-app/pkg/watchers/file"
+	fileutils "github.com/glower/bakku-app/pkg/watchers/file-utils"
 )
 
 // ActionToString maps Action value to string
@@ -78,7 +77,7 @@ func unregister(path string) {
 func fileChangeNotifier(path, file string, action types.Action) {
 	filePath := filepath.Join(path, file)
 
-	if isTemporaryFile(filePath) {
+	if fileutils.IsTemporaryFile(filePath) {
 		// log.Printf("watch.fileChangeNotifier(): file [%s] is a temporary file\n", filePath)
 		return
 	}
@@ -119,7 +118,7 @@ func fileChangeNotifier(path, file string, action types.Action) {
 		registerFileNotification(waitChan, filePath)
 
 		host, _ := os.Hostname()
-		mimeType, err := mime.ContentType(filePath)
+		mimeType, err := fileutils.ContentType(filePath)
 		if err != nil {
 			log.Printf("[ERROR] watch.fileChangeNotifier(): can't get ContentType from the file [%s]: %v\n", filePath, err)
 			unregisterFileNotification(filePath)
@@ -145,19 +144,6 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
 	}
-}
-
-// -------------------------------------------------------------
-
-var tmpFiles = []string{"crdownload"}
-
-func isTemporaryFile(fileName string) bool {
-	for _, name := range tmpFiles {
-		if strings.Contains(fileName, name) {
-			return true
-		}
-	}
-	return false
 }
 
 // -------------------------------------------------------------

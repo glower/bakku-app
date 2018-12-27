@@ -122,9 +122,7 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 }
 
 func handleFileChanges(fileChange *types.FileChangeNotification, s Storage, storageName string) {
-	// log.Printf("handleFileChanges(): File [%#v] has been changed\n", fileChange)
-	return
-	// don't backup file if it is in progress
+	log.Printf("handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	if !backup.InProgress(fileChange, storageName) {
 		backup.Start(fileChange, storageName)
 		s.Store(fileChange)

@@ -76,7 +76,7 @@ static inline void WatchDirectory(char* dir) {
 				do {
 					fni = (FILE_NOTIFY_INFORMATION*)(&buffer[offset]);
 					wcstombs_s(&count, fileName, sizeof(fileName),  fni->FileName, (size_t)fni->FileNameLength/sizeof(WCHAR));
-					printf("[CGO] [INFO] file=[%s] action=[%d] offset=[%ld]\n", fileName, fni->Action, offset);
+					// printf("[CGO] [INFO] file=[%s] action=[%d] offset=[%ld]\n", fileName, fni->Action, offset);
 					goCallbackFileChange(dir, fileName, fni->Action);
 					memset(fileName, '\0', sizeof(fileName));
 					offset += fni->NextEntryOffset;
