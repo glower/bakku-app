@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/glower/bakku-app/pkg/types"
 	fileutils "github.com/glower/bakku-app/pkg/watchers/file-utils"
+	"github.com/glower/bakku-app/pkg/watchers/notifications"
 )
 
 // ActionToString maps Action value to string
@@ -108,20 +108,20 @@ func fileChangeNotifier(path, file string, action types.Action) {
 
 	if fileInfo != nil {
 
-		wait, exists := lookupForFileNotification(filePath)
+		wait, exists := notifications.LookupForFileNotification(filePath)
 		if exists {
 			wait <- true
 			return
 		}
 
 		waitChan := make(chan bool)
-		registerFileNotification(waitChan, filePath)
+		notifications.RegisterFileNotification(waitChan, filePath)
 
 		host, _ := os.Hostname()
 		mimeType, err := fileutils.ContentType(filePath)
 		if err != nil {
 			log.Printf("[ERROR] watch.fileChangeNotifier(): can't get ContentType from the file [%s]: %v\n", filePath, err)
-			unregisterFileNotification(filePath)
+			notifications.UnregisterFileNotification(filePath)
 			return
 		}
 
@@ -139,7 +139,7 @@ func fileChangeNotifier(path, file string, action types.Action) {
 			WatchDirectoryName: filepath.Base(callbackData.Path),
 		}
 
-		go fileNotificationWaiter(waitChan, callbackData, data)
+		go notifications.FileNotificationWaiter(waitChan, callbackData, data)
 
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
@@ -147,42 +147,3 @@ func fileChangeNotifier(path, file string, action types.Action) {
 }
 
 // -------------------------------------------------------------
-var notificationsMutex sync.Mutex
-var notificationsChans = make(map[string]chan bool)
-
-func registerFileNotification(waitChan chan bool, path string) {
-	notificationsMutex.Lock()
-	defer notificationsMutex.Unlock()
-	notificationsChans[path] = waitChan
-}
-
-func unregisterFileNotification(path string) {
-	notificationsMutex.Lock()
-	defer notificationsMutex.Unlock()
-	delete(notificationsChans, path)
-}
-
-func lookupForFileNotification(path string) (chan bool, bool) {
-	notificationsMutex.Lock()
-	defer notificationsMutex.Unlock()
-	data, ok := notificationsChans[path]
-	return data, ok
-}
-
-// FileNotificationWaiter will send fileData to the chan stored in CallbackData after 5 seconds if no signal is
-// received on waitChan.
-func fileNotificationWaiter(waitChan chan bool, callbackData CallbackData, fileData *types.FileChangeNotification) {
-	for {
-		select {
-		// TODO: add global timeout for like 10 min to avoid go routin zombies
-		case <-waitChan:
-			log.Printf(">>> waiting for [%s] to be ready", fileData.AbsolutePath)
-		case <-time.After(time.Duration(5 * time.Second)):
-			log.Printf(">>> done with file [%s]", fileData.AbsolutePath)
-			callbackData.CallbackChan <- *fileData
-			unregisterFileNotification(fileData.AbsolutePath)
-			close(waitChan)
-			return
-		}
-	}
-}
