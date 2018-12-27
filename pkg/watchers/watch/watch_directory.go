@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/types"
+	mime "github.com/glower/bakku-app/pkg/watchers/file"
 )
 
 // ActionToString maps Action value to string
@@ -19,7 +21,7 @@ func ActionToString(action types.Action) string {
 		return "removed"
 	case types.FileModified:
 		return "modified"
-	case types.FileRenamedOldName | types.FileRenamedNewName:
+	case types.FileRenamedOldName, types.FileRenamedNewName:
 		return "renamed"
 	default:
 		return "invalid"
@@ -39,6 +41,7 @@ type CallbackData struct {
 
 var callbackMutex sync.Mutex
 var callbackFuncs = make(map[string]CallbackData)
+var callbackChannels = make(map[string]chan types.FileChangeNotification)
 
 // NewNotifier expected path to the directory to watch as string
 // and a FileInfo channel for the callback notofications
@@ -74,41 +77,58 @@ func unregister(path string) {
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
 	filePath := filepath.Join(path, file)
+
 	if isTemporaryFile(filePath) {
+		// log.Printf("watch.fileChangeNotifier(): file [%s] is a temporary file\n", filePath)
 		return
 	}
 
-	log.Printf("watch.fileChangeNotifier(): [%s], action: %s\n", filePath, ActionToString(action))
-
+	//
 	var fileInfo os.FileInfo
 	var err error
-	callbackData := lookup(path)
 
 	if action != types.FileRemoved && action != types.FileRenamedOldName {
 		fileInfo, err = os.Stat(filePath)
 		if err != nil {
-			log.Printf("watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
+			// log.Printf("watch.fileChangeNotifier(): Can not stat file [%s]: %v\n", filePath, err)
 			return
 		}
+
+		// ignore changes on the directory
+		if fileInfo.IsDir() {
+			// log.Printf("watch.fileChangeNotifier(): [%s] is not a file, ignore\n", filePath)
+			return
+		}
+	} else {
+		// TODO: implement file delete strategy
+		// log.Printf("watch.fileChangeNotifier(): not supported action [%d] for file [%s], ignore\n", action, filePath)
+		return
 	}
-	// TODO: fix this! windows sends here some wrong notifications!
-	// else {
-	// 	// log.Printf("watch.fileChangeNotifier(): file [%s] was deleted, update the snapshot\n", file)
-	// 	// TODO: do we need all this info for delete action?
-	// 	callbackData.CallbackChan <- types.FileChangeNotification{
-	// 		AbsolutePath:       filePath,
-	// 		Action:             action,
-	// 		DirectoryPath:      callbackData.Path,
-	// 		Name:               filepath.Base(file),
-	// 		RelativePath:       file,
-	// 		WatchDirectoryName: filepath.Base(callbackData.Path),
-	// 	}
-	// 	return
-	// }
+
+	log.Printf("watch.fileChangeNotifier(): file [%s] action [%s]\n", filePath, ActionToString(action))
 
 	if fileInfo != nil {
-		host, _ := os.Hostname() // TODO: handle this error
-		callbackData.CallbackChan <- types.FileChangeNotification{
+
+		wait, exists := lookupForFileNotification(filePath)
+		if exists {
+			wait <- true
+			return
+		}
+
+		waitChan := make(chan bool)
+		registerFileNotification(waitChan, filePath)
+
+		host, _ := os.Hostname()
+		mimeType, err := mime.ContentType(filePath)
+		if err != nil {
+			log.Printf("[ERROR] watch.fileChangeNotifier(): can't get ContentType from the file [%s]: %v\n", filePath, err)
+			unregisterFileNotification(filePath)
+			return
+		}
+
+		callbackData := lookup(path)
+		data := &types.FileChangeNotification{
+			MimeType:           mimeType,
 			AbsolutePath:       filePath,
 			Action:             action,
 			DirectoryPath:      callbackData.Path,
@@ -119,10 +139,15 @@ func fileChangeNotifier(path, file string, action types.Action) {
 			Timestamp:          fileInfo.ModTime(),
 			WatchDirectoryName: filepath.Base(callbackData.Path),
 		}
+
+		go fileNotificationWaiter(waitChan, callbackData, data)
+
 	} else {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", filePath)
 	}
 }
+
+// -------------------------------------------------------------
 
 var tmpFiles = []string{"crdownload"}
 
@@ -133,4 +158,45 @@ func isTemporaryFile(fileName string) bool {
 		}
 	}
 	return false
+}
+
+// -------------------------------------------------------------
+var notificationsMutex sync.Mutex
+var notificationsChans = make(map[string]chan bool)
+
+func registerFileNotification(waitChan chan bool, path string) {
+	notificationsMutex.Lock()
+	defer notificationsMutex.Unlock()
+	notificationsChans[path] = waitChan
+}
+
+func unregisterFileNotification(path string) {
+	notificationsMutex.Lock()
+	defer notificationsMutex.Unlock()
+	delete(notificationsChans, path)
+}
+
+func lookupForFileNotification(path string) (chan bool, bool) {
+	notificationsMutex.Lock()
+	defer notificationsMutex.Unlock()
+	data, ok := notificationsChans[path]
+	return data, ok
+}
+
+// FileNotificationWaiter will send fileData to the chan stored in CallbackData after 5 seconds if no signal is
+// received on waitChan.
+func fileNotificationWaiter(waitChan chan bool, callbackData CallbackData, fileData *types.FileChangeNotification) {
+	for {
+		select {
+		// TODO: add global timeout for like 10 min to avoid go routin zombies
+		case <-waitChan:
+			log.Printf(">>> waiting for [%s] to be ready", fileData.AbsolutePath)
+		case <-time.After(time.Duration(5 * time.Second)):
+			log.Printf(">>> done with file [%s]", fileData.AbsolutePath)
+			callbackData.CallbackChan <- *fileData
+			unregisterFileNotification(fileData.AbsolutePath)
+			close(waitChan)
+			return
+		}
+	}
 }

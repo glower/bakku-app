@@ -5,6 +5,7 @@ import "time"
 // FileChangeNotification ...
 type FileChangeNotification struct {
 	Action
+	MimeType           string
 	Machine            string
 	Name               string
 	AbsolutePath       string

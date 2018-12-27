@@ -31,9 +31,9 @@ static inline void WatchDirectory(char* dir) {
 	// FILE_NOTIFY_CHANGE_LAST_WRITE – Changing time of write of the files
 	// FILE_NOTIFY_CHANGE_SECURITY   – Changing in security descriptors
 	handle = FindFirstChangeNotification(
-  	dir,   		// directory to watch
+  		dir,   		// directory to watch
 		TRUE,  		// do watch subtree
-		FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_DIR_NAME
+		FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME
 	);
 	ovl.hEvent = CreateEvent(
 		NULL,  		// default security attribute
@@ -47,7 +47,7 @@ static inline void WatchDirectory(char* dir) {
   }
 
   if ( handle == NULL ) {
-    printf("[CGO] ERROR WatchDirectory(): Unexpected NULL from CreateFile for directroy [%s]\n", dir);
+    printf("[CGO] [ERROR] WatchDirectory(): Unexpected NULL from CreateFile for directroy [%s]\n", dir);
     ExitProcess(GetLastError());
   }
 
@@ -65,13 +65,18 @@ static inline void WatchDirectory(char* dir) {
 					FALSE);  // does not wait
 
 				char fileName[MAX_PATH] = "";
+				// FILE_ACTION_ADDED=0x00000001: The file was added to the directory.
+				// FILE_ACTION_REMOVED=0x00000002: The file was removed from the directory.
+				// FILE_ACTION_MODIFIED=0x00000003: The file was modified. This can be a change in the time stamp or attributes.
+				// FILE_ACTION_RENAMED_OLD_NAME=0x00000004: The file was renamed and this is the old name.
+				// FILE_ACTION_RENAMED_NEW_NAME=0x00000005: The file was renamed and this is the new name.
 				FILE_NOTIFY_INFORMATION *fni = NULL;
 				DWORD offset = 0;
 
 				do {
 					fni = (FILE_NOTIFY_INFORMATION*)(&buffer[offset]);
 					wcstombs_s(&count, fileName, sizeof(fileName),  fni->FileName, (size_t)fni->FileNameLength/sizeof(WCHAR));
-					// printf("[CGO] [INFO] file=[%s] action=[%d] offset=[%ld]\n", fileName, fni->Action, offset);
+					printf("[CGO] [INFO] file=[%s] action=[%d] offset=[%ld]\n", fileName, fni->Action, offset);
 					goCallbackFileChange(dir, fileName, fni->Action);
 					memset(fileName, '\0', sizeof(fileName));
 					offset += fni->NextEntryOffset;
@@ -79,7 +84,7 @@ static inline void WatchDirectory(char* dir) {
 
 				ResetEvent(ovl.hEvent);
 				if( ReadDirectoryChangesW( handle, buffer, sizeof(buffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, NULL, &ovl, NULL) == 0) {
-					printf("Reading Directory Change");
+					printf("[CGO] [INFO] Reading Directory Change");
 				}
 				break;
 			case WAIT_TIMEOUT:
@@ -96,10 +101,7 @@ static inline void WatchDirectory(char* dir) {
 import "C"
 import (
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/glower/bakku-app/pkg/snapshot"
@@ -130,14 +132,6 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 		return
 	}
 
-	// This is a hack to see if the file is written to the disk on windows
-	if action != types.FileRemoved {
-		filePath := filepath.Join(path, file)
-		if ok := waitForFile(filePath); !ok {
-			return
-		}
-	}
-
 	fileChangeNotifier(path, file, action)
 }
 
@@ -149,20 +143,4 @@ func lookup(path string) CallbackData {
 		log.Printf("watch.lookup(): callback data for path=%s are not found\n", path)
 	}
 	return data
-}
-
-func waitForFile(filePath string) bool {
-	var cnt int
-	_, err := os.Stat(filePath)
-	for err != nil {
-		time.Sleep(1 * time.Second)
-		_, err = os.Stat(filePath)
-		cnt++
-		if cnt > 10 {
-			log.Printf("waitForFile(): stop waiting for [%s] after 10 seconds\n", filePath)
-			return false
-			// break
-		}
-	}
-	return true
 }

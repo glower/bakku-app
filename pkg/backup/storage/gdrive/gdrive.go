@@ -141,8 +141,6 @@ func (s *Storage) Store(fileChange *types.FileChangeNotification) {
 // }
 func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
 	fmt.Printf("\n\n%#v\n\n", fileChange)
-	// absolutePath := fileChange.AbsolutePath
-	// relativePath := fileChange.RelativePath
 	directoryPath := fileChange.DirectoryPath
 
 	from := snapshot.FilePath(directoryPath)
@@ -165,7 +163,7 @@ func (s *Storage) store(file, toPath, mimeType string) {
 
 	f := &drive.File{
 		Name:     filepath.Base(file),
-		MimeType: mimeType, //"image/jpeg", // TODO: get the mimetype
+		MimeType: mimeType,
 		Parents:  []string{lastFolder.Id},
 	}
 	res, err := s.service.Files.Create(f).Media(from).Do()
