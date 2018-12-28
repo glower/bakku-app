@@ -40,7 +40,7 @@ func New(path string, storages []string) *types.Notifications {
 	changesChan := make(chan types.FileChangeNotification)
 	changesDoneChan := make(chan bool)
 
-	go CreateOrUpdate(path, changesChan, changesDoneChan)
+	go CreateOrUpdate(path, storages, changesChan, changesDoneChan)
 
 	return &types.Notifications{
 		FileChangeChan: changesChan,
@@ -49,20 +49,28 @@ func New(path string, storages []string) *types.Notifications {
 }
 
 // CreateOrUpdate a new or update an existing snapshot entry for a given directory path
-func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
+// TODO: too many params, refactor me
+func CreateOrUpdate(snapshotPath string, storages []string, fileChangeChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
 	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
-
 	firstTimeBackup := false
 	if !Exist(snapshotPath) {
 		firstTimeBackup = true
 	}
+
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
 		if !fileInfo.IsDir() {
 			entry, err := generateFileEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
 				log.Printf(">>> snapshot.CreateOrUpdate(): first backup for: %v\n", entry)
 				fileChangeChan <- *entry
+				return nil
 			}
+			if err == nil {
+				for _, storage := range storages {
+					isFileDifferentToBackup(snapshotPath, storage, entry)
+				}
+			}
+
 		}
 		return nil
 	})
@@ -80,10 +88,9 @@ func CreateOrUpdate(snapshotPath string, fileChangeChan chan<- types.FileChangeN
 
 // UpdateEntry ...
 func UpdateEntry(fileChange *types.FileChangeNotification, storageName string) {
-	// absolutePath := filepath.Join(snapshotPath, filePath)
-	absolutePath := fileChange.AbsolutePath  // /foo/bar/buz/alice.jpg
-	relativePath := fileChange.RelativePath  // buz/alice.jpg
-	snapshotPath := fileChange.DirectoryPath // /foo/bar/
+	absolutePath := fileChange.AbsolutePath
+	relativePath := fileChange.RelativePath
+	snapshotPath := fileChange.DirectoryPath
 
 	fileInfo, err := os.Stat(absolutePath)
 	if err != nil {
@@ -102,13 +109,29 @@ func UpdateEntry(fileChange *types.FileChangeNotification, storageName string) {
 	}
 }
 
+func isFileDifferentToBackup(snapshotPath, storageName string, entry *types.FileChangeNotification) (bool, error) {
+	entryJSON, err := json.Marshal(entry)
+	if err != nil {
+		return true, err
+	}
+	snapshotEntryJSON, err := Snapshot(snapshotPath).Get(entry.AbsolutePath, storageName)
+	if err != nil {
+		return true, err
+	}
+
+	// Maybe it is better to compair the object and not the JSON string
+	if string(entryJSON) != snapshotEntryJSON {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func updateEntry(snapshotPath, storageName string, entry *types.FileChangeNotification) error {
 	value, err := json.Marshal(entry)
 	if err != nil {
 		return err
 	}
-
-	// func (s *Storage) Add(filePath, bucketName string, value []byte) error {
 	err = Snapshot(snapshotPath).Add(entry.AbsolutePath, storageName, value)
 	if err != nil {
 		return err
