@@ -51,23 +51,35 @@ func New(path string, storages []string) *types.Notifications {
 // CreateOrUpdate a new or update an existing snapshot entry for a given directory path
 // TODO: too many params, refactor me
 func CreateOrUpdate(snapshotPath string, storages []string, fileChangeChan chan<- types.FileChangeNotification, changesDoneChan chan<- bool) {
-	log.Printf("snapshot.CreateOrUpdate(): path=%s\n", snapshotPath)
+	log.Printf("snapshot.CreateOrUpdate(): path=%s storages=%v\n", snapshotPath, storages)
 	firstTimeBackup := false
+	// TODO: check snapshot for the path and storage name
 	if !Exist(snapshotPath) {
 		firstTimeBackup = true
 	}
 
 	filepath.Walk(snapshotPath, func(file string, fileInfo os.FileInfo, err error) error {
+		if strings.Contains(file, FileName(snapshotPath)) {
+			return nil
+		}
 		if !fileInfo.IsDir() {
 			entry, err := generateFileEntry(snapshotPath, file, fileInfo)
 			if firstTimeBackup && err == nil {
-				log.Printf(">>> snapshot.CreateOrUpdate(): first backup for: %v\n", entry)
 				fileChangeChan <- *entry
 				return nil
 			}
 			if err == nil {
-				for _, storage := range storages {
-					isFileDifferentToBackup(snapshotPath, storage, entry)
+				for _, storageName := range storages {
+					new, err := isFileDifferentToBackup(snapshotPath, storageName, entry)
+					if err == nil && new {
+						log.Printf(" File [%s] is new or different to the copy in [%s] storage\n", file, storageName)
+						fileChangeChan <- *entry
+						return nil
+					}
+					if err != nil {
+						log.Printf("[ERROR] CreateOrUpdate(): %v\n", err)
+						return err
+					}
 				}
 			}
 
@@ -78,13 +90,6 @@ func CreateOrUpdate(snapshotPath string, storages []string, fileChangeChan chan<
 		changesDoneChan <- true
 	}
 }
-
-// func fileChanged(snapshotPath, filePath string, fileInfo os.FileInfo) bool {
-// 	err := Snapshot(snapshotPath).Add(filePath, value)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// }
 
 // UpdateEntry ...
 func UpdateEntry(fileChange *types.FileChangeNotification, storageName string) {
@@ -97,7 +102,7 @@ func UpdateEntry(fileChange *types.FileChangeNotification, storageName string) {
 		log.Printf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
 		return
 	}
-	entry, err := generateFileEntry(snapshotPath, relativePath, fileInfo)
+	entry, err := generateFileEntry(snapshotPath, absolutePath, fileInfo)
 	if err != nil {
 		log.Printf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, relativePath, err)
 		return
@@ -110,21 +115,30 @@ func UpdateEntry(fileChange *types.FileChangeNotification, storageName string) {
 }
 
 func isFileDifferentToBackup(snapshotPath, storageName string, entry *types.FileChangeNotification) (bool, error) {
-	entryJSON, err := json.Marshal(entry)
-	if err != nil {
-		return true, err
-	}
+	log.Printf("isFileDifferentToBackup(): snapshotPath=[%s], storageName=[%s]\n", snapshotPath, storageName)
 	snapshotEntryJSON, err := Snapshot(snapshotPath).Get(entry.AbsolutePath, storageName)
 	if err != nil {
 		return true, err
 	}
+	if snapshotEntryJSON == "" {
+		fmt.Printf("isFileDifferentToBackup(): snapshot is empty for file=[%s] snapshotPath=[%s] storageName=[%s]\n", entry.AbsolutePath, snapshotPath, storageName)
+		return true, nil
+	}
 
+	entryJSON, err := json.Marshal(entry)
+	if err != nil {
+		fmt.Printf("[ERROR] isFileDifferentToBackup(): Marshal error: %v\n", err)
+		return true, err
+	}
 	// Maybe it is better to compair the object and not the JSON string
 	if string(entryJSON) != snapshotEntryJSON {
+		log.Printf("isFileDifferentToBackup(): backup copy of [%s] is different!\n", entry.AbsolutePath)
+		fmt.Printf("! OLD: %s\n", snapshotEntryJSON)
+		fmt.Printf("! NEW: %s\n", entryJSON)
 		return false, nil
 	}
 
-	return true, nil
+	return false, nil
 }
 
 func updateEntry(snapshotPath, storageName string, entry *types.FileChangeNotification) error {
@@ -139,12 +153,15 @@ func updateEntry(snapshotPath, storageName string, entry *types.FileChangeNotifi
 	return nil
 }
 
+// filePath must be absulute path
 func generateFileEntry(snapshotPath, filePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
-	// log.Printf("snapshot.updateEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
+	log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", snapshotPath, filePath)
+	// TODO: check if filePath and snapshotPath are absolute!
 	host, _ := os.Hostname() // TODO: handle this error
 	fileName := filepath.Base(filePath)
 	relativePath := strings.Replace(filePath, snapshotPath+string(os.PathSeparator), "", -1)
 	snapshot := types.FileChangeNotification{
+		// TODO: add mime type here!
 		AbsolutePath:       filePath,
 		Action:             types.Action(types.FileAdded),
 		DirectoryPath:      snapshotPath,

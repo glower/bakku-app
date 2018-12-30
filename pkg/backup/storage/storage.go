@@ -104,23 +104,23 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 		case <-ctx.Done():
 			return
 		case file := <-watcher:
-			switch change.Action {
+			switch file.Action {
 			case types.FileRemoved:
-				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
-				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.AbsolutePath) // TODO: is here a  good place?
+				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
+				snapshot.RemoveSnapshotEntry(file.DirectoryPath, file.AbsolutePath) // TODO: is here a  good place?
 			case types.FileAdded, types.FileModified, types.FileRenamedNewName:
 				if len(file.BackupToStorages) > 0 {
-					for _, storageName := range file.BackupToStoragesar {
-						if storageProvider, ok := [storages]; ok {
-							go storages(&file, storageProvider, storageName)
+					for _, storageName := range file.BackupToStorages {
+						if storageProvider, ok := storages[storageName]; ok {
+							go sendFileToStorage(&file, storageProvider, storageName)
 						}
 					}
 					return
 				}
-				sendFileToAllStorages(file)
+				sendFileToAllStorages(&file)
 
 			default:
-				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", change)
+				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
 			}
 		}
 	}
@@ -128,13 +128,13 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 
 func sendFileToAllStorages(file *types.FileChangeNotification) {
 	for storageName, storageProvider := range storages {
-		log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-		go storages(&file, storageProvider, storageName)
+		log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
+		go sendFileToStorage(file, storageProvider, storageName)
 	}
 }
 
 func sendFileToStorage(fileChange *types.FileChangeNotification, s Storage, storageName string) {
-	log.Printf("handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
+	log.Printf("sendFileToStorage(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	if !backup.InProgress(fileChange, storageName) {
 		backup.Start(fileChange, storageName)
 		s.Store(fileChange)
