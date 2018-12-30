@@ -28,7 +28,6 @@ func SetupWatchers() []types.Notifications {
 // watchDirectoryForChanges returns a channel with a notification about the changes in the specified directory
 func watchDirectoryForChanges(path string) *types.Notifications {
 	log.Printf("watchDirectoryForChanges(): [%s]\n", path)
-
 	storages, err := storage.Active()
 	if err != nil {
 		log.Panic(err)
@@ -36,7 +35,6 @@ func watchDirectoryForChanges(path string) *types.Notifications {
 	if len(storages) == 0 {
 		log.Panicf("watchDirectoryForChanges(): can't find any active storages for the backup of [%s]", path)
 	}
-
 	notifications := snapshot.New(path, storages)
 	go watch.NewNotifier(path, notifications.FileChangeChan)
 	return notifications

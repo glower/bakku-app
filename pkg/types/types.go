@@ -5,6 +5,8 @@ import "time"
 // FileChangeNotification ...
 type FileChangeNotification struct {
 	Action
+	// If we want to store this file only at specific backup storage provider
+	BackupToStorages   []string
 	MimeType           string
 	Machine            string
 	Name               string

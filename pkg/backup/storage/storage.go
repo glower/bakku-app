@@ -103,26 +103,38 @@ func processeFileChangeNotifications(ctx context.Context, watcher <-chan types.F
 		select {
 		case <-ctx.Done():
 			return
-		case change := <-watcher:
-			switch change.Action {
+		case file := <-watcher:
+			switch file.Action {
 			case types.FileRemoved:
-				log.Printf("storage.ProcessFileChangeNotifications(): file=[%s] was deleted\n", change.AbsolutePath)
-				snapshot.RemoveSnapshotEntry(change.DirectoryPath, change.AbsolutePath) // TODO: is here a  good place?
+				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
+				snapshot.RemoveSnapshotEntry(file.DirectoryPath, file.AbsolutePath) // TODO: is here a  good place?
 			case types.FileAdded, types.FileModified, types.FileRenamedNewName:
-				// log.Printf("storage.processeFileChangeNotifications(): FileAdded|FileModified|FileRenamedNewName file=[%s]\n", change.AbsolutePath)
-				for name, storage := range storages {
-					log.Printf("storage.ProcessFileChangeNotifications(): send notification to [%s] storage provider\n", name)
-					go handleFileChanges(&change, storage, name)
+				if len(file.BackupToStorages) > 0 {
+					for _, storageName := range file.BackupToStorages {
+						if storageProvider, ok := storages[storageName]; ok {
+							go sendFileToStorage(&file, storageProvider, storageName)
+						}
+					}
+					return
 				}
+				sendFileToAllStorages(&file)
+
 			default:
-				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", change)
+				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
 			}
 		}
 	}
 }
 
-func handleFileChanges(fileChange *types.FileChangeNotification, s Storage, storageName string) {
-	log.Printf("handleFileChanges(): File [%s] has been changed\n", fileChange.AbsolutePath)
+func sendFileToAllStorages(file *types.FileChangeNotification) {
+	for storageName, storageProvider := range storages {
+		log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
+		go sendFileToStorage(file, storageProvider, storageName)
+	}
+}
+
+func sendFileToStorage(fileChange *types.FileChangeNotification, s Storage, storageName string) {
+	log.Printf("sendFileToStorage(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	if !backup.InProgress(fileChange, storageName) {
 		backup.Start(fileChange, storageName)
 		s.Store(fileChange)
@@ -140,7 +152,8 @@ func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
 			return
 		case <-done:
 			for name := range storages {
-				log.Printf("storage.processeFilesScanDoneNotifications(): sync backups for [%s]\n", name)
+				// compare local files with remote and copy local files to the backup
+				log.Printf("storage.processeFilesScanDoneNotifications(): sync local files to backups for [%s]\n", name)
 				// go storage.SyncLocalFilesToBackup() //
 			}
 		}
