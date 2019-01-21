@@ -2,6 +2,7 @@ package boltdb
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,10 +10,17 @@ import (
 	"time"
 )
 
-var testDBFileName = fmt.Sprintf(".snapshot.%d", time.Now().Unix())
-var testDBFilePath = filepath.Join(os.TempDir(), testDBFileName)
+func testDBFileName() string {
+	return fmt.Sprintf(".snapshot.%d.%d", time.Now().Unix(), rand.Intn(99999))
+}
+
+func testDBFilePath(testDBFileName string) string {
+	return filepath.Join(os.TempDir(), testDBFileName)
+}
 
 func TestStorage_Add(t *testing.T) {
+	testDBFileName := testDBFileName()
+	testDBFilePath := testDBFilePath(testDBFileName)
 	type args struct {
 		filePath   string
 		bucketName string
@@ -81,6 +89,8 @@ func TestStorage_Add(t *testing.T) {
 }
 
 func TestStorage_Get(t *testing.T) {
+	testDBFileName := testDBFileName()
+	testDBFilePath := testDBFilePath(testDBFileName)
 	type args struct {
 		filePath   string
 		bucketName string
@@ -165,6 +175,8 @@ func TestStorage_Get(t *testing.T) {
 }
 
 func TestStorage_GetAll(t *testing.T) {
+	testDBFileName := testDBFileName()
+	testDBFilePath := testDBFilePath(testDBFileName)
 	type args struct {
 		bucketName string
 	}
@@ -210,11 +222,11 @@ func TestStorage_GetAll(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.s.GetAll(tt.args.bucketName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Storage.GetAll() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Storage.GetAll(): error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Storage.GetAll() = %v, want %v", got, tt.want)
+				t.Errorf("Storage.GetAll(): got %v, want %v", got, tt.want)
 			}
 		})
 	}
