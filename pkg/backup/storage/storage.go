@@ -14,20 +14,21 @@ import (
 	"github.com/r3labs/sse"
 )
 
+const defultFolderName = "bakku-app"
+
+// DefultFolderName returns a name for a folder where all backups should be stored
+func DefultFolderName() string {
+	return defultFolderName
+}
+
+//-----------------------------------------------------
+
 // Storage represents an interface for a backup storage provider
 type Storage interface {
 	Setup(chan *backup.Progress) bool
 	SyncSnapshot(*types.FileChangeNotification)
 	Store(*types.FileChangeNotification)
 	SyncLocalFilesToBackup()
-}
-
-// Manager ...
-type Manager struct {
-	ctx                           context.Context
-	FileChangeNotificationChannel chan *types.FileChangeNotification
-	ProgressChannel               chan *backup.Progress
-	SSEServer                     *sse.Server
 }
 
 type teardown func()
@@ -133,14 +134,14 @@ func sendFileToAllStorages(file *types.FileChangeNotification) {
 	}
 }
 
-func sendFileToStorage(fileChange *types.FileChangeNotification, s Storage, storageName string) {
+func sendFileToStorage(fileChange *types.FileChangeNotification, backupStorage Storage, snapshotStorage snapshot.Storage, storageName string) {
 	log.Printf("sendFileToStorage(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	if !backup.InProgress(fileChange, storageName) {
 		backup.Start(fileChange, storageName)
-		s.Store(fileChange)
+		backupStorage.Store(fileChange)
 		backup.Finished(fileChange, storageName)
-		snapshot.UpdateEntry(fileChange, storageName)
-		s.SyncSnapshot(fileChange)
+		snapshotStorage.UpdateEntry(fileChange, storageName)
+		backupStorage.SyncSnapshot(fileChange)
 	}
 }
 

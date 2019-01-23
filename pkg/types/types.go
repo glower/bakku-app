@@ -2,6 +2,11 @@ package types
 
 import "time"
 
+type FileBackupComplete struct {
+	BackupStorageName string
+	AbsolutePath      string
+}
+
 // FileChangeNotification ...
 type FileChangeNotification struct {
 	Action

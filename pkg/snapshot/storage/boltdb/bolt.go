@@ -21,7 +21,7 @@ type Storage struct {
 }
 
 // New returns new snapshot storage implementation
-func New(path string) storage.Storager {
+func New(path string) storage.Storage {
 	conf := snapshot.Conf()
 	return &Storage{
 		DBFilePath: filepath.Join(path, conf.FileName),
@@ -89,7 +89,7 @@ func (s *Storage) Get(filePath, bucketName string) (string, error) {
 	return string(value), nil
 }
 
-// Remove  file from the snapshot storage
+// Remove file from the snapshot storage
 func (s *Storage) Remove(filePath, bucketName string) error {
 	// log.Printf("bolt.Remove(): remove file [%s] from snapshot\n", filePath)
 	db := s.openDB()

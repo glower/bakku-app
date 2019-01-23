@@ -11,10 +11,11 @@ import (
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
+	"github.com/glower/bakku-app/pkg/types"
 	"github.com/glower/bakku-app/pkg/watchers"
 	"github.com/r3labs/sse"
 
-	// // for auto import
+	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
 	_ "github.com/glower/bakku-app/pkg/backup/storage/gdrive"
 	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
@@ -37,10 +38,13 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	notifications := watchers.SetupWatchers()
 	sseServer := setupSSE()
-	storageManager := storage.SetupManager(ctx, sseServer, notifications)
-	startHTTPServer(sseServer, storageManager)
+
+	// each time a file is changed or created we will get a notification on this channel
+	var fileChangeNotificationChan chan types.FileChangeNotification
+	watchers.SetupFSWatchers(fileChangeNotificationChan)
+	backupStorageManager := storage.SetupManager(ctx, sseServer, notifications)
+	startHTTPServer(sseServer, backupStorageManager)
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
