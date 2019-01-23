@@ -28,7 +28,7 @@ type Storage struct {
 	name                          string // storage name
 	globalConfigPath              string
 	fileChangeNotificationChannel chan *types.FileChangeNotification
-	fileStorageProgressCannel     chan *backup.Progress
+	fileStorageProgressCannel     chan *types.BackupProgress
 	ctx                           context.Context
 	storagePath                   string
 	root                          *drive.File
@@ -45,7 +45,7 @@ func init() {
 }
 
 // Setup gdrive storage
-func (s *Storage) Setup(fileStorageProgressCannel chan *backup.Progress) bool {
+func (s *Storage) Setup(fileStorageProgressCannel chan *types.BackupProgress) bool {
 	gdriveConfig := gdrive.GoogleDriveConfig()
 	if gdriveConfig.Active {
 		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)

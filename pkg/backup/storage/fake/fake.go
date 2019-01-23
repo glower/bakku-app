@@ -13,7 +13,7 @@ import (
 type Storage struct {
 	name                          string // storage name
 	fileChangeNotificationChannel chan *types.FileChangeNotification
-	fileStorageProgressCannel     chan *backup.Progress
+	fileStorageProgressCannel     chan *types.BackupProgress
 	ctx                           context.Context
 }
 
@@ -24,7 +24,7 @@ func init() {
 }
 
 // Setup fake storage
-func (s *Storage) Setup(fileStorageProgressCannel chan *backup.Progress) bool {
+func (s *Storage) Setup(fileStorageProgressCannel chan *types.BackupProgress) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName

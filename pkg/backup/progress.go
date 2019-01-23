@@ -9,13 +9,6 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// Progress represents a moment of progress.
-type Progress struct {
-	StorageName string  `json:"storage"`
-	FileName    string  `json:"file"`
-	Percent     float64 `json:"percent"`
-}
-
 var (
 	filesInProgressM sync.RWMutex
 	filesInProgress  = make(map[string]time.Time)

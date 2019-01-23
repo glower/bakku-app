@@ -7,6 +7,13 @@ type FileBackupComplete struct {
 	AbsolutePath      string
 }
 
+// BackupProgress represents a moment of progress.
+type BackupProgress struct {
+	StorageName string  `json:"storage"`
+	FileName    string  `json:"file"`
+	Percent     float64 `json:"percent"`
+}
+
 // FileChangeNotification ...
 type FileChangeNotification struct {
 	Action
