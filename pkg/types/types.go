@@ -3,8 +3,9 @@ package types
 import "time"
 
 type FileBackupComplete struct {
-	BackupStorageName string
-	AbsolutePath      string
+	BackupStorageName  string
+	AbsolutePath       string
+	WatchDirectoryName string
 }
 
 // BackupProgress represents a moment of progress.

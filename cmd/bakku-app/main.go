@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 	"github.com/glower/bakku-app/pkg/types"
@@ -43,7 +43,8 @@ func main() {
 	// each time a file is changed or created we will get a notification on this channel
 	var fileChangeNotificationChan chan types.FileChangeNotification
 	watchers.SetupFSWatchers(fileChangeNotificationChan)
-	backupStorageManager := storage.SetupManager(ctx, sseServer, notifications)
+	backupStorageManager := backupstorage.SetupManager(ctx, fileChangeNotificationChan)
+
 	startHTTPServer(sseServer, backupStorageManager)
 
 	// server will block here untill we got SIGTERM/kill

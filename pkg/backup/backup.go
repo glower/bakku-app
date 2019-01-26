@@ -37,7 +37,7 @@ func Setup(ctx context.Context, notification chan *types.FileChangeNotification)
 		ok := storage.Setup(m.FileBackupProgressChannel)
 		if ok {
 			log.Printf("Setup(): backup storage [%s] is ready\n", name)
-			ctx, cancel := context.WithCancel(context.Background())
+			_, cancel := context.WithCancel(context.Background())
 			teardowns[name] = func() { cancel() }
 		} else {
 			log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
@@ -64,7 +64,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 					storages := backupstorage.GetAll()
 					for _, storageName := range file.BackupToStorages {
 						if storageProvider, ok := storages[storageName]; ok {
-							go sendFileToStorage(&file, storageProvider, storageName)
+							go sendFileToStorage(file, storageProvider, storageName)
 						}
 					}
 					return

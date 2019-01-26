@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,80 +9,94 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/glower/bakku-app/pkg/snapshot/storage"
+	"github.com/glower/bakku-app/pkg/config"
+	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
 // Snapshot ...
 type Snapshot struct {
-	backupStorages  []string
-	snapshotStorage storage.Storage
-	path            string
-	changesChan     chan types.FileChangeNotification
-	changesDoneChan chan bool
+	storage snapshotstorage.Storage
+	path    string
+
+	ctx context.Context
+
+	FileChangeNotificationChannel chan *types.FileChangeNotification
+	FileBackupCompleteChannel     chan *types.FileBackupComplete
 }
 
-// New creates new channals for file notifications
-func New(path string, storages []string) *Snapshot {
-	bolt := boltdb.New(path)
-	storage.Register(path, bolt)
+// Setup ...
+func Setup(fileChangeNotificationChan chan *types.FileChangeNotification, fileBackupCompleteChan chan *types.FileBackupComplete) {
 
-	snap := &Snapshot{}
-	snap.path = path
-	snap.backupStorages = storages
-	snap.snapshotStorage = bolt
-	snap.changesChan = make(chan types.FileChangeNotification)
-	snap.changesDoneChan = make(chan bool)
+	dirs := config.DirectoriesToWatch()
+	for _, path := range dirs {
 
-	return snap
-}
+		snap := &Snapshot{}
+		bolt := boltdb.New(path)
+		snapshotstorage.Register(path, bolt)
 
-// CreateOrUpdate a new or update an existing snapshot entry for a given directory path
-func (s *Snapshot) CreateOrUpdate() {
-	log.Printf("snapshot.CreateOrUpdate(): path=%s storages=%v\n", s.path, s.backupStorages)
-	firstTimeBackup := false
-	// TODO: check snapshot for the path and storage name
-	if s.snapshotStorage.Exist() {
-		firstTimeBackup = true
+		snap.path = path
+		snap.storage = bolt
+		snap.FileChangeNotificationChannel = fileChangeNotificationChan
+		snap.FileBackupCompleteChannel = fileBackupCompleteChan
+
+		if bolt.Exist() {
+			snap.Create()
+		}
 	}
+}
+
+// Create ...
+func (s *Snapshot) Create() {
+	log.Printf("snapshot.Create(): path=%s\n", s.path)
+
+	// // TODO: check snapshot for the path and storage name
+	// if s.storage.Exist() {
+	// 	firstTimeBackup = true
+	// }
 
 	filepath.Walk(s.path, func(file string, fileInfo os.FileInfo, err error) error {
-		if strings.Contains(file, s.snapshotStorage.FileName()) {
+		if strings.Contains(file, s.storage.FileName()) {
 			return nil
 		}
 		if !fileInfo.IsDir() {
-			entry, err := s.generateFileEntry(file, fileInfo)
-			if firstTimeBackup && err == nil {
-				s.changesChan <- *entry
-				return nil
+			fileEntry, err := s.generateFileEntry(file, fileInfo)
+			if err != nil {
+				log.Printf("[ERROR] Create(): %v\n", err)
+				return err
 			}
-			if err == nil {
-				for _, storageName := range s.backupStorages {
-					new, err := s.isFileDifferentToBackup(storageName, entry)
-					if err == nil && new {
-						log.Printf(" File [%s] is new or different to the copy in [%s] storage\n", file, storageName)
-						s.changesChan <- *entry
-						return nil
-					}
-					if err != nil {
-						log.Printf("[ERROR] CreateOrUpdate(): %v\n", err)
-						return err
-					}
-				}
-			}
+			s.FileChangeNotificationChannel <- fileEntry
+			// if firstTimeBackup && err == nil {
+			// 	s.FileChangeNotificationChannel <- *entry
+			// 	return nil
+			// }
+			// if err == nil {
+			// 	// for _, storageName := range s.backupStorages {
+			// 	new, err := s.isFileDifferentToBackup(storageName, entry)
+			// 	if err == nil && new {
+			// 		log.Printf(" File [%s] is new or different to the copy in [%s] storage\n", file, storageName)
+			// 		s.FileChangeNotificationChannel <- *entry
+			// 		return nil
+			// 	}
+			// 	if err != nil {
+			// 		log.Printf("[ERROR] CreateOrUpdate(): %v\n", err)
+			// 		return err
+			// 	}
+			// 	// }
+			// }
 
 		}
 		return nil
 	})
 
-	if !firstTimeBackup {
-		s.changesDoneChan <- true
-	}
+	// if !firstTimeBackup {
+	// 	s.FileChangeNotificationChannel <- true
+	// }
 }
 
 // UpdateEntry ...
-func UpdateEntry(fileChange *types.FileChangeNotification, backupStorageName string) {
+func (s *Snapshot) UpdateEntry(fileChange *types.FileChangeNotification, backupStorageName string) {
 	absolutePath := fileChange.AbsolutePath
 	relativePath := fileChange.RelativePath
 	snapshotPath := fileChange.DirectoryPath
@@ -107,7 +122,7 @@ func UpdateEntry(fileChange *types.FileChangeNotification, backupStorageName str
 
 func (s *Snapshot) isFileDifferentToBackup(backupStorageName string, entry *types.FileChangeNotification) (bool, error) {
 	log.Printf("isFileDifferentToBackup(): backupStorageName=[%s]\n", backupStorageName)
-	snapshotEntryJSON, err := s.snapshotStorage.Get(entry.AbsolutePath, backupStorageName)
+	snapshotEntryJSON, err := s.storage.Get(entry.AbsolutePath, backupStorageName)
 	if err != nil {
 		return true, err
 	}
@@ -134,7 +149,7 @@ func (s *Snapshot) updateEntry(backupStorageName string, entry *types.FileChange
 	if err != nil {
 		return err
 	}
-	err = s.snapshotStorage.Add(entry.AbsolutePath, backupStorageName, value)
+	err = s.storage.Add(entry.AbsolutePath, backupStorageName, value)
 	if err != nil {
 		return err
 	}
