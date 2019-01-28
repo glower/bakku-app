@@ -64,7 +64,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 					storages := backupstorage.GetAll()
 					for _, storageName := range file.BackupToStorages {
 						if storageProvider, ok := storages[storageName]; ok {
-							go m.sendFileToStorage(&file, storageProvider, storageName)
+							m.sendFileToStorage(&file, storageProvider, storageName)
 						}
 					}
 					return
@@ -92,6 +92,7 @@ func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotificat
 		Start(fileChange, storageName)
 		backup.Store(fileChange)
 		Finish(fileChange, storageName)
+		log.Printf(">>>>> send something to FileBackupCompleteChannel ...")
 		m.FileBackupCompleteChannel <- types.FileBackupComplete{
 			BackupStorageName:  storageName,
 			AbsolutePath:       fileChange.AbsolutePath,

@@ -47,25 +47,6 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 	return false
 }
 
-// SyncLocalFilesToBackup ...
-// func (s *Storage) SyncLocalFilesToBackup() {
-// 	log.Println("local.SyncLocalFilesToBackup(): START")
-// 	dirs := config.DirectoriesToWatch()
-// 	for _, path := range dirs {
-// 		log.Printf("local.SyncLocalFilesToBackup(): %s\n", path)
-// 		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
-// 		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
-// 		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
-// 		log.Printf("local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
-// 			path, remoteSnapshot, localTMPFile)
-// 		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
-// 			log.Printf("[ERROR] local.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
-// 			return
-// 		}
-// 		s.syncFiles(localTMPPath, path)
-// 	}
-// }
-
 // Store ...
 func (s *Storage) Store(fileChange *types.FileChangeNotification) {
 	log.Printf("Store(): %#v\n", fileChange)
@@ -75,5 +56,5 @@ func (s *Storage) Store(fileChange *types.FileChangeNotification) {
 
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
-	s.store(from, to, StoreOptions{reportProgress: true})
+	s.store(from, to, StoreOptions{reportProgress: false})
 }

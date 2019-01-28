@@ -2,6 +2,7 @@ package types
 
 import "time"
 
+// FileBackupComplete represents
 type FileBackupComplete struct {
 	BackupStorageName  string
 	AbsolutePath       string

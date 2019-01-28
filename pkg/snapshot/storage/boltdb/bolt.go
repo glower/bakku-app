@@ -17,7 +17,7 @@ const snapshotStorageName = "boltdb"
 // Storage ...
 type Storage struct {
 	path       string // /foo/bar
-	DBFilePath string // /.snapshot
+	DBFilePath string // /foo/bar/.snapshot
 	DBFileName string // .snapshot
 }
 

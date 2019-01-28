@@ -32,8 +32,8 @@ func Setup(ctx context.Context, fileChangeNotificationChan chan types.FileChange
 	for _, path := range dirs {
 
 		snap := &Snapshot{
-			ctx:  ctx,
-			path: path,
+			ctx:                           ctx,
+			path:                          path,
 			FileChangeNotificationChannel: fileChangeNotificationChan,
 			FileBackupCompleteChannel:     fileBackupCompleteChan,
 		}
@@ -61,26 +61,33 @@ func (s *Snapshot) processFileBackupComplete() {
 		case <-s.ctx.Done():
 			return
 		case fileBackup := <-s.FileBackupCompleteChannel:
-			log.Printf("snapshot.processFileBackupComplete(): file [%s] is done with backup to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
+			log.Printf("<<<<< snapshot.processFileBackupComplete(): file [%s] is done with backup to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
 			if strings.Contains(fileBackup.AbsolutePath, s.storage.FileName()) {
-				return
+				continue
 			}
+
 			fileEntry, err := s.generateFileEntry(fileBackup.AbsolutePath, nil)
 			if err != nil {
 				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)
-				return
+				continue
 			}
 
 			err = s.updateFileSnapshot(fileBackup.BackupStorageName, fileEntry)
 			if err != nil {
 				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)
-				return
+				continue
 			}
+
+			backupFileEntry, err := s.generateFileEntry(s.storage.FilePath(), nil)
+			if err != nil {
+				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)
+				continue
+			}
+			s.FileChangeNotificationChannel <- *backupFileEntry
 		}
 	}
 }
 
-// Create ...
 func (s *Snapshot) create() {
 	log.Printf("snapshot.Create(): path=%s\n", s.path)
 
@@ -145,27 +152,6 @@ func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *types.Fil
 	}
 	return nil
 }
-
-// func (s *Snapshot) updateEntry(fileChange *types.FileChangeNotification, backupStorageName string) {
-// 	absolutePath := fileChange.AbsolutePath
-// 	relativePath := fileChange.RelativePath
-// 	snapshotPath := fileChange.DirectoryPath
-// 	fileInfo, err := os.Stat(absolutePath)
-// 	if err != nil {
-// 		log.Printf("[ERROR] storage.UpdateEntry(): can't stat file [%s]: %v\n", absolutePath, err)
-// 		return
-// 	}
-// 	entry, err := s.generateFileEntry(absolutePath, fileInfo)
-// 	if err != nil {
-// 		log.Printf("[ERROR] storage.UpdateEntry(): snapshotPath:[%s], filePath:[%s], error=%v\n", snapshotPath, relativePath, err)
-// 		return
-// 	}
-// 	err = s.updateFileSnapshot(backupStorageName, entry)
-// 	if err != nil {
-// 		log.Printf("[ERROR] storage.UpdateEntry(): can't update file entry file [%s]: %v\n", absolutePath, err)
-// 		return
-// 	}
-// }
 
 func (s *Snapshot) isFileDifferentToBackup(backupStorageName string, entry *types.FileChangeNotification) bool {
 	log.Printf("isFileDifferentToBackup(): backupStorageName=[%s]\n", backupStorageName)

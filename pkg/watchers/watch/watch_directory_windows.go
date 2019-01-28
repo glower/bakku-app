@@ -104,7 +104,6 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -127,10 +126,6 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := types.Action(int(caction))
-
-	if strings.Contains(file, snapshot.FileName(path)) {
-		return
-	}
 
 	fileChangeNotifier(path, file, action)
 }
