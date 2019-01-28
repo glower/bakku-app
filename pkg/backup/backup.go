@@ -1,77 +1,145 @@
 package backup
 
 import (
-	"fmt"
+	"context"
 	"log"
-	"sync"
 	"time"
+
+	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
 
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-const defultFolderName = "bakku-app"
+type teardown func()
 
-// DefultFolderName returns a name for a folder where all backups should be stored
-func DefultFolderName() string {
-	return defultFolderName
+var teardowns = make(map[string]teardown)
+
+// StorageManager ...
+type StorageManager struct {
+	ctx context.Context
+
+	FileChangeNotificationChannel chan types.FileChangeNotification
+	FileBackupProgressChannel     chan types.BackupProgress
+	FileBackupCompleteChannel     chan types.FileBackupComplete
 }
 
-// Progress represents a moment of progress.
-type Progress struct {
-	StorageName string  `json:"storage"`
-	FileName    string  `json:"file"`
-	Percent     float64 `json:"percent"`
-}
+// Setup runs all implemented storages
+func Setup(ctx context.Context, notification chan types.FileChangeNotification) *StorageManager {
+	m := &StorageManager{
+		ctx: ctx,
 
-var (
-	filesInProgressM sync.RWMutex
-	filesInProgress  = make(map[string]time.Time)
-)
-
-// Start ...
-func Start(fileChange *types.FileChangeNotification, storage string) {
-	file := fileChange.AbsolutePath
-	filesInProgressM.Lock()
-	defer filesInProgressM.Unlock()
-	key := buildKey(file, storage)
-
-	// TODO: find good strategy for this case
-	if _, dup := filesInProgress[key]; dup {
-		log.Printf("storage.BackupStarted(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
-		return
+		FileChangeNotificationChannel: notification,
+		FileBackupProgressChannel:     make(chan types.BackupProgress),
+		FileBackupCompleteChannel:     make(chan types.FileBackupComplete),
 	}
 
-	filesInProgress[key] = time.Now()
-	return
-}
-
-// InProgress ...
-func InProgress(fileChange *types.FileChangeNotification, storage string) bool {
-	file := fileChange.AbsolutePath
-	key := buildKey(file, storage)
-	if _, dup := filesInProgress[key]; dup {
-		log.Printf("storage.BackupStarted(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
-		return true
+	for name, storage := range backupstorage.GetAll() {
+		ok := storage.Setup(m.FileBackupProgressChannel)
+		if ok {
+			log.Printf("Setup(): backup storage [%s] is ready\n", name)
+			_, cancel := context.WithCancel(context.Background())
+			teardowns[name] = func() { cancel() }
+		} else {
+			log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
+			backupstorage.Unregister(name)
+		}
 	}
-	return false
+	go m.ProcessNotifications(ctx)
+	return m
 }
 
-// Finished ...
-func Finished(fileChange *types.FileChangeNotification, storage string) {
-	file := fileChange.AbsolutePath
-	log.Printf("backup.Finished(): [%s] to [%s]\n", file, storage)
-	log.Printf("-------------------------------------------------------\n\n\n")
-	filesInProgressM.Lock()
-	defer filesInProgressM.Unlock()
-	key := buildKey(file, storage)
-	delete(filesInProgress, key)
+// ProcessNotifications sends file change notofocations to all registerd storages
+func (m *StorageManager) ProcessNotifications(ctx context.Context) {
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case file := <-m.FileChangeNotificationChannel:
+			switch file.Action {
+			case types.FileRemoved:
+				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
+			case types.FileAdded, types.FileModified, types.FileRenamedNewName:
+				if len(file.BackupToStorages) > 0 {
+					storages := backupstorage.GetAll()
+					for _, storageName := range file.BackupToStorages {
+						if storageProvider, ok := storages[storageName]; ok {
+							m.sendFileToStorage(&file, storageProvider, storageName)
+						}
+					}
+					return
+				}
+				m.sendFileToAllStorages(&file)
+
+			default:
+				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
+			}
+		}
+	}
+
 }
 
-// TotalFilesInProgres returns total number of files in progress
-func TotalFilesInProgres() int {
-	return len(filesInProgress)
+func (m *StorageManager) sendFileToAllStorages(file *types.FileChangeNotification) {
+	for storageName, storageProvider := range backupstorage.GetAll() {
+		log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
+		go m.sendFileToStorage(file, storageProvider, storageName)
+	}
 }
 
-func buildKey(file, storage string) string {
-	return fmt.Sprintf("%s:%s", file, storage)
+func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotification, backup backupstorage.BackupStorage, storageName string) {
+	log.Printf("sendFileToStorage(): File [%s] has been changed\n", fileChange.AbsolutePath)
+	if !InProgress(fileChange, storageName) {
+		Start(fileChange, storageName)
+		backup.Store(fileChange)
+		Finish(fileChange, storageName)
+		log.Printf(">>>>> send something to FileBackupCompleteChannel ...")
+		m.FileBackupCompleteChannel <- types.FileBackupComplete{
+			BackupStorageName:  storageName,
+			AbsolutePath:       fileChange.AbsolutePath,
+			WatchDirectoryName: fileChange.WatchDirectoryName,
+		}
+		// snapshotStorage.UpdateEntry(fileChange, storageName)
+		// backup.SyncSnapshot(fileChange)
+	}
 }
+
+// Stop eveything
+func Stop() {
+	// block here untill all files are transferd
+	for {
+		select {
+		case <-time.After(1 * time.Second):
+			inProgress := TotalFilesInProgres()
+			log.Printf("TotalFilesInProgres: %d\n", inProgress)
+			if true {
+				teardownAll()
+				return
+			}
+		}
+	}
+}
+
+func teardownAll() {
+	for name, teardown := range teardowns {
+		teardown()
+		backupstorage.Unregister(name)
+	}
+}
+
+// func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
+// 	log.Println("processeFilesScanDoneNotifications(): setup channels")
+// 	for {
+// 		select {
+// 		case <-ctx.Done():
+// 			return
+// 		case <-done:
+// 			for name := range storages {
+// 				// compare local files with remote and copy local files to the backup
+// 				log.Printf("storage.processeFilesScanDoneNotifications(): sync local files to backups for [%s]\n", name)
+// 				// go storage.SyncLocalFilesToBackup() //
+// 			}
+// 		}
+// 	}
+// }
+
+//

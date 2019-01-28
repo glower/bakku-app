@@ -8,13 +8,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
+	"github.com/glower/bakku-app/pkg/snapshot"
+
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
+	"github.com/glower/bakku-app/pkg/types"
 	"github.com/glower/bakku-app/pkg/watchers"
 	"github.com/r3labs/sse"
 
-	// // for auto import
+	// for auto import
 	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
 	_ "github.com/glower/bakku-app/pkg/backup/storage/gdrive"
 	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
@@ -31,16 +34,39 @@ func setupSSE() *sse.Server {
 	return events
 }
 
+func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case progress := <-fileBackupProgressChannel:
+			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			// progressJSON, _ := json.Marshal(progress)
+			// // file fotification for the frontend client over the SSE
+			// sseServer.Publish("files", &sse.Event{
+			// 	Data: []byte(progressJSON),
+			// })
+		}
+	}
+}
+
 func main() {
 	log.Println("Starting the service ...")
 	ctx, cancel := context.WithCancel(context.Background())
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	notifications := watchers.SetupWatchers()
 	sseServer := setupSSE()
-	storageManager := storage.SetupManager(ctx, sseServer, notifications)
-	startHTTPServer(sseServer, storageManager)
+
+	// each time a file is changed or created we will get a notification on this channel
+	fileChangeNotificationChan := make(chan types.FileChangeNotification)
+
+	watchers.SetupFSWatchers(ctx, fileChangeNotificationChan)
+	backupStorageManager := backup.Setup(ctx, fileChangeNotificationChan)
+	snapshot.Setup(ctx, fileChangeNotificationChan, backupStorageManager.FileBackupCompleteChannel)
+
+	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressChannel, sseServer)
+	startHTTPServer(sseServer)
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -55,13 +81,13 @@ func main() {
 	cancel()
 	sseServer.RemoveStream("files")
 	sseServer.Close()
-	storage.Stop()
+	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager) *http.Server {
+func startHTTPServer(sseServer *sse.Server) *http.Server {
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
@@ -80,7 +106,7 @@ func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager) *http.Ser
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
-			log.Println("Failed to run server")
+			log.Printf("[ERROR] Failed to run server: %v", err)
 		}
 	}()
 	log.Print("The service is ready to listen and serve.")

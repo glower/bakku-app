@@ -7,30 +7,28 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/glower/bakku-app/pkg/backup"
-	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// SyncSnapshot syncs the snapshot dir to the storage
-func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
-	directoryPath := fileChange.DirectoryPath
-	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
-	localSnapshotPath := snapshot.FilePath(directoryPath)
-	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
-}
+// // SyncSnapshot syncs the file to the storage
+// func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
+// 	directoryPath := fileChange.DirectoryPath
+// 	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
+// 	localSnapshotPath := snapshot.FilePath(directoryPath)
+// 	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
+// }
 
-func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
-	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)
-		return
-	}
-	for _, file := range *files {
-		s.fileChangeNotificationChannel <- &file
-	}
-}
+// func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
+// 	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
+// 	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
+// 	if err != nil {
+// 		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)
+// 		return
+// 	}
+// 	for _, file := range *files {
+// 		s.fileChangeNotificationChannel <- &file
+// 	}
+// }
 
 // get remote file from the storage
 func (s *Storage) get(fromPath, toPath string) {
@@ -91,6 +89,12 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	}
 }
 
+// // BackupProgress represents a moment of progress.
+// type BackupProgress struct {
+// 	StorageName string  `json:"storage"`
+// 	FileName    string  `json:"file"`
+// 	Percent     float64 `json:"percent"`
+// }
 func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name string) {
 	var percent float64
 	if int64(written) == totalSize {
@@ -99,10 +103,9 @@ func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name st
 		percent = float64(100 * int64(totalWritten) / totalSize)
 	}
 
-	progress := &backup.Progress{
+	s.fileStorageProgressCannel <- types.BackupProgress{
 		StorageName: storageName,
 		FileName:    name,
 		Percent:     percent,
 	}
-	s.fileStorageProgressCannel <- progress
 }

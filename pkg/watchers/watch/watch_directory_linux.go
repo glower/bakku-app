@@ -104,6 +104,7 @@ func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(dir 
 	log.Printf("linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
+			// log.Printf(">>> %s", path)
 			go watchDir(path)
 		}
 		return nil
