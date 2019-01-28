@@ -62,6 +62,9 @@ func (s *Snapshot) processFileBackupComplete() {
 			return
 		case fileBackup := <-s.FileBackupCompleteChannel:
 			log.Printf("snapshot.processFileBackupComplete(): file [%s] is done with backup to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
+			if strings.Contains(fileBackup.AbsolutePath, s.storage.FileName()) {
+				return
+			}
 			fileEntry, err := s.generateFileEntry(fileBackup.AbsolutePath, nil)
 			if err != nil {
 				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)

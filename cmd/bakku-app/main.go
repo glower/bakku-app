@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -41,12 +40,12 @@ func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan
 		case <-ctx.Done():
 			return
 		case progress := <-fileBackupProgressChannel:
-			// log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
-			progressJSON, _ := json.Marshal(progress)
-			// file fotification for the frontend client over the SSE
-			sseServer.Publish("files", &sse.Event{
-				Data: []byte(progressJSON),
-			})
+			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			// progressJSON, _ := json.Marshal(progress)
+			// // file fotification for the frontend client over the SSE
+			// sseServer.Publish("files", &sse.Event{
+			// 	Data: []byte(progressJSON),
+			// })
 		}
 	}
 }
