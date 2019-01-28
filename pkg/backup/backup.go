@@ -92,14 +92,11 @@ func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotificat
 		Start(fileChange, storageName)
 		backup.Store(fileChange)
 		Finish(fileChange, storageName)
-		log.Printf(">>>>> send something to FileBackupCompleteChannel ...")
 		m.FileBackupCompleteChannel <- types.FileBackupComplete{
 			BackupStorageName:  storageName,
 			AbsolutePath:       fileChange.AbsolutePath,
 			WatchDirectoryName: fileChange.WatchDirectoryName,
 		}
-		// snapshotStorage.UpdateEntry(fileChange, storageName)
-		// backup.SyncSnapshot(fileChange)
 	}
 }
 
@@ -125,21 +122,3 @@ func teardownAll() {
 		backupstorage.Unregister(name)
 	}
 }
-
-// func processeFilesScanDoneNotifications(ctx context.Context, done <-chan bool) {
-// 	log.Println("processeFilesScanDoneNotifications(): setup channels")
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return
-// 		case <-done:
-// 			for name := range storages {
-// 				// compare local files with remote and copy local files to the backup
-// 				log.Printf("storage.processeFilesScanDoneNotifications(): sync local files to backups for [%s]\n", name)
-// 				// go storage.SyncLocalFilesToBackup() //
-// 			}
-// 		}
-// 	}
-// }
-
-//

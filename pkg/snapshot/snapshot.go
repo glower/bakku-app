@@ -26,7 +26,7 @@ type Snapshot struct {
 	FileBackupCompleteChannel     chan types.FileBackupComplete
 }
 
-// Setup ...
+// Setup the snapshot storage
 func Setup(ctx context.Context, fileChangeNotificationChan chan types.FileChangeNotification, fileBackupCompleteChan chan types.FileBackupComplete) {
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
@@ -61,7 +61,7 @@ func (s *Snapshot) processFileBackupComplete() {
 		case <-s.ctx.Done():
 			return
 		case fileBackup := <-s.FileBackupCompleteChannel:
-			log.Printf("<<<<< snapshot.processFileBackupComplete(): file [%s] is done with backup to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
+			log.Printf("snapshot.processFileBackupComplete(): file [%s] is done with backup to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
 			if strings.Contains(fileBackup.AbsolutePath, s.storage.FileName()) {
 				continue
 			}
