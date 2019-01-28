@@ -52,7 +52,7 @@ func (s *Storage) FileName() string {
 
 // Path ...
 func (s *Storage) Path() string {
-	return s.Path()
+	return s.path
 }
 
 // Add info about file to the snapshot, filePath is the key and bucketName is the name of the backup storage

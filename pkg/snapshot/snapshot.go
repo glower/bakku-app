@@ -18,32 +18,32 @@ import (
 
 // Snapshot ...
 type Snapshot struct {
-	storage snapshotstorage.Storage
-	path    string
-
 	ctx context.Context
 
+	path                          string
+	storage                       snapshotstorage.Storage
 	FileChangeNotificationChannel chan types.FileChangeNotification
 	FileBackupCompleteChannel     chan types.FileBackupComplete
 }
 
 // Setup ...
-func Setup(fileChangeNotificationChan chan types.FileChangeNotification, fileBackupCompleteChan chan types.FileBackupComplete) {
-
+func Setup(ctx context.Context, fileChangeNotificationChan chan types.FileChangeNotification, fileBackupCompleteChan chan types.FileBackupComplete) {
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
 
-		snap := &Snapshot{}
+		snap := &Snapshot{
+			ctx:  ctx,
+			path: path,
+			FileChangeNotificationChannel: fileChangeNotificationChan,
+			FileBackupCompleteChannel:     fileBackupCompleteChan,
+		}
 		bolt := boltdb.New(path)
 		err := snapshotstorage.Register(bolt)
 		if err != nil {
 			log.Panicf("[PANIC] snapshot.Setup(): %v\n", err)
 		}
 
-		snap.path = path
 		snap.storage = bolt
-		snap.FileChangeNotificationChannel = fileChangeNotificationChan
-		snap.FileBackupCompleteChannel = fileBackupCompleteChan
 
 		if !bolt.Exist() {
 			snap.create()
@@ -56,7 +56,6 @@ func Setup(fileChangeNotificationChan chan types.FileChangeNotification, fileBac
 }
 
 func (s *Snapshot) processFileBackupComplete() {
-
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -132,6 +131,7 @@ func (s *Snapshot) update() {
 }
 
 func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *types.FileChangeNotification) error {
+	log.Printf("storage.updateFileSnapshot(): file=%s, storage=%s", entry.AbsolutePath, backupStorageName)
 	value, err := json.Marshal(entry)
 	if err != nil {
 		return err

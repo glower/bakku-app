@@ -91,7 +91,7 @@ func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotificat
 	if !InProgress(fileChange, storageName) {
 		Start(fileChange, storageName)
 		backup.Store(fileChange)
-		Finished(fileChange, storageName)
+		Finish(fileChange, storageName)
 		m.FileBackupCompleteChannel <- types.FileBackupComplete{
 			BackupStorageName:  storageName,
 			AbsolutePath:       fileChange.AbsolutePath,
@@ -108,7 +108,9 @@ func Stop() {
 	for {
 		select {
 		case <-time.After(1 * time.Second):
-			if TotalFilesInProgres() == 0 {
+			inProgress := TotalFilesInProgres()
+			log.Printf("TotalFilesInProgres: %d\n", inProgress)
+			if true {
 				teardownAll()
 				return
 			}
@@ -139,19 +141,4 @@ func teardownAll() {
 // 	}
 // }
 
-// ProcessProgressCallback ...
-// func (m *StorageManager) ProcessProgressCallback(ctx context.Context) {
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return
-// 		case progress := <-m.ProgressChannel:
-// 			// log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
-// 			progressJSON, _ := json.Marshal(progress)
-// 			// file fotification for the frontend client over the SSE
-// 			m.SSEServer.Publish("files", &sse.Event{
-// 				Data: []byte(progressJSON),
-// 			})
-// 		}
-// 	}
-// }
+//

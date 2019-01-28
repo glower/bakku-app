@@ -53,20 +53,15 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 // 	dirs := config.DirectoriesToWatch()
 // 	for _, path := range dirs {
 // 		log.Printf("local.SyncLocalFilesToBackup(): %s\n", path)
-
 // 		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
-
 // 		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
 // 		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
-
 // 		log.Printf("local.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
 // 			path, remoteSnapshot, localTMPFile)
-
 // 		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
 // 			log.Printf("[ERROR] local.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
 // 			return
 // 		}
-
 // 		s.syncFiles(localTMPPath, path)
 // 	}
 // }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -34,6 +35,22 @@ func setupSSE() *sse.Server {
 	return events
 }
 
+func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case progress := <-fileBackupProgressChannel:
+			// log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			progressJSON, _ := json.Marshal(progress)
+			// file fotification for the frontend client over the SSE
+			sseServer.Publish("files", &sse.Event{
+				Data: []byte(progressJSON),
+			})
+		}
+	}
+}
+
 func main() {
 	log.Println("Starting the service ...")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -45,9 +62,11 @@ func main() {
 	// each time a file is changed or created we will get a notification on this channel
 	fileChangeNotificationChan := make(chan types.FileChangeNotification)
 
-	watchers.SetupFSWatchers(fileChangeNotificationChan)
+	watchers.SetupFSWatchers(ctx, fileChangeNotificationChan)
 	backupStorageManager := backup.Setup(ctx, fileChangeNotificationChan)
-	snapshot.Setup(fileChangeNotificationChan, backupStorageManager.FileBackupCompleteChannel)
+	snapshot.Setup(ctx, fileChangeNotificationChan, backupStorageManager.FileBackupCompleteChannel)
+
+	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressChannel, sseServer)
 	startHTTPServer(sseServer)
 
 	// server will block here untill we got SIGTERM/kill
@@ -88,7 +107,7 @@ func startHTTPServer(sseServer *sse.Server) *http.Server {
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
-			log.Println("Failed to run server")
+			log.Printf("[ERROR] Failed to run server: %v", err)
 		}
 	}()
 	log.Print("The service is ready to listen and serve.")

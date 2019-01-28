@@ -17,13 +17,15 @@ var (
 // Start stores the information about files in progress
 func Start(fileChange *types.FileChangeNotification, storage string) {
 	file := fileChange.AbsolutePath
+	log.Printf("\n-------------------------------------------------------\n")
+	log.Printf("backup.Start(): [%s] to [%s]\n", file, storage)
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)
 
 	// TODO: find good strategy for this case
 	if _, dup := filesInProgress[key]; dup {
-		log.Printf("storage.BackupStarted(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
+		log.Printf("storage.Start(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
 		return
 	}
 
@@ -36,16 +38,16 @@ func InProgress(fileChange *types.FileChangeNotification, storage string) bool {
 	file := fileChange.AbsolutePath
 	key := buildKey(file, storage)
 	if _, dup := filesInProgress[key]; dup {
-		log.Printf("storage.BackupStarted(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
+		log.Printf("storage.InProgress(): file [%s] is in progress for the storage provider [%s]\n", file, storage)
 		return true
 	}
 	return false
 }
 
-// Finished ...
-func Finished(fileChange *types.FileChangeNotification, storage string) {
+// Finish ...
+func Finish(fileChange *types.FileChangeNotification, storage string) {
 	file := fileChange.AbsolutePath
-	log.Printf("backup.Finished(): [%s] to [%s]\n", file, storage)
+	log.Printf("backup.Finish(): [%s] to [%s]\n", file, storage)
 	log.Printf("-------------------------------------------------------\n\n\n")
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
