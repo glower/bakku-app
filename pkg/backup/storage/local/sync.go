@@ -8,29 +8,27 @@ import (
 	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup"
-	"github.com/glower/bakku-app/pkg/snapshot"
-	"github.com/glower/bakku-app/pkg/types"
 )
 
-// SyncSnapshot syncs the snapshot dir to the storage
-func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
-	directoryPath := fileChange.DirectoryPath
-	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
-	localSnapshotPath := snapshot.FilePath(directoryPath)
-	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
-}
+// // SyncSnapshot syncs the file to the storage
+// func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
+// 	directoryPath := fileChange.DirectoryPath
+// 	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
+// 	localSnapshotPath := snapshot.FilePath(directoryPath)
+// 	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
+// }
 
-func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
-	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
-	if err != nil {
-		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)
-		return
-	}
-	for _, file := range *files {
-		s.fileChangeNotificationChannel <- &file
-	}
-}
+// func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
+// 	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
+// 	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
+// 	if err != nil {
+// 		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)
+// 		return
+// 	}
+// 	for _, file := range *files {
+// 		s.fileChangeNotificationChannel <- &file
+// 	}
+// }
 
 // get remote file from the storage
 func (s *Storage) get(fromPath, toPath string) {

@@ -16,7 +16,8 @@ const snapshotStorageName = "boltdb"
 
 // Storage ...
 type Storage struct {
-	DBFilePath string // /foo/bar/.snapshot
+	path       string // /foo/bar
+	DBFilePath string // /.snapshot
 	DBFileName string // .snapshot
 }
 
@@ -24,6 +25,7 @@ type Storage struct {
 func New(path string) storage.Storage {
 	conf := snapshot.Conf()
 	return &Storage{
+		path:       path,
 		DBFilePath: filepath.Join(path, conf.FileName),
 		DBFileName: conf.FileName,
 	}
@@ -46,6 +48,11 @@ func (s *Storage) FilePath() string {
 // FileName ...
 func (s *Storage) FileName() string {
 	return s.DBFileName
+}
+
+// Path ...
+func (s *Storage) Path() string {
+	return s.Path()
 }
 
 // Add info about file to the snapshot, filePath is the key and bucketName is the name of the backup storage

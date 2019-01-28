@@ -15,12 +15,12 @@ func DefultFolderName() string {
 	return defultFolderName
 }
 
-// Storage represents an interface for a backup storage provider
+// BackupStorage represents an interface for a backup storage provider
 type BackupStorage interface {
 	Setup(chan *types.BackupProgress) bool
 	SyncSnapshot(*types.FileChangeNotification)
 	Store(*types.FileChangeNotification)
-	SyncLocalFilesToBackup()
+	// SyncLocalFilesToBackup()
 }
 
 var (

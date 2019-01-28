@@ -12,13 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/backup"
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/bakku-app/pkg/config"
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
-	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
-	"github.com/otiai10/copy"
 	"golang.org/x/oauth2/google"
 	drive "google.golang.org/api/drive/v3"
 )
@@ -41,7 +38,7 @@ type Storage struct {
 const storageName = "gdrive"
 
 func init() {
-	storage.Register(storageName, &Storage{})
+	backupstorage.Register(storageName, &Storage{})
 }
 
 // Setup gdrive storage
@@ -56,7 +53,7 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *types.BackupProgress) bo
 		s.tokenFile = gdriveConfig.TokenFile
 		defaultPath := gdriveConfig.Path
 		if defaultPath == "" {
-			defaultPath = backup.DefultFolderName()
+			defaultPath = backupstorage.DefultFolderName()
 		}
 		s.storagePath = defaultPath
 
@@ -85,41 +82,40 @@ func (s *Storage) Setup(fileStorageProgressCannel chan *types.BackupProgress) bo
 	return false
 }
 
-// SyncLocalFilesToBackup XXXX
-func (s *Storage) SyncLocalFilesToBackup() {
-	log.Println("gdrive.SyncLocalFilesToBackup(): START")
-	dirs := config.DirectoriesToWatch()
-	for _, path := range dirs {
-		log.Printf("gdrive.SyncLocalFilesToBackup(): %s\n", path)
+// // SyncLocalFilesToBackup XXXX
+// func (s *Storage) SyncLocalFilesToBackup() {
+// 	log.Println("gdrive.SyncLocalFilesToBackup(): START")
+// 	dirs := config.DirectoriesToWatch()
+// 	for _, path := range dirs {
+// 		log.Printf("gdrive.SyncLocalFilesToBackup(): %s\n", path)
 
-		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
-		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
-		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
+// 		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
+// 		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
+// 		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
 
-		log.Printf("gdrive.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
-			path, remoteSnapshot, localTMPFile)
+// 		log.Printf("gdrive.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
+// 			path, remoteSnapshot, localTMPFile)
 
-		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
-			log.Printf("[ERROR] gdrive.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
-			return
-		}
+// 		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
+// 			log.Printf("[ERROR] gdrive.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
+// 			return
+// 		}
 
-		s.syncFiles(localTMPPath, path)
-	}
-}
+// 		s.syncFiles(localTMPPath, path)
+// 	}
+// }
 
-// syncFiles XXXX
-func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-	log.Printf("gdrive.syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
-	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
-	if err != nil {
-		log.Printf("[ERROR] gdrive.syncFiles(): %v\n", err)
-		return
-	}
-	for _, file := range *files {
-		s.fileChangeNotificationChannel <- &file
-	}
-}
+// func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
+// 	log.Printf("gdrive.syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
+// 	// files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
+// 	if err != nil {
+// 		log.Printf("[ERROR] gdrive.syncFiles(): %v\n", err)
+// 		return
+// 	}
+// 	for _, file := range *files {
+// 		s.fileChangeNotificationChannel <- &file
+// 	}
+// }
 
 // Store ...
 func (s *Storage) Store(fileChange *types.FileChangeNotification) {
@@ -143,7 +139,7 @@ func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
 	fmt.Printf("\n\n%#v\n\n", fileChange)
 	directoryPath := fileChange.DirectoryPath
 
-	from := snapshot.FilePath(directoryPath)
+	from := directoryPath //snapshot.FilePath(directoryPath)
 	to := filepath.Join(fileChange.WatchDirectoryName)
 	log.Printf("!!!! gdrive.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
 	s.store(from, to, "application/octet-stream")

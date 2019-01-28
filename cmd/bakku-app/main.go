@@ -9,6 +9,8 @@ import (
 	"syscall"
 
 	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/snapshot"
+
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 	"github.com/glower/bakku-app/pkg/types"
@@ -44,7 +46,7 @@ func main() {
 	var fileChangeNotificationChan chan types.FileChangeNotification
 	watchers.SetupFSWatchers(fileChangeNotificationChan)
 	backupStorageManager := backupstorage.SetupManager(ctx, fileChangeNotificationChan)
-
+	snapshot.Setup(backupStorageManager)
 	startHTTPServer(sseServer, backupStorageManager)
 
 	// server will block here untill we got SIGTERM/kill

@@ -6,6 +6,7 @@ import (
 )
 
 type FakeStorage struct {
+	path       string
 	DBFilePath string // /foo/bar/.snapshot
 	DBFileName string // .snapshot
 }
@@ -16,11 +17,14 @@ func (f *FakeStorage) Add(filePath, bucketName string, value []byte) error {
 func (f *FakeStorage) Exist() bool {
 	return true
 }
+func (f *FakeStorage) Path() string {
+	return f.path
+}
 func (f *FakeStorage) FilePath() string {
-	return "/foo/bar/.fake"
+	return f.DBFilePath //"/foo/bar/.fake"
 }
 func (f *FakeStorage) FileName() string {
-	return ".fake"
+	return f.DBFileName // ".fake"
 }
 func (f *FakeStorage) Get(filePath, bucketName string) (string, error) {
 	if filePath == "/foo/bar/test.txt" {
@@ -43,29 +47,74 @@ func TestRegisterStorage(t *testing.T) {
 		s    Storage
 	}
 
+	testBackupPath := "/foo/bar"
+	testDBFileName := ".fake"
+	testDBFilePath := fmt.Sprintf("%s/%s", testBackupPath, testDBFileName)
+
 	fake := &FakeStorage{
-		DBFilePath: "/foo/bar/.fake",
-		DBFileName: ".fake",
+		path:       testBackupPath,
+		DBFilePath: testDBFilePath,
+		DBFileName: testDBFileName,
 	}
 
 	tests := []struct {
-		name string
-		args args
+		name        string
+		args        args
+		path        string
+		errExpected bool
 	}{
 		{
-			name: "1: register fake storage",
+			name: "1: register a snapshot storage",
 			args: args{
-				path: "/foo/bar",
-				s:    fake,
+				s: fake,
 			},
+			path:        testBackupPath,
+			errExpected: false,
+		},
+		{
+			name: "2: register empty backup storage",
+			args: args{
+				s: nil,
+			},
+			path:        "/some/path",
+			errExpected: true,
+		},
+		{
+			name: "3: register empty path backup storage",
+			args: args{
+				s: &FakeStorage{
+					path:       "",
+					DBFilePath: "",
+					DBFileName: "",
+				},
+			},
+			path:        "/some/path",
+			errExpected: true,
+		},
+		{
+			name: "4: get wrong path backup storage",
+			args: args{
+				s: fake,
+			},
+			path:        "/some/path",
+			errExpected: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			Register(tt.args.path, tt.args.s)
-			storage := GetByPath(tt.args.path)
-			if storage.FileName() != ".fake" {
-				t.Errorf("storage.FileName(): value [%s], want [%s]", storage.FileName(), ".fake")
+			Register(tt.args.s)
+			storage, err := GetByPath(tt.path)
+
+			if !tt.errExpected && err != nil {
+				t.Errorf("storage.FileName(): error was not expected: [%v]", err)
+			}
+
+			if tt.errExpected && err == nil {
+				t.Errorf("storage.FileName(): error was expected but it's empty")
+			}
+
+			if !tt.errExpected && storage.FileName() != testDBFileName {
+				t.Errorf("storage.FileName(): value [%s], want [%s]", storage.FileName(), testDBFileName)
 			}
 		})
 	}
