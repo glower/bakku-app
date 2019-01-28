@@ -18,19 +18,19 @@ var teardowns = make(map[string]teardown)
 type StorageManager struct {
 	ctx context.Context
 
-	FileChangeNotificationChannel chan *types.FileChangeNotification
-	FileBackupProgressChannel     chan *types.BackupProgress
-	FileBackupCompleteChannel     chan *types.FileBackupComplete
+	FileChangeNotificationChannel chan types.FileChangeNotification
+	FileBackupProgressChannel     chan types.BackupProgress
+	FileBackupCompleteChannel     chan types.FileBackupComplete
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, notification chan *types.FileChangeNotification) *StorageManager {
+func Setup(ctx context.Context, notification chan types.FileChangeNotification) *StorageManager {
 	m := &StorageManager{
 		ctx: ctx,
 
 		FileChangeNotificationChannel: notification,
-		FileBackupProgressChannel:     make(chan *types.BackupProgress),
-		FileBackupCompleteChannel:     make(chan *types.FileBackupComplete),
+		FileBackupProgressChannel:     make(chan types.BackupProgress),
+		FileBackupCompleteChannel:     make(chan types.FileBackupComplete),
 	}
 
 	for name, storage := range backupstorage.GetAll() {
@@ -64,12 +64,12 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 					storages := backupstorage.GetAll()
 					for _, storageName := range file.BackupToStorages {
 						if storageProvider, ok := storages[storageName]; ok {
-							go sendFileToStorage(file, storageProvider, storageName)
+							go m.sendFileToStorage(&file, storageProvider, storageName)
 						}
 					}
 					return
 				}
-				sendFileToAllStorages(file)
+				m.sendFileToAllStorages(&file)
 
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
@@ -79,21 +79,26 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 
 }
 
-func sendFileToAllStorages(file *types.FileChangeNotification) {
+func (m *StorageManager) sendFileToAllStorages(file *types.FileChangeNotification) {
 	for storageName, storageProvider := range backupstorage.GetAll() {
 		log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
-		go sendFileToStorage(file, storageProvider, storageName)
+		go m.sendFileToStorage(file, storageProvider, storageName)
 	}
 }
 
-func sendFileToStorage(fileChange *types.FileChangeNotification, backup backupstorage.BackupStorage, storageName string) {
+func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotification, backup backupstorage.BackupStorage, storageName string) {
 	log.Printf("sendFileToStorage(): File [%s] has been changed\n", fileChange.AbsolutePath)
 	if !InProgress(fileChange, storageName) {
 		Start(fileChange, storageName)
 		backup.Store(fileChange)
 		Finished(fileChange, storageName)
+		m.FileBackupCompleteChannel <- types.FileBackupComplete{
+			BackupStorageName:  storageName,
+			AbsolutePath:       fileChange.AbsolutePath,
+			WatchDirectoryName: fileChange.WatchDirectoryName,
+		}
 		// snapshotStorage.UpdateEntry(fileChange, storageName)
-		backup.SyncSnapshot(fileChange)
+		// backup.SyncSnapshot(fileChange)
 	}
 }
 

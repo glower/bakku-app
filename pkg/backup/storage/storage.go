@@ -17,9 +17,9 @@ func DefultFolderName() string {
 
 // BackupStorage represents an interface for a backup storage provider
 type BackupStorage interface {
-	Setup(chan *types.BackupProgress) bool
-	SyncSnapshot(*types.FileChangeNotification)
+	Setup(chan types.BackupProgress) bool
 	Store(*types.FileChangeNotification)
+	// SyncSnapshot(*types.FileChangeNotification)
 	// SyncLocalFilesToBackup()
 }
 
@@ -55,6 +55,7 @@ func GetAll() map[string]BackupStorage {
 	return storages
 }
 
+// Unregister ...
 func Unregister(name string) {
 	storagesM.Lock()
 	defer storagesM.Unlock()

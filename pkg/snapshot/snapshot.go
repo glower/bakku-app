@@ -23,12 +23,12 @@ type Snapshot struct {
 
 	ctx context.Context
 
-	FileChangeNotificationChannel chan *types.FileChangeNotification
-	FileBackupCompleteChannel     chan *types.FileBackupComplete
+	FileChangeNotificationChannel chan types.FileChangeNotification
+	FileBackupCompleteChannel     chan types.FileBackupComplete
 }
 
 // Setup ...
-func Setup(fileChangeNotificationChan chan *types.FileChangeNotification, fileBackupCompleteChan chan *types.FileBackupComplete) {
+func Setup(fileChangeNotificationChan chan types.FileChangeNotification, fileBackupCompleteChan chan types.FileBackupComplete) {
 
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
@@ -92,7 +92,7 @@ func (s *Snapshot) create() {
 				log.Printf("[ERROR] Create(): %v\n", err)
 				return err
 			}
-			s.FileChangeNotificationChannel <- fileEntry
+			s.FileChangeNotificationChannel <- *fileEntry
 		}
 		return nil
 	})
@@ -124,7 +124,7 @@ func (s *Snapshot) update() {
 					backupToStorages = append(backupToStorages, backupStorage)
 				}
 				fileEntry.BackupToStorages = backupToStorages
-				s.FileChangeNotificationChannel <- fileEntry
+				s.FileChangeNotificationChannel <- *fileEntry
 			}
 		}
 		return nil

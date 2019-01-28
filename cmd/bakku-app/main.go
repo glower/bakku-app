@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/snapshot"
 
 	"github.com/glower/bakku-app/pkg/config"
@@ -43,11 +43,12 @@ func main() {
 	sseServer := setupSSE()
 
 	// each time a file is changed or created we will get a notification on this channel
-	var fileChangeNotificationChan chan types.FileChangeNotification
+	fileChangeNotificationChan := make(chan types.FileChangeNotification)
+
 	watchers.SetupFSWatchers(fileChangeNotificationChan)
-	backupStorageManager := backupstorage.SetupManager(ctx, fileChangeNotificationChan)
-	snapshot.Setup(backupStorageManager)
-	startHTTPServer(sseServer, backupStorageManager)
+	backupStorageManager := backup.Setup(ctx, fileChangeNotificationChan)
+	snapshot.Setup(fileChangeNotificationChan, backupStorageManager.FileBackupCompleteChannel)
+	startHTTPServer(sseServer)
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -62,13 +63,13 @@ func main() {
 	cancel()
 	sseServer.RemoveStream("files")
 	sseServer.Close()
-	storage.Stop()
+	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(sseServer *sse.Server, sManager *storage.Manager) *http.Server {
+func startHTTPServer(sseServer *sse.Server) *http.Server {
 	port := os.Getenv("PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/backup"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -12,8 +11,8 @@ import (
 // Storage fake
 type Storage struct {
 	name                          string // storage name
-	fileChangeNotificationChannel chan *types.FileChangeNotification
-	fileStorageProgressCannel     chan *types.BackupProgress
+	fileChangeNotificationChannel chan types.FileChangeNotification
+	fileStorageProgressCannel     chan types.BackupProgress
 	ctx                           context.Context
 }
 
@@ -24,11 +23,11 @@ func init() {
 }
 
 // Setup fake storage
-func (s *Storage) Setup(fileStorageProgressCannel chan *types.BackupProgress) bool {
+func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
-		s.fileChangeNotificationChannel = make(chan *types.FileChangeNotification)
+		s.fileChangeNotificationChannel = make(chan types.FileChangeNotification)
 		s.fileStorageProgressCannel = fileStorageProgressCannel
 		return true
 	}
@@ -42,7 +41,7 @@ func (s *Storage) SyncLocalFilesToBackup() {}
 func (s *Storage) SyncSnapshot(from, to string) {}
 
 // FileChangeNotification returns channel for notifications
-func (s *Storage) FileChangeNotification() chan *types.FileChangeNotification {
+func (s *Storage) FileChangeNotification() chan types.FileChangeNotification {
 	return s.fileChangeNotificationChannel
 }
 
@@ -63,12 +62,11 @@ func (s *Storage) store(file string) {
 				return
 			case <-time.After(1 * time.Second):
 				p = p + 50
-				progress := &backup.Progress{
+				s.fileStorageProgressCannel <- types.BackupProgress{
 					StorageName: storageName,
 					FileName:    file,
 					Percent:     p,
 				}
-				s.fileStorageProgressCannel <- progress
 				if p >= float64(100.0) {
 					// backup.Finished(file, storageName)
 					return
