@@ -96,15 +96,11 @@ func convertMaskToAction(mask int) types.Action {
 	}
 }
 
-// DirectoryChangeWacherImplementer is here to make testing easy
-type DirectoryChangeWacherImplementer struct{}
-
-// SetupDirectoryChangeNotification ...
-func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(dir string) {
+// StartWatching ...
+func (i *DirectoryChangeWacherImplementer) StartWatching(dir string) {
 	log.Printf("linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
-			// log.Printf(">>> %s", path)
 			go watchDir(path)
 		}
 		return nil
@@ -125,15 +121,4 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
 	fileChangeNotifier(path, file, convertMaskToAction(int(caction)))
-}
-
-func lookup(path string) CallbackData {
-	callbackMutex.Lock()
-	defer callbackMutex.Unlock()
-	for callback, data := range callbackFuncs {
-		if strings.HasPrefix(path, callback) {
-			return data
-		}
-	}
-	return CallbackData{}
 }

@@ -107,16 +107,12 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// DirectoryChangeWacherImplementer is here to make testing easy
-type DirectoryChangeWacherImplementer struct{}
-
-// SetupDirectoryChangeNotification ...
-func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(path string) {
-	log.Printf("windows.SetupDirectoryChangeNotification(): for [%s]\n", path)
+// StartWatching ...
+func (w *DirectoryWatcher) StartWatching(path string) {
+	log.Printf("windows.StartWatching(): for [%s]\n", path)
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
-		unregister(path)
 	}()
 	C.WatchDirectory(cpath)
 }
@@ -128,14 +124,4 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	action := types.Action(int(caction))
 
 	fileChangeNotifier(path, file, action)
-}
-
-func lookup(path string) CallbackData {
-	callbackMutex.Lock()
-	defer callbackMutex.Unlock()
-	data, ok := callbackFuncs[path]
-	if !ok {
-		log.Printf("watch.lookup(): callback data for path=%s are not found\n", path)
-	}
-	return data
 }
