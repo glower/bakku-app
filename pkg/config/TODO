@@ -1,0 +1,30 @@
+Idea for a config:
+
+
+BackupStorages:
+    - type: local
+      config:
+        path: /foo/remote1
+        name: "local foo storage"
+        id: local01
+    - type: gdrive
+      config:
+        path: /whatever
+        credentials: ...
+        id: gdrive01
+    - type: local
+      config:
+        path: /bar/remote2
+        name: "local bar storage"
+        id: local02
+
+DirectoriesToWatch:
+    - path: "c:/foo"
+      backup:
+        - local01
+        - gdrive01
+    - path: "c:/pics"
+      filters:
+        - file: "*.jpg"
+          backup:
+           - local01
