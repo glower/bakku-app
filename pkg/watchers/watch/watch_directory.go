@@ -52,8 +52,6 @@ func SetupDirectoryWatcher(callbackChan chan types.FileChangeNotification) *Dire
 
 // TODO: we can have different callbacks for different type events
 func fileChangeNotifier(path, file string, action types.Action) {
-	log.Printf("watch.fileChangeNotifier(): watch directory path [%s], relative file path [%s], action [%s]\n", path, file, ActionToString(action))
-
 	absoluteFilePath := filepath.Join(path, file)
 	if fileutils.IsTemporaryFile(absoluteFilePath) {
 		return
@@ -76,6 +74,8 @@ func fileChangeNotifier(path, file string, action types.Action) {
 	if fileInfo.IsDir() {
 		return
 	}
+
+	log.Printf("watch.fileChangeNotifier(): watch directory path [%s], relative file path [%s], action [%s]\n", path, file, ActionToString(action))
 
 	if fileInfo == nil {
 		log.Printf("[ERROR] watch.fileChangeNotifier(): FileInfo for [%s] not found!\n", absoluteFilePath)

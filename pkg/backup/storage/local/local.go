@@ -49,7 +49,6 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 
 // Store ...
 func (s *Storage) Store(fileChange *types.FileChangeNotification) {
-	log.Printf("Store(): %#v\n", fileChange)
 	absolutePath := fileChange.AbsolutePath
 	relativePath := fileChange.RelativePath
 	directoryPath := fileChange.DirectoryPath
