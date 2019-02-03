@@ -74,7 +74,7 @@ func (s *Storage) Add(filePath, bucketName string, value []byte) error {
 
 // Get information about the file from the snapshot
 func (s *Storage) Get(filePath, bucketName string) (string, error) {
-	log.Printf("bolt.Get(): file=[%s], bucketName=[%s] DBFilePath=[%s]\n", filePath, bucketName, s.DBFilePath)
+	// log.Printf("bolt.Get(): file=[%s], bucketName=[%s] DBFilePath=[%s]\n", filePath, bucketName, s.DBFilePath)
 	if filePath == "" {
 		return "", fmt.Errorf("bolt.Get(): the key(file path) is empty")
 	}
@@ -92,7 +92,6 @@ func (s *Storage) Get(filePath, bucketName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	log.Printf("bolt.Get(): value=%s\n", string(value))
 	return string(value), nil
 }
 

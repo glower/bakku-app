@@ -82,59 +82,13 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 	return false
 }
 
-// // SyncLocalFilesToBackup XXXX
-// func (s *Storage) SyncLocalFilesToBackup() {
-// 	log.Println("gdrive.SyncLocalFilesToBackup(): START")
-// 	dirs := config.DirectoriesToWatch()
-// 	for _, path := range dirs {
-// 		log.Printf("gdrive.SyncLocalFilesToBackup(): %s\n", path)
-
-// 		remoteSnapshot := filepath.Join(s.storagePath, filepath.Base(path), snapshot.FileName(path))
-// 		localTMPPath := filepath.Join(os.TempDir(), backup.DefultFolderName(), storageName, filepath.Base(path))
-// 		localTMPFile := filepath.Join(localTMPPath, snapshot.FileName(path))
-
-// 		log.Printf("gdrive.SyncLocalFilesToBackup(): copy snapshot for [%s] from [%s] to [%s]\n",
-// 			path, remoteSnapshot, localTMPFile)
-
-// 		if err := copy.Copy(remoteSnapshot, localTMPFile); err != nil {
-// 			log.Printf("[ERROR] gdrive.SyncLocalFilesToBackup(): can't copy snapshot for [%s]: %v\n", path, err)
-// 			return
-// 		}
-
-// 		s.syncFiles(localTMPPath, path)
-// 	}
-// }
-
-// func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-// 	log.Printf("gdrive.syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
-// 	// files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
-// 	if err != nil {
-// 		log.Printf("[ERROR] gdrive.syncFiles(): %v\n", err)
-// 		return
-// 	}
-// 	for _, file := range *files {
-// 		s.fileChangeNotificationChannel <- &file
-// 	}
-// }
-
 // Store ...
 func (s *Storage) Store(fileChange *types.FileChangeNotification) {
 	to := remotePath(fileChange.AbsolutePath, fileChange.RelativePath)
 	s.store(fileChange.AbsolutePath, to, "image/jpeg")
 }
 
-// SyncSnapshot syncs the snapshot dir to the storage
-// FileChangeNotification{
-// 		Action: 5,
-// 		Machine: "DESKTOP-T75G9FM",
-// 		Name: "69633416_p0.png",
-// 		AbsolutePath: "C:\Users\Brown\MyFiles\pixiv\69633416_p0.png",
-// 		RelativePath: "pixiv\69633416_p0.png",
-// 		DirectoryPath: "C:\Users\Brown\MyFiles",
-// 		WatchDirectoryName: "MyFiles",
-// 		Size: 2567216,
-// 		Timestamp: ...
-// }
+// SyncSnapshot ...
 func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
 	fmt.Printf("\n\n%#v\n\n", fileChange)
 	directoryPath := fileChange.DirectoryPath
@@ -148,7 +102,7 @@ func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
 // gdrive.store(): C:\Users\Brown\MyFiles\pixiv\71738080_p0_master1200.jpg > MyFiles\pixiv
 func (s *Storage) store(file, toPath, mimeType string) {
 	sleepRandom()
-	log.Printf(">>> gdrive.store(): [%s] > [gdrive://%s]\n", file, toPath)
+	log.Printf(" gdrive.store(): [%s] > [gdrive://%s]\n", file, toPath)
 	from, err := os.Open(file)
 	if err != nil {
 		log.Fatalf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", file, err)

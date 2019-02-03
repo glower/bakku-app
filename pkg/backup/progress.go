@@ -17,8 +17,6 @@ var (
 // Start stores the information about files in progress
 func Start(fileChange *types.FileChangeNotification, storage string) {
 	file := fileChange.AbsolutePath
-	log.Printf("-------------------------------------------------------\n")
-	log.Printf("backup.Start(): [%s] to [%s]\n", file, storage)
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)
@@ -47,8 +45,6 @@ func InProgress(fileChange *types.FileChangeNotification, storage string) bool {
 // Finish ...
 func Finish(fileChange *types.FileChangeNotification, storage string) {
 	file := fileChange.AbsolutePath
-	log.Printf("backup.Finish(): [%s] to [%s]\n", file, storage)
-	log.Printf("-------------------------------------------------------\n\n\n")
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
 	key := buildKey(file, storage)

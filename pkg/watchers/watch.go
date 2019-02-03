@@ -16,6 +16,7 @@ func SetupFSWatchers(ctx context.Context, fileChangeNotificationChan chan types.
 	log.Printf("watchers.SetupFSWatchers(): for %v\n", dirs)
 
 	for _, dir := range dirs {
-		go watch.NewNotifier(dir, fileChangeNotificationChan)
+		w := watch.SetupDirectoryWatcher(fileChangeNotificationChan)
+		go w.StartWatching(dir)
 	}
 }

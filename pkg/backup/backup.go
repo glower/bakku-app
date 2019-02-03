@@ -50,7 +50,6 @@ func Setup(ctx context.Context, notification chan types.FileChangeNotification) 
 
 // ProcessNotifications sends file change notofocations to all registerd storages
 func (m *StorageManager) ProcessNotifications(ctx context.Context) {
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -64,19 +63,18 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 					storages := backupstorage.GetAll()
 					for _, storageName := range file.BackupToStorages {
 						if storageProvider, ok := storages[storageName]; ok {
-							m.sendFileToStorage(&file, storageProvider, storageName)
+							go m.sendFileToStorage(&file, storageProvider, storageName)
 						}
 					}
-					return
+				} else {
+					m.sendFileToAllStorages(&file)
 				}
-				m.sendFileToAllStorages(&file)
 
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
 			}
 		}
 	}
-
 }
 
 func (m *StorageManager) sendFileToAllStorages(file *types.FileChangeNotification) {
@@ -87,16 +85,20 @@ func (m *StorageManager) sendFileToAllStorages(file *types.FileChangeNotificatio
 }
 
 func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotification, backup backupstorage.BackupStorage, storageName string) {
-	log.Printf("sendFileToStorage(): File [%s] has been changed\n", fileChange.AbsolutePath)
-	if !InProgress(fileChange, storageName) {
-		Start(fileChange, storageName)
-		backup.Store(fileChange)
-		Finish(fileChange, storageName)
-		m.FileBackupCompleteChannel <- types.FileBackupComplete{
-			BackupStorageName:  storageName,
-			AbsolutePath:       fileChange.AbsolutePath,
-			WatchDirectoryName: fileChange.WatchDirectoryName,
-		}
+	if InProgress(fileChange, storageName) {
+		return
+	}
+
+	log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", fileChange.AbsolutePath, storageName)
+	Start(fileChange, storageName)
+	backup.Store(fileChange)
+	Finish(fileChange, storageName)
+	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", fileChange.AbsolutePath, storageName)
+
+	m.FileBackupCompleteChannel <- types.FileBackupComplete{
+		BackupStorageName:  storageName,
+		AbsolutePath:       fileChange.AbsolutePath,
+		WatchDirectoryName: fileChange.WatchDirectoryName,
 	}
 }
 
