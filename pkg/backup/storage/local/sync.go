@@ -65,12 +65,6 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	}
 }
 
-// // BackupProgress represents a moment of progress.
-// type BackupProgress struct {
-// 	StorageName string  `json:"storage"`
-// 	FileName    string  `json:"file"`
-// 	Percent     float64 `json:"percent"`
-// }
 func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name string) {
 	var percent float64
 	if int64(written) == totalSize {
