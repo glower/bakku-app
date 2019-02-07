@@ -11,10 +11,10 @@ import (
 
 	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
+	fi "github.com/glower/bakku-app/pkg/file"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
-	fileutils "github.com/glower/bakku-app/pkg/watchers/file-utils"
 )
 
 // Snapshot ...
@@ -102,7 +102,8 @@ func (s *Snapshot) create() {
 			return nil
 		}
 		if !fileInfo.IsDir() {
-			fileEntry, err := s.generateFileEntry(file, fileInfo)
+			xFileInfo := fi.ExtendedFileInformation(file, fileInfo)
+			fileEntry, err := s.generateFileEntry(file, xFileInfo)
 			if err != nil {
 				log.Printf("[ERROR] Create(): %v\n", err)
 				return err
@@ -113,7 +114,6 @@ func (s *Snapshot) create() {
 	})
 }
 
-// Update ...
 func (s *Snapshot) update() {
 	log.Printf("snapshot.update(): path=%s\n", s.path)
 
@@ -128,7 +128,8 @@ func (s *Snapshot) update() {
 			return nil
 		}
 		if !fileInfo.IsDir() {
-			fileEntry, err := s.generateFileEntry(filePath, fileInfo)
+			xFileInfo := fi.ExtendedFileInformation(filePath, fileInfo)
+			fileEntry, err := s.generateFileEntry(filePath, xFileInfo)
 			if err != nil {
 				log.Printf("[ERROR] Update(): %v\n", err)
 				return err
@@ -188,7 +189,7 @@ func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *types.
 	return false
 }
 
-func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
+func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.ExtendedFileInfoImplementer) (*types.FileChangeNotification, error) {
 	// log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
 
 	if !filepath.IsAbs(absoluteFilePath) {
@@ -197,7 +198,7 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo os.FileIn
 
 	var err error
 	if fileInfo == nil {
-		fileInfo, err = os.Stat(absoluteFilePath)
+		fileInfo, err = fi.GetFileInformation(absoluteFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -209,13 +210,19 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo os.FileIn
 		host = "unknown"
 	}
 
-	mimeType, err := fileutils.ContentType(absoluteFilePath)
+	mimeType, err := fileInfo.ContentType()
 	if err != nil {
 		log.Printf("[ERROR] snapshot.generateFileEntry(): can't get ContentType from the file [%s]: %v\n", absoluteFilePath, err)
+		return nil, err
 	}
 
 	fileName := filepath.Base(absoluteFilePath)
-	relativePath := strings.Replace(absoluteFilePath, s.path+string(os.PathSeparator), "", -1)
+
+	relativePath, err := filepath.Rel(s.path, absoluteFilePath)
+	if err != nil {
+		return nil, err
+	}
+
 	snapshot := types.FileChangeNotification{
 		MimeType:           mimeType,
 		AbsolutePath:       absoluteFilePath,

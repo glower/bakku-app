@@ -10,31 +10,6 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// // SyncSnapshot syncs the file to the storage
-// func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
-// 	directoryPath := fileChange.DirectoryPath
-// 	remoteSnapshotPath := filepath.Join(s.storagePath, fileChange.WatchDirectoryName, snapshot.FileName(directoryPath))
-// 	localSnapshotPath := snapshot.FilePath(directoryPath)
-// 	s.store(localSnapshotPath, remoteSnapshotPath, StoreOptions{reportProgress: false})
-// }
-
-// func (s *Storage) syncFiles(remoteSnapshotPath, localSnapshotPath string) {
-// 	log.Printf("syncFiles(): from remote: [%s] to local [%s]\n", remoteSnapshotPath, localSnapshotPath)
-// 	files, err := snapshot.Diff(remoteSnapshotPath, localSnapshotPath)
-// 	if err != nil {
-// 		log.Printf("[ERROR] storage.local.syncFiles(): %v\n", err)
-// 		return
-// 	}
-// 	for _, file := range *files {
-// 		s.fileChangeNotificationChannel <- &file
-// 	}
-// }
-
-// get remote file from the storage
-func (s *Storage) get(fromPath, toPath string) {
-	s.store(fromPath, toPath, StoreOptions{reportProgress: false})
-}
-
 func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	log.Printf("storage.local.store(): Copy file from [%s] to [%s]\n", fromPath, toPath)
 	from, err := os.Open(fromPath)
@@ -47,8 +22,9 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	readBuffer := bufio.NewReader(from)
 	totalSize := fromStrats.Size()
 
-	if err := os.MkdirAll(filepath.Dir(toPath), 0744); err != nil {
-		log.Printf("[ERROR] storage.local.handleFileChanges():  MkdirAll for [%s], %v", filepath.Dir(toPath), err)
+	fileStoragePath := filepath.Dir(toPath)
+	if err := os.MkdirAll(fileStoragePath, 0744); err != nil {
+		log.Printf("[ERROR] storage.local.store():  MkdirAll for path: [%s] err: %v", fileStoragePath, err)
 		return
 	}
 

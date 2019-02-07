@@ -1,13 +1,13 @@
-package fileutils
+package file
 
 import "strings"
 
 var tmpFiles = []string{".crdownload", ".lock", ".snapshot"}
 
 // IsTemporaryFile ...
-func IsTemporaryFile(fileName string) bool {
+func (i *FileInformation) IsTemporaryFile() bool {
 	for _, name := range tmpFiles {
-		if strings.Contains(fileName, name) {
+		if strings.Contains(i.absoluteFilePath, name) {
 			return true
 		}
 	}

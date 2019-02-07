@@ -5,10 +5,10 @@ This is my fun project to get some practice in golang. The idea is to store chan
 This version is unstable and under development, don't have any tests here.
 
 TODO (more like idea list):
-- [ ] refactor code duplication in storage/gdrive and storage/local
-- [ ] refactor snapshot code to work with different storages in the same time
-- [ ] refactor sync of snapshot
-- [ ] automate Windows build
+- [x] refactor code duplication in storage/gdrive and storage/local
+- [x] refactor snapshot code to work with different storages in the same time
+- [x] refactor sync of snapshot
+- [x] automate Windows build
 - [x] add recursive directory notifications for linux (not perfect)
 - [x] write storage plugin for local file system
 - [ ] write storage plugin for S3
@@ -23,11 +23,11 @@ TODO (more like idea list):
 - [ ] implement filters like: store jpg to google drive and store raw to S3
 - [x] add abstraction for leveldb (was changed to boltdb)
 - [x] add abstraction for viper configs (config and config/storage)
-- [ ] add tests after first stable version
+- [x] add tests after first stable version
     - [x] add tests for basic file change notification
-    - [ ] add tests for snapshots
-    - [ ] add tests for configs
-    - [ ] add tests for storage
+    - [x] add tests for snapshots
+    - [x] add tests for configs
+    - [x] add tests for storage
 - [ ] add logic what to do with deleted files
 - [ ] add logic for renaming of the files (not working now)
 - [ ] add logrus or something else for logging
