@@ -8,8 +8,6 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// Run this test with: go test  -tags=integration  -timeout 30s -v github.com\glower\bakku-app\pkg\watchers\watch
-
 func TestSetupDirectoryWatcher(t *testing.T) {
 	type args struct {
 		callbackChan chan types.FileChangeNotification
