@@ -65,6 +65,7 @@ import (
 	"strings"
 	"unsafe"
 
+	fileinfo "github.com/glower/bakku-app/pkg/file"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -96,8 +97,8 @@ func convertMaskToAction(mask int) types.Action {
 	}
 }
 
-// StartWatching ...
-func (i *DirectoryChangeWacherImplementer) StartWatching(dir string) {
+// StartWatching starts a CGO function for getting the notifications
+func (i *DirectoryWatcher) StartWatching(dir string) {
 	log.Printf("linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
 	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
@@ -111,7 +112,6 @@ func watchDir(path string) {
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
-		unregister(path)
 	}()
 	C.WatchDirectory(cpath)
 }
@@ -120,5 +120,12 @@ func watchDir(path string) {
 func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
-	fileChangeNotifier(path, file, convertMaskToAction(int(caction)))
+	action := types.Action(int(caction))
+
+	absoluteFilePath := filepath.Join(path, file)
+	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
+
+	if err == nil {
+		fileChangeNotifier(path, file, fi, action)
+	}
 }
