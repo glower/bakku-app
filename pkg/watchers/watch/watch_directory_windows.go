@@ -1,4 +1,4 @@
-// +build windows
+// +build windows,!integration
 
 package watch
 
@@ -41,15 +41,15 @@ static inline void WatchDirectory(char* dir) {
 		FALSE, 		// initial state = signaled
 		NULL); 		// unnamed event object
 
-  if (handle == INVALID_HANDLE_VALUE){
-    printf("[CGO] [ERROR] WatchDirectory(): FindFirstChangeNotification function failed for directroy [%s] with error [%s]\n", dir, GetLastError());
-    ExitProcess(GetLastError());
-  }
+	if (handle == INVALID_HANDLE_VALUE){
+    	printf("[CGO] [ERROR] WatchDirectory(): FindFirstChangeNotification function failed for directroy [%s] with error [%s]\n", dir, GetLastError());
+    	ExitProcess(GetLastError());
+  	}
 
-  if ( handle == NULL ) {
-    printf("[CGO] [ERROR] WatchDirectory(): Unexpected NULL from CreateFile for directroy [%s]\n", dir);
-    ExitProcess(GetLastError());
-  }
+  	if ( handle == NULL ) {
+    	printf("[CGO] [ERROR] WatchDirectory(): Unexpected NULL from CreateFile for directroy [%s]\n", dir);
+    	ExitProcess(GetLastError());
+  	}
 
 	ReadDirectoryChangesW(handle, buffer, sizeof(buffer), FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE, NULL, &ovl, NULL);
 
@@ -101,22 +101,20 @@ static inline void WatchDirectory(char* dir) {
 import "C"
 import (
 	"log"
+	"path/filepath"
 	"strings"
 	"unsafe"
 
+	fileinfo "github.com/glower/bakku-app/pkg/file"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// DirectoryChangeWacherImplementer is here to make testing easy
-type DirectoryChangeWacherImplementer struct{}
-
-// SetupDirectoryChangeNotification ...
-func (i *DirectoryChangeWacherImplementer) SetupDirectoryChangeNotification(path string) {
-	log.Printf("windows.SetupDirectoryChangeNotification(): for [%s]\n", path)
+// StartWatching ...
+func (w *DirectoryWatcher) StartWatching(path string) {
+	log.Printf("windows.StartWatching(): for [%s]\n", path)
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
-		unregister(path)
 	}()
 	C.WatchDirectory(cpath)
 }
@@ -127,15 +125,10 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := types.Action(int(caction))
 
-	fileChangeNotifier(path, file, action)
-}
+	absoluteFilePath := filepath.Join(path, file)
+	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
 
-func lookup(path string) CallbackData {
-	callbackMutex.Lock()
-	defer callbackMutex.Unlock()
-	data, ok := callbackFuncs[path]
-	if !ok {
-		log.Printf("watch.lookup(): callback data for path=%s are not found\n", path)
+	if err == nil {
+		fileChangeNotifier(path, file, fi, action)
 	}
-	return data
 }

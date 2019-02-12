@@ -45,13 +45,6 @@ func (s *Storage) FileChangeNotification() chan types.FileChangeNotification {
 	return s.fileChangeNotificationChannel
 }
 
-// func (s *Storage) HandleFileChanges(fileChange *types.FileChangeNotification) {
-// 	log.Printf("storage.fake.handleFileChanges(): File %s has been changed\n", fileChange.Name)
-// 	file := fileChange.Name
-// 	storage.BackupStarted(file, storageName)
-// 	s.store(file)
-// }
-
 func (s *Storage) store(file string) {
 	p := 0.0
 	go func() {

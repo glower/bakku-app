@@ -11,6 +11,7 @@ import (
 
 	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
+	fi "github.com/glower/bakku-app/pkg/file"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
@@ -44,14 +45,13 @@ func Setup(ctx context.Context, fileChangeNotificationChan chan types.FileChange
 		}
 
 		snap.storage = bolt
+		go snap.processFileBackupComplete()
 
 		if !bolt.Exist() {
 			snap.create()
 		} else {
 			snap.update()
 		}
-
-		go snap.processFileBackupComplete()
 	}
 }
 
@@ -61,31 +61,37 @@ func (s *Snapshot) processFileBackupComplete() {
 		case <-s.ctx.Done():
 			return
 		case fileBackup := <-s.FileBackupCompleteChannel:
-			log.Printf("snapshot.processFileBackupComplete(): file [%s] is done with backup to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
-			if strings.Contains(fileBackup.AbsolutePath, s.storage.FileName()) {
-				continue
-			}
-
-			fileEntry, err := s.generateFileEntry(fileBackup.AbsolutePath, nil)
-			if err != nil {
-				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)
-				continue
-			}
-
-			err = s.updateFileSnapshot(fileBackup.BackupStorageName, fileEntry)
-			if err != nil {
-				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)
-				continue
-			}
-
-			backupFileEntry, err := s.generateFileEntry(s.storage.FilePath(), nil)
-			if err != nil {
-				log.Printf("[ERROR] snapshot.processFileBackupComplete(): %v\n", err)
-				continue
-			}
-			s.FileChangeNotificationChannel <- *backupFileEntry
+			go s.fileBackupComplete(fileBackup)
 		}
 	}
+}
+
+func (s *Snapshot) fileBackupComplete(fileBackup types.FileBackupComplete) {
+	log.Printf("snapshot.fileBackupComplete(): file [%s] is backuped to [%s]\n", fileBackup.AbsolutePath, fileBackup.BackupStorageName)
+	if strings.Contains(fileBackup.AbsolutePath, s.storage.FileName()) {
+		return
+	}
+
+	fileEntry, err := s.generateFileEntry(fileBackup.AbsolutePath, nil)
+	if err != nil {
+		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
+		return
+	}
+
+	err = s.updateFileSnapshot(fileBackup.BackupStorageName, fileEntry)
+	if err != nil {
+		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
+		return
+	}
+
+	// backup the snapshot file
+	backupFileEntry, err := s.generateFileEntry(s.storage.FilePath(), nil)
+	if err != nil {
+		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
+		return
+	}
+
+	s.FileChangeNotificationChannel <- *backupFileEntry
 }
 
 func (s *Snapshot) create() {
@@ -96,7 +102,8 @@ func (s *Snapshot) create() {
 			return nil
 		}
 		if !fileInfo.IsDir() {
-			fileEntry, err := s.generateFileEntry(file, fileInfo)
+			xFileInfo := fi.ExtendedFileInformation(file, fileInfo)
+			fileEntry, err := s.generateFileEntry(file, xFileInfo)
 			if err != nil {
 				log.Printf("[ERROR] Create(): %v\n", err)
 				return err
@@ -107,9 +114,8 @@ func (s *Snapshot) create() {
 	})
 }
 
-// Update ...
 func (s *Snapshot) update() {
-	log.Printf("snapshot.Update(): path=%s\n", s.path)
+	log.Printf("snapshot.update(): path=%s\n", s.path)
 
 	// read all supported backup storages form the config
 	backupStorages, err := storageconfig.Active()
@@ -122,19 +128,24 @@ func (s *Snapshot) update() {
 			return nil
 		}
 		if !fileInfo.IsDir() {
-			fileEntry, err := s.generateFileEntry(filePath, fileInfo)
+			xFileInfo := fi.ExtendedFileInformation(filePath, fileInfo)
+			fileEntry, err := s.generateFileEntry(filePath, xFileInfo)
 			if err != nil {
 				log.Printf("[ERROR] Update(): %v\n", err)
 				return err
 			}
+			backupToStorages := []string{}
 			for _, backupStorage := range backupStorages {
-				backupToStorages := []string{}
-				if s.isFileDifferentToBackup(backupStorage, fileEntry) {
+				if s.fileDifferentToBackup(backupStorage, fileEntry) {
+					log.Printf("snapshot.update(): local file [%s] is different to the remote copy in [%s] storage", fileEntry.AbsolutePath, backupStorage)
 					backupToStorages = append(backupToStorages, backupStorage)
 				}
+			}
+			if len(backupToStorages) > 0 {
 				fileEntry.BackupToStorages = backupToStorages
 				s.FileChangeNotificationChannel <- *fileEntry
 			}
+
 		}
 		return nil
 	})
@@ -153,11 +164,10 @@ func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *types.Fil
 	return nil
 }
 
-func (s *Snapshot) isFileDifferentToBackup(backupStorageName string, entry *types.FileChangeNotification) bool {
-	log.Printf("isFileDifferentToBackup(): backupStorageName=[%s]\n", backupStorageName)
+func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *types.FileChangeNotification) bool {
 	snapshotEntryJSON, err := s.storage.Get(entry.AbsolutePath, backupStorageName)
 	if err != nil {
-		log.Printf("[ERROR] isFileDifferentToBackup(): %v", err)
+		log.Printf("[ERROR] fileDifferentToBackup(): %v", err)
 		return true
 	}
 	if snapshotEntryJSON == "" {
@@ -166,20 +176,21 @@ func (s *Snapshot) isFileDifferentToBackup(backupStorageName string, entry *type
 
 	entryJSON, err := json.Marshal(entry)
 	if err != nil {
-		fmt.Printf("[ERROR] isFileDifferentToBackup(): Marshal error: %v\n", err)
+		fmt.Printf("[ERROR] fileDifferentToBackup(): Marshal error: %v\n", err)
 		return true
 	}
 
 	// Maybe it is better to compair the object and not the JSON string
 	if string(entryJSON) != snapshotEntryJSON {
-		return false
+		fmt.Printf("\nfile>   %s\nbackup> %s\n\n", string(entryJSON), snapshotEntryJSON)
+		return true
 	}
 
 	return false
 }
 
-func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo os.FileInfo) (*types.FileChangeNotification, error) {
-	log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
+func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.ExtendedFileInfoImplementer) (*types.FileChangeNotification, error) {
+	// log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
 
 	if !filepath.IsAbs(absoluteFilePath) {
 		return nil, fmt.Errorf("filepath %s is not absolute", absoluteFilePath)
@@ -187,7 +198,7 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo os.FileIn
 
 	var err error
 	if fileInfo == nil {
-		fileInfo, err = os.Stat(absoluteFilePath)
+		fileInfo, err = fi.GetFileInformation(absoluteFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -199,10 +210,21 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo os.FileIn
 		host = "unknown"
 	}
 
+	mimeType, err := fileInfo.ContentType()
+	if err != nil {
+		log.Printf("[ERROR] snapshot.generateFileEntry(): can't get ContentType from the file [%s]: %v\n", absoluteFilePath, err)
+		return nil, err
+	}
+
 	fileName := filepath.Base(absoluteFilePath)
-	relativePath := strings.Replace(absoluteFilePath, s.path+string(os.PathSeparator), "", -1)
+
+	relativePath, err := filepath.Rel(s.path, absoluteFilePath)
+	if err != nil {
+		return nil, err
+	}
+
 	snapshot := types.FileChangeNotification{
-		// TODO: add mime type here!
+		MimeType:           mimeType,
 		AbsolutePath:       absoluteFilePath,
 		Action:             types.Action(types.FileAdded),
 		DirectoryPath:      s.path,

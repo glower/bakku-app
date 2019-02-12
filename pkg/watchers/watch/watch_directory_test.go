@@ -1,79 +1,59 @@
+// +build integration
+
 package watch
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-type ProtoNotification struct {
-	dir    func() string
-	action func() types.Action
-}
+func TestSetupDirectoryWatcher(t *testing.T) {
+	type args struct {
+		callbackChan chan types.FileChangeNotification
+	}
 
-func (p *ProtoNotification) SetupDirectoryChangeNotification(path string) {
-	fileChangeNotifier(path, p.dir(), types.Action(p.action()))
-}
+	fileChangeNotificationChan := make(chan types.FileChangeNotification)
 
-func TestFileChangeNotifierActions(t *testing.T) {
-	testcases := []struct {
-		Name            string
-		DirectoryToWach string
-		Notification    func()
-		FileName        string
-		Action          types.Action
+	tests := []struct {
+		name string
+		args args
+		dir  string
+		want *types.FileChangeNotification
 	}{
 		{
-			Name:            "scenario 1: file was added",
-			DirectoryToWach: filepath.Join(os.TempDir(), "bakku-app", "tests", "test-1"),
-			FileName:        "foo.jpg",
-			Action:          types.FileAdded,
-		},
-		{
-			Name:            "scenario 2: file was modified",
-			DirectoryToWach: filepath.Join(os.TempDir(), "bakku-app", "tests", "test-1"),
-			FileName:        "foo.jpg",
-			Action:          types.FileModified,
-		},
-		{
-			Name:            "scenario 3: file was deleted",
-			DirectoryToWach: filepath.Join(os.TempDir(), "bakku-app", "tests", "test-1"),
-			FileName:        "foo.jpg",
-			Action:          types.FileRemoved,
+			name: "test 1: file change notification",
+			args: args{
+				callbackChan: fileChangeNotificationChan,
+			},
+			dir: "/foo/bar",
+			want: &types.FileChangeNotification{
+				Action:             1,
+				BackupToStorages:   []string(nil),
+				MimeType:           "image/jpeg",
+				Machine:            "tokyo",
+				Name:               "file.txt",
+				AbsolutePath:       "\\foo\\bar\\test\\file.txt",
+				RelativePath:       "test/file.txt",
+				DirectoryPath:      "/foo/bar",
+				WatchDirectoryName: "foo",
+				Size:               12345,
+			},
 		},
 	}
 
-	for _, tc := range testcases {
-		t.Run(tc.Name, func(t *testing.T) {
-			// create test dir
-			if err := os.MkdirAll(tc.DirectoryToWach, 0744); err != nil {
-				t.Fatalf("Cannot create test directory [%s]: %v\n", tc.DirectoryToWach, err)
-			}
-			// create test file
-			to, err := os.OpenFile(filepath.Join(tc.DirectoryToWach, tc.FileName), os.O_RDWR|os.O_CREATE, 0644)
-			if err != nil {
-				t.Fatalf("Cannot open file test directory [%s]: %v\n", tc.FileName, err)
-				return
-			}
-			to.Close()
-			changes := make(chan types.FileChangeNotification)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := SetupDirectoryWatcher(tt.args.callbackChan)
+			w.StartWatching(tt.dir)
+			action := <-tt.args.callbackChan
 
-			proto := &ProtoNotification{}
-			proto.action = func() types.Action { return tc.Action }
-			proto.dir = func() string { return tc.FileName }
+			if action.Action != tt.want.Action {
+				t.Errorf("action.Action = %v, want %v", action.Action, tt.want.Action)
+			}
 
-			go directoryChangeNotification(tc.DirectoryToWach, changes, proto)
-			change := <-changes
-			if change.Name != tc.FileName {
-				t.Errorf("expected file name was [%s], got: [%s]", tc.FileName, change.Name)
-			}
-			if change.Action != tc.Action {
-				t.Errorf("expected file action was [%d], got: [%d]", tc.Action, change.Action)
-			}
-			if change.DirectoryPath != tc.DirectoryToWach {
-				t.Errorf("expected path was [%s], got: [%s]", tc.DirectoryToWach, change.DirectoryPath)
+			if action.MimeType != tt.want.MimeType {
+				t.Errorf("action.MimeType = %v, want %v", action.MimeType, tt.want.MimeType)
 			}
 		})
 	}

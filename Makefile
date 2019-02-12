@@ -5,7 +5,7 @@ GO?=go
 check: gofmt lint
 
 test:
-	$(GO) test -v ./...
+	$(GO) test  -tags=integration  -timeout 120s -v ./...
 
 lint:
 	golangci-lint run -v

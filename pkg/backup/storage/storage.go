@@ -19,8 +19,6 @@ func DefultFolderName() string {
 type BackupStorage interface {
 	Setup(chan types.BackupProgress) bool
 	Store(*types.FileChangeNotification)
-	// SyncSnapshot(*types.FileChangeNotification)
-	// SyncLocalFilesToBackup()
 }
 
 var (

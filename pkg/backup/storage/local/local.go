@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"path/filepath"
 
@@ -47,12 +48,14 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 	return false
 }
 
-// Store ...
+// Store stores a file to a local storage
 func (s *Storage) Store(fileChange *types.FileChangeNotification) {
-	log.Printf("Store(): %#v\n", fileChange)
 	absolutePath := fileChange.AbsolutePath
 	relativePath := fileChange.RelativePath
 	directoryPath := fileChange.DirectoryPath
+
+	fmt.Printf("\nlocal.Store():\n")
+	fmt.Printf(">\tabsolutePath:\t%s\n>\trelativePath:\t%s\n>\tdirectoryPath:\t%s\n\n", absolutePath, relativePath, directoryPath)
 
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)

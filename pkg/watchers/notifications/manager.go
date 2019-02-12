@@ -51,8 +51,8 @@ func FileNotificationWaiter(waitChan chan bool, callbackChan chan types.FileChan
 		select {
 		case <-waitChan:
 			cnt++
-			if cnt > 100 {
-				log.Printf("[ERROR] FileNotificationWaiter(): exit after 100 times of notification for [%s]", fileData.AbsolutePath)
+			if cnt > 10 {
+				log.Printf("[ERROR] FileNotificationWaiter(): exit after 10 times of notification for [%s]", fileData.AbsolutePath)
 				UnregisterFileNotification(fileData.AbsolutePath)
 				close(waitChan)
 				return
