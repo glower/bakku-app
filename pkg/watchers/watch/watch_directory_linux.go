@@ -112,7 +112,6 @@ func watchDir(path string) {
 	cpath := C.CString(path)
 	defer func() {
 		C.free(unsafe.Pointer(cpath))
-		// unregister(path)
 	}()
 	C.WatchDirectory(cpath)
 }
