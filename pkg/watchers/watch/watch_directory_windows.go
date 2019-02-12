@@ -109,7 +109,7 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-// StartWatching ...
+// StartWatching starts a CGO function for getting the notifications
 func (w *DirectoryWatcher) StartWatching(path string) {
 	log.Printf("windows.StartWatching(): for [%s]\n", path)
 	cpath := C.CString(path)
