@@ -65,7 +65,7 @@ func (w *NotificationWaiter) Wait(fileData *types.FileChangeNotification) {
 		case <-waitChan:
 			cnt++
 			if cnt == w.MaxCount {
-				log.Printf("[ERROR] FileNotificationWaiter(): exit after 10 times of notification for [%s]", fileData.AbsolutePath)
+				log.Printf("[ERROR] FileNotificationWaiter(): exit after %d times of notification for [%s]", w.MaxCount, fileData.AbsolutePath)
 				w.UnregisterFileNotification(fileData.AbsolutePath)
 				close(waitChan)
 				return

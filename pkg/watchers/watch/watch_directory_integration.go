@@ -3,7 +3,6 @@
 package watch
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -54,12 +53,4 @@ func (w *DirectoryWatcher) StartWatching(watchDirectoryPath string) {
 		}
 		fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, types.Action(1)) // FileAdded
 	}
-case "/foo":
-	relativeFilePath := "test/"
-	fi := &FakeFileInfo{
-		watchDirectoryPath: watchDirectoryPath,
-		relativeFilePath:   relativeFilePath,
-	}
-	fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, types.Action(1)) // FileAdded
-}
 }
