@@ -45,8 +45,6 @@ func (f *FakeFileInfo) Sys() interface{} {
 }
 
 func (w *DirectoryWatcher) StartWatching(watchDirectoryPath string) {
-	log.Printf("test.StartWatching(): for [%s]\n", watchDirectoryPath)
-
 	switch watchDirectoryPath {
 	case "/foo/bar":
 		relativeFilePath := "test/file.txt"
@@ -56,5 +54,12 @@ func (w *DirectoryWatcher) StartWatching(watchDirectoryPath string) {
 		}
 		fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, types.Action(1)) // FileAdded
 	}
-
+case "/foo":
+	relativeFilePath := "test/"
+	fi := &FakeFileInfo{
+		watchDirectoryPath: watchDirectoryPath,
+		relativeFilePath:   relativeFilePath,
+	}
+	fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, types.Action(1)) // FileAdded
+}
 }
