@@ -1,10 +1,12 @@
 package watch
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/file"
 	"github.com/glower/bakku-app/pkg/types"
@@ -30,6 +32,7 @@ func ActionToString(action types.Action) string {
 // DirectoryWatcher ...
 type DirectoryWatcher struct {
 	FileChangeNotificationChan chan types.FileChangeNotification
+	NotificationWaiter         notifications.NotificationWaiter
 }
 
 // DirectoryWatcherImplementer ...
@@ -45,44 +48,47 @@ func SetupDirectoryWatcher(callbackChan chan types.FileChangeNotification) *Dire
 	once.Do(func() {
 		watcher = &DirectoryWatcher{
 			FileChangeNotificationChan: callbackChan,
+			NotificationWaiter: notifications.NotificationWaiter{
+				FileChangeNotificationChan: callbackChan,
+				Timeout:                    time.Duration(5 * time.Second),
+				MaxCount:                   10,
+			},
 		}
 	})
 	return watcher
 }
 
-func fileChangeNotifier(watchDirectoryPath, relativeFilePath string, fileInfo file.ExtendedFileInfoImplementer, action types.Action) {
+func fileChangeNotifier(watchDirectoryPath, relativeFilePath string, fileInfo file.ExtendedFileInfoImplementer, action types.Action) error {
 
 	// ignore changes on the directory
 	if fileInfo.IsDir() {
-		return
+		return fmt.Errorf("file change for a directory is not supported")
 	}
 
 	if fileInfo.IsTemporaryFile() {
-		return
+		return fmt.Errorf("file change for a tmp file is not supported")
 	}
 
 	if action == types.FileRemoved || action == types.FileRenamedOldName {
-		return
+		return fmt.Errorf("file change for a rename/move is not supported")
 	}
 
 	absoluteFilePath := filepath.Join(watchDirectoryPath, relativeFilePath)
 	log.Printf("watch.fileChangeNotifier(): watch directory path [%s], relative file path [%s], action [%s]\n", watchDirectoryPath, relativeFilePath, ActionToString(action))
 
-	wait, exists := notifications.LookupForFileNotification(absoluteFilePath)
+	wait, exists := watcher.NotificationWaiter.LookupForFileNotification(absoluteFilePath)
 	if exists {
 		wait <- true
-		return
+		return nil
 	}
 
-	waitChan := make(chan bool)
-	notifications.RegisterFileNotification(waitChan, absoluteFilePath)
+	watcher.NotificationWaiter.RegisterFileNotification(absoluteFilePath)
 
 	host, _ := os.Hostname()
 	mimeType, err := fileInfo.ContentType()
 	if err != nil {
-		log.Printf("[ERROR] watch.fileChangeNotifier(): can't get ContentType from the file [%s]: %v\n", absoluteFilePath, err)
-		notifications.UnregisterFileNotification(absoluteFilePath)
-		return
+		watcher.NotificationWaiter.UnregisterFileNotification(absoluteFilePath)
+		return fmt.Errorf("can't get ContentType from the file [%s]: %v", absoluteFilePath, err)
 	}
 
 	data := &types.FileChangeNotification{
@@ -98,5 +104,7 @@ func fileChangeNotifier(watchDirectoryPath, relativeFilePath string, fileInfo fi
 		WatchDirectoryName: filepath.Base(watchDirectoryPath),
 	}
 
-	go notifications.FileNotificationWaiter(waitChan, watcher.FileChangeNotificationChan, data)
+	go watcher.NotificationWaiter.Wait(data)
+
+	return nil
 }

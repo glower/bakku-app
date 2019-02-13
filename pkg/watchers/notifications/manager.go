@@ -17,49 +17,62 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
+// NotificationWaiter ...
+type NotificationWaiter struct {
+	FileChangeNotificationChan chan types.FileChangeNotification
+	Timeout                    time.Duration
+	MaxCount                   int
+}
+
 var notificationsMutex sync.Mutex
 var notificationsChans = make(map[string]chan bool)
 
 // RegisterFileNotification channel for a given file path, use this channel for with FileNotificationWaiter() function
-func RegisterFileNotification(waitChan chan bool, path string) {
+func (w *NotificationWaiter) RegisterFileNotification(path string) {
+	waitChan := make(chan bool)
 	notificationsMutex.Lock()
 	defer notificationsMutex.Unlock()
 	notificationsChans[path] = waitChan
 }
 
 // UnregisterFileNotification channel for a given file path
-func UnregisterFileNotification(path string) {
+func (w *NotificationWaiter) UnregisterFileNotification(path string) {
 	notificationsMutex.Lock()
 	defer notificationsMutex.Unlock()
 	delete(notificationsChans, path)
 }
 
 // LookupForFileNotification returns a channel for a given file path
-func LookupForFileNotification(path string) (chan bool, bool) {
+func (w *NotificationWaiter) LookupForFileNotification(path string) (chan bool, bool) {
 	notificationsMutex.Lock()
 	defer notificationsMutex.Unlock()
 	data, ok := notificationsChans[path]
 	return data, ok
 }
 
-// FileNotificationWaiter will send fileData to the chan stored in CallbackData after 5 seconds if no signal is
+// Wait will send fileData to the chan stored in CallbackData after 5 seconds if no signal is
 // received on waitChan.
 // TODO: this can be done better with a general type of channel and any data
-func FileNotificationWaiter(waitChan chan bool, callbackChan chan types.FileChangeNotification, fileData *types.FileChangeNotification) {
+func (w *NotificationWaiter) Wait(fileData *types.FileChangeNotification) {
+	waitChan, exists := w.LookupForFileNotification(fileData.AbsolutePath)
+	if !exists {
+		log.Printf("[ERROR] NotificationWaiter.Wait(): no notification if registered for the path %s", fileData.AbsolutePath)
+		return
+	}
 	cnt := 0
 	for {
 		select {
 		case <-waitChan:
 			cnt++
-			if cnt > 10 {
-				log.Printf("[ERROR] FileNotificationWaiter(): exit after 10 times of notification for [%s]", fileData.AbsolutePath)
-				UnregisterFileNotification(fileData.AbsolutePath)
+			if cnt == w.MaxCount {
+				log.Printf("[ERROR] FileNotificationWaiter(): exit after %d times of notification for [%s]", w.MaxCount, fileData.AbsolutePath)
+				w.UnregisterFileNotification(fileData.AbsolutePath)
 				close(waitChan)
 				return
 			}
-		case <-time.After(time.Duration(5 * time.Second)):
-			callbackChan <- *fileData
-			UnregisterFileNotification(fileData.AbsolutePath)
+		case <-time.After(w.Timeout):
+			w.FileChangeNotificationChan <- *fileData
+			w.UnregisterFileNotification(fileData.AbsolutePath)
 			close(waitChan)
 			return
 		}
