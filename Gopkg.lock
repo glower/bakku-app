@@ -26,6 +26,18 @@
   version = "v1.4.7"
 
 [[projects]]
+  digest = "1:28c4dc5642ff6bccbb20da39a14b3fbdb2175bc62ab309183b9c2f7275876ecb"
+  name = "github.com/glower/file-watcher"
+  packages = [
+    "notification",
+    "util",
+    "watcher"
+  ]
+  pruneopts = "UT"
+  revision = "9522ad63dfe24ed8adb8a2fa8d7e23a9397f5688"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -62,7 +74,7 @@
     "hcl/token",
     "json/parser",
     "json/scanner",
-    "json/token",
+    "json/token"
   ]
   pruneopts = "UT"
   revision = "8cb6e5b959231cc1119e43259c4a608f9c51a241"
@@ -93,14 +105,6 @@
   version = "v1.1.2"
 
 [[projects]]
-  branch = "master"
-  digest = "1:c1072f27d5b8be1032af14ed7776f475bc58d35723a753c4b92c953d92e3eb33"
-  name = "github.com/otiai10/copy"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "7e9a647135a142c2669943d4a4d29be015ce9392"
-
-[[projects]]
   digest = "1:95741de3af260a92cc5c7f3f3061e85273f5a81b5db20d4bd68da74bd521675e"
   name = "github.com/pelletier/go-toml"
   packages = ["."]
@@ -121,7 +125,7 @@
   name = "github.com/spf13/afero"
   packages = [
     ".",
-    "mem",
+    "mem"
   ]
   pruneopts = "UT"
   revision = "d40851caa0d747393da1ffb28f7f9d8b4eeffebd"
@@ -165,7 +169,7 @@
   name = "golang.org/x/net"
   packages = [
     "context",
-    "context/ctxhttp",
+    "context/ctxhttp"
   ]
   pruneopts = "UT"
   revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
@@ -179,7 +183,7 @@
     "google",
     "internal",
     "jws",
-    "jwt",
+    "jwt"
   ]
   pruneopts = "UT"
   revision = "28207608b83849a028d4f12e46533a6b6894ecaf"
@@ -201,7 +205,7 @@
     "internal/ucd",
     "transform",
     "unicode/cldr",
-    "unicode/norm",
+    "unicode/norm"
   ]
   pruneopts = "UT"
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
@@ -215,7 +219,7 @@
     "drive/v3",
     "gensupport",
     "googleapi",
-    "googleapi/internal/uritemplates",
+    "googleapi/internal/uritemplates"
   ]
   pruneopts = "UT"
   revision = "1a5ef82f9af45ef51c486291ef2b0a16d82fdb95"
@@ -233,7 +237,7 @@
     "internal/modules",
     "internal/remote_api",
     "internal/urlfetch",
-    "urlfetch",
+    "urlfetch"
   ]
   pruneopts = "UT"
   revision = "4a4468ece617fc8205e99368fa2200e9d1fad421"
@@ -260,14 +264,16 @@
   analyzer-version = 1
   input-imports = [
     "github.com/boltdb/bolt",
+    "github.com/glower/file-watcher/notification",
+    "github.com/glower/file-watcher/util",
+    "github.com/glower/file-watcher/watcher",
     "github.com/gorilla/mux",
     "github.com/mitchellh/go-homedir",
-    "github.com/otiai10/copy",
     "github.com/r3labs/sse",
     "github.com/spf13/viper",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
-    "google.golang.org/api/drive/v3",
+    "google.golang.org/api/drive/v3"
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

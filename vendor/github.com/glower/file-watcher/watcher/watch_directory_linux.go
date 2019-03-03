@@ -1,6 +1,6 @@
 // +build linux,!integration
 
-package watch
+package watcher
 
 /*
 #include <stdlib.h>
@@ -14,9 +14,9 @@ package watch
 
 #define BUF_LEN (10 * (sizeof(struct inotify_event) + NAME_MAX + 1))
 
-extern void goCallbackFileChange(char* path, char* file, int action);
+extern void goCallbackFileChange(char* root, char* path, char* file, int action);
 
-static inline void *WatchDirectory(char* dir) {
+static inline void *WatchDirectory(char* root, char* dir) {
 	int inotifyFd, wd, j;
   	char buf[BUF_LEN] __attribute__ ((aligned(8)));
   	ssize_t numRead;
@@ -51,7 +51,7 @@ static inline void *WatchDirectory(char* dir) {
     	for (p = buf; p < buf + numRead; ) {
 			event = (struct inotify_event *) p;
 			printf("[INFO] CGO: file was changed: mask=%x, len=%d\n", event->mask, event->len);
-			goCallbackFileChange(dir, event->name, event->mask);
+			goCallbackFileChange(root, dir, event->name, event->mask);
 			p += sizeof(struct inotify_event) + event->len;
     	}
   	}
@@ -65,8 +65,8 @@ import (
 	"strings"
 	"unsafe"
 
-	fileinfo "github.com/glower/bakku-app/pkg/file"
-	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/file-watcher/notification"
+	fileinfo "github.com/glower/file-watcher/util"
 )
 
 // #define IN_ACCESS		0x00000001	/* File was accessed */
@@ -80,52 +80,66 @@ import (
 // #define IN_CREATE		0x00000100	/* Subfile was created */
 // #define IN_DELETE		0x00000200	/* Subfile was deleted */
 // #define IN_DELETE_SELF	0x00000400	/* Self was deleted */
-func convertMaskToAction(mask int) types.Action {
+func convertMaskToAction(mask int) notification.ActionType {
 	switch mask {
 	case 2, 8: // File was modified
-		return types.Action(types.FileModified)
+		return notification.ActionType(notification.FileModified)
 	case 256: // Subfile was created
-		return types.Action(types.FileAdded)
+		return notification.ActionType(notification.FileAdded)
 	case 512: // Subfile was deleted
-		return types.Action(types.FileRemoved)
+		return notification.ActionType(notification.FileRemoved)
 	case 64: // File was moved from X
-		return types.Action(types.FileRenamedOldName)
+		return notification.ActionType(notification.FileRenamedOldName)
 	case 128: // File was moved to Y
-		return types.Action(types.FileRenamedNewName)
+		return notification.ActionType(notification.FileRenamedNewName)
 	default:
-		return types.Action(types.Invalid)
+		return notification.ActionType(notification.Invalid)
 	}
 }
 
 // StartWatching starts a CGO function for getting the notifications
-func (i *DirectoryWatcher) StartWatching(dir string) {
-	log.Printf("linux.SetupDirectoryChangeNotification(): for [%s]\n", dir)
-	filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
+func (i *DirectoryWatcher) StartWatching(root string) {
+	log.Printf("linux.StartWatching(): for [%s]\n", root)
+	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
-			go watchDir(path)
+			go watchDir(root, path)
 		}
 		return nil
 	})
+	if err != nil {
+		log.Printf("[ERROR] linux.StartWatching(): %v\n", err)
+	}
 }
 
-func watchDir(path string) {
-	cpath := C.CString(path)
+func watchDir(rootDirToWatch string, subDir string) {
+	croot := C.CString(rootDirToWatch)
+	cdir := C.CString(subDir)
 	defer func() {
-		C.free(unsafe.Pointer(cpath))
+		C.free(unsafe.Pointer(croot))
+		C.free(unsafe.Pointer(cdir))
 	}()
-	C.WatchDirectory(cpath)
+	C.WatchDirectory(croot, cdir)
 }
 
 //export goCallbackFileChange
-func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
+func goCallbackFileChange(croot, cpath, cfile *C.char, caction C.int) {
+	root := strings.TrimSpace(C.GoString(croot))
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
-	action := types.Action(int(caction))
+	action := convertMaskToAction(int(caction))
 
 	absoluteFilePath := filepath.Join(path, file)
-	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
-
-	if err == nil {
-		fileChangeNotifier(path, file, fi, action)
+	relativeFilePath, err := filepath.Rel(root, absoluteFilePath)
+	if err != nil {
+		fileError(err)
+		return
 	}
+
+	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
+	if err != nil {
+		fileError(err)
+		return
+	}
+
+	fileChangeNotifier(root, relativeFilePath, fi, action)
 }

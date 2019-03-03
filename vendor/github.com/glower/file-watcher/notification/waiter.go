@@ -7,28 +7,28 @@ The flow:
 - Call FileNotificationWaiter() as a go routin with the created channel and other needed data
 - On the next file change notification check if the channel for this file exists, if so send true to the channel
 - If nothing was send on the channel, FileNotificationWaiter() will send the data to the provided channel after 5 seconds*/
-package notifications
+package notification
 
 import (
-	"log"
+	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
-
-	"github.com/glower/bakku-app/pkg/types"
 )
 
-// NotificationWaiter ...
-type NotificationWaiter struct {
-	FileChangeNotificationChan chan types.FileChangeNotification
-	Timeout                    time.Duration
-	MaxCount                   int
+// Waiter ...
+type Waiter struct {
+	EventCh  chan Event
+	ErrorCh  chan Error
+	Timeout  time.Duration
+	MaxCount int
 }
 
 var notificationsMutex sync.Mutex
 var notificationsChans = make(map[string]chan bool)
 
 // RegisterFileNotification channel for a given file path, use this channel for with FileNotificationWaiter() function
-func (w *NotificationWaiter) RegisterFileNotification(path string) {
+func (w *Waiter) RegisterFileNotification(path string) {
 	waitChan := make(chan bool)
 	notificationsMutex.Lock()
 	defer notificationsMutex.Unlock()
@@ -36,14 +36,14 @@ func (w *NotificationWaiter) RegisterFileNotification(path string) {
 }
 
 // UnregisterFileNotification channel for a given file path
-func (w *NotificationWaiter) UnregisterFileNotification(path string) {
+func (w *Waiter) UnregisterFileNotification(path string) {
 	notificationsMutex.Lock()
 	defer notificationsMutex.Unlock()
 	delete(notificationsChans, path)
 }
 
 // LookupForFileNotification returns a channel for a given file path
-func (w *NotificationWaiter) LookupForFileNotification(path string) (chan bool, bool) {
+func (w *Waiter) LookupForFileNotification(path string) (chan bool, bool) {
 	notificationsMutex.Lock()
 	defer notificationsMutex.Unlock()
 	data, ok := notificationsChans[path]
@@ -53,10 +53,13 @@ func (w *NotificationWaiter) LookupForFileNotification(path string) (chan bool, 
 // Wait will send fileData to the chan stored in CallbackData after 5 seconds if no signal is
 // received on waitChan.
 // TODO: this can be done better with a general type of channel and any data
-func (w *NotificationWaiter) Wait(fileData *types.FileChangeNotification) {
+func (w *Waiter) Wait(fileData *Event) {
 	waitChan, exists := w.LookupForFileNotification(fileData.AbsolutePath)
 	if !exists {
-		log.Printf("[ERROR] NotificationWaiter.Wait(): no notification if registered for the path %s", fileData.AbsolutePath)
+		w.ErrorCh <- Error{
+			Stack:   string(debug.Stack()),
+			Message: fmt.Sprintf("NotificationWaiter.Wait(): no notification if registered for the path %s", fileData.AbsolutePath),
+		}
 		return
 	}
 	cnt := 0
@@ -65,13 +68,16 @@ func (w *NotificationWaiter) Wait(fileData *types.FileChangeNotification) {
 		case <-waitChan:
 			cnt++
 			if cnt == w.MaxCount {
-				log.Printf("[ERROR] FileNotificationWaiter(): exit after %d times of notification for [%s]", w.MaxCount, fileData.AbsolutePath)
+				w.ErrorCh <- Error{
+					Stack:   string(debug.Stack()),
+					Message: fmt.Sprintf("exit after %d times of notification for [%s]", w.MaxCount, fileData.AbsolutePath),
+				}
 				w.UnregisterFileNotification(fileData.AbsolutePath)
 				close(waitChan)
 				return
 			}
 		case <-time.After(w.Timeout):
-			w.FileChangeNotificationChan <- *fileData
+			w.EventCh <- *fileData
 			w.UnregisterFileNotification(fileData.AbsolutePath)
 			close(waitChan)
 			return

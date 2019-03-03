@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/file-watcher/notification"
 )
 
 var (
@@ -15,7 +15,7 @@ var (
 )
 
 // Start stores the information about files in progress
-func Start(fileChange *types.FileChangeNotification, storage string) {
+func Start(fileChange *notification.Event, storage string) {
 	file := fileChange.AbsolutePath
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()
@@ -32,7 +32,7 @@ func Start(fileChange *types.FileChangeNotification, storage string) {
 }
 
 // InProgress ...
-func InProgress(fileChange *types.FileChangeNotification, storage string) bool {
+func InProgress(fileChange *notification.Event, storage string) bool {
 	file := fileChange.AbsolutePath
 	key := buildKey(file, storage)
 	if _, dup := filesInProgress[key]; dup {
@@ -43,7 +43,7 @@ func InProgress(fileChange *types.FileChangeNotification, storage string) bool {
 }
 
 // Finish ...
-func Finish(fileChange *types.FileChangeNotification, storage string) {
+func Finish(fileChange *notification.Event, storage string) {
 	file := fileChange.AbsolutePath
 	filesInProgressM.Lock()
 	defer filesInProgressM.Unlock()

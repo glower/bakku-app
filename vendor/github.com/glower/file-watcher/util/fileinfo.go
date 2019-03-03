@@ -11,7 +11,6 @@ type FileInformation struct {
 }
 type FileInformationImplementer interface {
 	ContentType() (string, error)
-	IsTemporaryFile() bool
 }
 
 // ExtendedFileInfo is combined receiver for os.FileInfo functions and ContentType()
@@ -19,6 +18,7 @@ type ExtendedFileInfo struct {
 	FileInformation
 	os.FileInfo
 }
+
 type ExtendedFileInfoImplementer interface {
 	os.FileInfo
 	FileInformationImplementer

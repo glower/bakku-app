@@ -1,13 +1,13 @@
 // +build integration
 
-package watch
+package watcher
 
 import (
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/file-watcher/notification"
 )
 
 type FakeFileInfo struct {
@@ -45,12 +45,19 @@ func (f *FakeFileInfo) Sys() interface{} {
 
 func (w *DirectoryWatcher) StartWatching(watchDirectoryPath string) {
 	switch watchDirectoryPath {
-	case "/foo/bar":
-		relativeFilePath := "test/file.txt"
+	case "/test1":
+		relativeFilePath := "test/file1.txt"
 		fi := &FakeFileInfo{
 			watchDirectoryPath: watchDirectoryPath,
 			relativeFilePath:   relativeFilePath,
 		}
-		fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, types.Action(1)) // FileAdded
+		fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, notification.ActionType(1)) // FileAdded
+	case "/test2":
+		relativeFilePath := "test/file2.txt"
+		fi := &FakeFileInfo{
+			watchDirectoryPath: watchDirectoryPath,
+			relativeFilePath:   relativeFilePath,
+		}
+		fileChangeNotifier(watchDirectoryPath, relativeFilePath, fi, notification.ActionType(2)) // FileRemoved
 	}
 }

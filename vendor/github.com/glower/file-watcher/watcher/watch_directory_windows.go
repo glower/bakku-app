@@ -1,6 +1,6 @@
 // +build windows,!integration
 
-package watch
+package watcher
 
 /*
 #include <stdio.h>
@@ -105,8 +105,8 @@ import (
 	"strings"
 	"unsafe"
 
-	fileinfo "github.com/glower/bakku-app/pkg/file"
-	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/file-watcher/notification"
+	fileinfo "github.com/glower/file-watcher/util"
 )
 
 // StartWatching starts a CGO function for getting the notifications
@@ -123,12 +123,15 @@ func (w *DirectoryWatcher) StartWatching(path string) {
 func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
-	action := types.Action(int(caction))
+	action := notification.ActionType(int(caction))
 
 	absoluteFilePath := filepath.Join(path, file)
 	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
 
-	if err == nil {
-		fileChangeNotifier(path, file, fi, action)
+	if err != nil {
+		fileError(err)
+		return
 	}
+
+	fileChangeNotifier(path, file, fi, action)
 }

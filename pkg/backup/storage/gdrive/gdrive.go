@@ -16,23 +16,24 @@ import (
 	"github.com/glower/bakku-app/pkg/config"
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/file-watcher/notification"
 	"golang.org/x/oauth2/google"
 	drive "google.golang.org/api/drive/v3"
 )
 
 // Storage ...
 type Storage struct {
-	name                          string // storage name
-	globalConfigPath              string
-	fileChangeNotificationChannel chan types.FileChangeNotification
-	fileStorageProgressCannel     chan types.BackupProgress
-	ctx                           context.Context
-	storagePath                   string
-	root                          *drive.File
-	tokenFile                     string
-	credentialsFile               string
-	client                        *http.Client
-	service                       *drive.Service
+	name                  string // storage name
+	globalConfigPath      string
+	eventCh               chan notification.Event
+	fileStorageProgressCh chan types.BackupProgress
+	ctx                   context.Context
+	storagePath           string
+	root                  *drive.File
+	tokenFile             string
+	credentialsFile       string
+	client                *http.Client
+	service               *drive.Service
 }
 
 const storageName = "gdrive"
@@ -42,11 +43,11 @@ func init() {
 }
 
 // Setup gdrive storage
-func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) bool {
+func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 	gdriveConfig := gdrive.GoogleDriveConfig()
 	if gdriveConfig.Active {
-		s.fileChangeNotificationChannel = make(chan types.FileChangeNotification)
-		s.fileStorageProgressCannel = fileStorageProgressCannel
+		s.eventCh = make(chan notification.Event)
+		s.fileStorageProgressCh = fileStorageProgressCh
 
 		s.globalConfigPath = config.GetConfigPath()
 		s.credentialsFile = gdriveConfig.CredentialsFile
@@ -83,13 +84,13 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 }
 
 // Store ...
-func (s *Storage) Store(fileChange *types.FileChangeNotification) {
-	to := remotePath(fileChange.AbsolutePath, fileChange.RelativePath)
-	s.store(fileChange.AbsolutePath, to, "image/jpeg")
+func (s *Storage) Store(event *notification.Event) {
+	to := remotePath(event.AbsolutePath, event.RelativePath)
+	s.store(event.AbsolutePath, to, "image/jpeg")
 }
 
 // SyncSnapshot ...
-func (s *Storage) SyncSnapshot(fileChange *types.FileChangeNotification) {
+func (s *Storage) SyncSnapshot(fileChange *notification.Event) {
 	fmt.Printf("\n\n%#v\n\n", fileChange)
 	directoryPath := fileChange.DirectoryPath
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/file-watcher/notification"
 
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -18,23 +19,23 @@ var teardowns = make(map[string]teardown)
 type StorageManager struct {
 	ctx context.Context
 
-	FileChangeNotificationChannel chan types.FileChangeNotification
-	FileBackupProgressChannel     chan types.BackupProgress
-	FileBackupCompleteChannel     chan types.FileBackupComplete
+	EventCh              chan notification.Event
+	FileBackupProgressCh chan types.BackupProgress
+	FileBackupCompleteCh chan types.FileBackupComplete
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, notification chan types.FileChangeNotification) *StorageManager {
+func Setup(ctx context.Context, eventCh chan notification.Event) *StorageManager {
 	m := &StorageManager{
 		ctx: ctx,
 
-		FileChangeNotificationChannel: notification,
-		FileBackupProgressChannel:     make(chan types.BackupProgress),
-		FileBackupCompleteChannel:     make(chan types.FileBackupComplete),
+		EventCh:              eventCh,
+		FileBackupProgressCh: make(chan types.BackupProgress),
+		FileBackupCompleteCh: make(chan types.FileBackupComplete),
 	}
 
 	for name, storage := range backupstorage.GetAll() {
-		ok := storage.Setup(m.FileBackupProgressChannel)
+		ok := storage.Setup(m.FileBackupProgressCh)
 		if ok {
 			log.Printf("Setup(): backup storage [%s] is ready\n", name)
 			_, cancel := context.WithCancel(context.Background())
@@ -54,21 +55,23 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case file := <-m.FileChangeNotificationChannel:
+		case file := <-m.EventCh:
 			switch file.Action {
-			case types.FileRemoved:
+			case notification.FileRemoved:
 				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
-			case types.FileAdded, types.FileModified, types.FileRenamedNewName:
-				if len(file.BackupToStorages) > 0 {
-					storages := backupstorage.GetAll()
-					for _, storageName := range file.BackupToStorages {
-						if storageProvider, ok := storages[storageName]; ok {
-							go m.sendFileToStorage(&file, storageProvider, storageName)
-						}
-					}
-				} else {
-					m.sendFileToAllStorages(&file)
-				}
+			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
+				m.sendFileToAllStorages(&file)
+				//// TODO: XXX
+				// if len(file.BackupToStorages) > 0 {
+				// 	storages := backupstorage.GetAll()
+				// 	for _, storageName := range file.BackupToStorages {
+				// 		if storageProvider, ok := storages[storageName]; ok {
+				// 			go m.sendFileToStorage(&file, storageProvider, storageName)
+				// 		}
+				// 	}
+				// } else {
+				// 	m.sendFileToAllStorages(&file)
+				// }
 
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
@@ -77,28 +80,28 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 	}
 }
 
-func (m *StorageManager) sendFileToAllStorages(file *types.FileChangeNotification) {
+func (m *StorageManager) sendFileToAllStorages(event *notification.Event) {
 	for storageName, storageProvider := range backupstorage.GetAll() {
 		log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
-		go m.sendFileToStorage(file, storageProvider, storageName)
+		go m.sendFileToStorage(event, storageProvider, storageName)
 	}
 }
 
-func (m *StorageManager) sendFileToStorage(fileChange *types.FileChangeNotification, backup backupstorage.BackupStorage, storageName string) {
-	if InProgress(fileChange, storageName) {
+func (m *StorageManager) sendFileToStorage(event *notification.Event, backup backupstorage.BackupStorage, storageName string) {
+	if InProgress(event, storageName) {
 		return
 	}
 
-	log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", fileChange.AbsolutePath, storageName)
-	Start(fileChange, storageName)
-	backup.Store(fileChange)
-	Finish(fileChange, storageName)
-	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", fileChange.AbsolutePath, storageName)
+	log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
+	Start(event, storageName)
+	backup.Store(event)
+	Finish(event, storageName)
+	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
 
-	m.FileBackupCompleteChannel <- types.FileBackupComplete{
+	m.FileBackupCompleteCh <- types.FileBackupComplete{
 		BackupStorageName:  storageName,
-		AbsolutePath:       fileChange.AbsolutePath,
-		WatchDirectoryName: fileChange.WatchDirectoryName,
+		AbsolutePath:       event.AbsolutePath,
+		WatchDirectoryName: event.WatchDirectoryName,
 	}
 }
 
