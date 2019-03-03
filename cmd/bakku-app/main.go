@@ -79,12 +79,12 @@ func main() {
 
 	sseServer := setupSSE()
 
-	// each time a file is changed or created we will get a notification on this channel
-	// fileChangeNotificationChan := make(chan types.FileChangeNotification)
+	// read from the configuration file a list of directories to watch
+	dirs := config.DirectoriesToWatch()
 
 	eventCh, errorCh := watcher.Setup(
 		ctx,
-		[]string{"C:\\Users\\Igor\\Downloads", "C:\\Users\\Igor\\Documents"},
+		dirs,
 		[]notification.ActionType{},
 		[]string{".crdownload", ".lock", ".snapshot"},
 		&watcher.Options{IgnoreDirectoies: true})

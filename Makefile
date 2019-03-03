@@ -16,3 +16,6 @@ gofmt:
 
 vendor:
 	dep ensure -v
+
+run:
+	$(GO) run cmd/bakku-app/main.go
