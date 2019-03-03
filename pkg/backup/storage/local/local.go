@@ -9,16 +9,18 @@ import (
 	"github.com/glower/bakku-app/pkg/backup/storage"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
+
+	"github.com/glower/file-watcher/notification"
 )
 
 // Storage local
 type Storage struct {
-	name                          string // storage name
-	fileChangeNotificationChannel chan types.FileChangeNotification
-	fileStorageProgressCannel     chan types.BackupProgress
-	ctx                           context.Context
-	storagePath                   string
-	snapshotPath                  string
+	name                  string // storage name
+	eventCh               chan notification.Event
+	fileStorageProgressCh chan types.BackupProgress
+	ctx                   context.Context
+	storagePath           string
+	snapshotPath          string
 }
 
 const storageName = "local"
@@ -35,12 +37,12 @@ type StoreOptions struct {
 }
 
 // Setup local storage
-func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) bool {
+func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
-		s.fileChangeNotificationChannel = make(chan types.FileChangeNotification)
-		s.fileStorageProgressCannel = fileStorageProgressCannel
+		s.eventCh = make(chan notification.Event)
+		s.fileStorageProgressCh = fileStorageProgressCh
 		storagePath := filepath.Clean(config.Path)
 		s.storagePath = storagePath
 		return true
@@ -49,10 +51,10 @@ func (s *Storage) Setup(fileStorageProgressCannel chan types.BackupProgress) boo
 }
 
 // Store stores a file to a local storage
-func (s *Storage) Store(fileChange *types.FileChangeNotification) {
-	absolutePath := fileChange.AbsolutePath
-	relativePath := fileChange.RelativePath
-	directoryPath := fileChange.DirectoryPath
+func (s *Storage) Store(event *notification.Event) {
+	absolutePath := event.AbsolutePath
+	relativePath := event.RelativePath
+	directoryPath := event.DirectoryPath
 
 	fmt.Printf("\nlocal.Store():\n")
 	fmt.Printf(">\tabsolutePath:\t%s\n>\trelativePath:\t%s\n>\tdirectoryPath:\t%s\n\n", absolutePath, relativePath, directoryPath)

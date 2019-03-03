@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/file-watcher/notification"
 )
 
 const defultFolderName = "bakku-app"
@@ -18,7 +19,7 @@ func DefultFolderName() string {
 // BackupStorage represents an interface for a backup storage provider
 type BackupStorage interface {
 	Setup(chan types.BackupProgress) bool
-	Store(*types.FileChangeNotification)
+	Store(*notification.Event)
 }
 
 var (

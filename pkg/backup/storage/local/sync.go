@@ -73,7 +73,7 @@ func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name st
 		percent = float64(100 * int64(totalWritten) / totalSize)
 	}
 
-	s.fileStorageProgressCannel <- types.BackupProgress{
+	s.fileStorageProgressCh <- types.BackupProgress{
 		StorageName: storageName,
 		FileName:    name,
 		Percent:     percent,

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,11 +11,17 @@ import (
 
 	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/types"
 
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
-	"github.com/glower/bakku-app/pkg/types"
-	"github.com/glower/bakku-app/pkg/watchers"
+
+	// "github.com/glower/bakku-app/pkg/types"
+	// "github.com/glower/bakku-app/pkg/watchers"
+
+	"github.com/glower/file-watcher/notification"
+	"github.com/glower/file-watcher/watcher"
+
 	"github.com/r3labs/sse"
 
 	// for auto import
@@ -50,6 +57,20 @@ func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan
 	}
 }
 
+func processErrors(ctx context.Context, errorCh chan notification.Error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case err := <-errorCh:
+			log.Printf("[ERROR] %v\n", err.Message)
+			fmt.Println("-----------------------------")
+			fmt.Printf("%v\n", err.Stack)
+			fmt.Println("-----------------------------")
+		}
+	}
+}
+
 func main() {
 	log.Println("Starting the service ...")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,13 +80,21 @@ func main() {
 	sseServer := setupSSE()
 
 	// each time a file is changed or created we will get a notification on this channel
-	fileChangeNotificationChan := make(chan types.FileChangeNotification)
+	// fileChangeNotificationChan := make(chan types.FileChangeNotification)
 
-	watchers.SetupFSWatchers(ctx, fileChangeNotificationChan)
-	backupStorageManager := backup.Setup(ctx, fileChangeNotificationChan)
-	snapshot.Setup(ctx, fileChangeNotificationChan, backupStorageManager.FileBackupCompleteChannel)
+	eventCh, errorCh := watcher.Setup(
+		ctx,
+		[]string{"C:\\Users\\Igor\\Downloads", "C:\\Users\\Igor\\Documents"},
+		[]notification.ActionType{},
+		[]string{".crdownload", ".lock", ".snapshot"},
+		&watcher.Options{IgnoreDirectoies: true})
 
-	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressChannel, sseServer)
+	go processErrors(ctx, errorCh)
+
+	backupStorageManager := backup.Setup(ctx, eventCh)
+	snapshot.Setup(ctx, eventCh, backupStorageManager.FileBackupCompleteCh)
+
+	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressCh, sseServer)
 	startHTTPServer(sseServer)
 
 	// server will block here untill we got SIGTERM/kill

@@ -11,32 +11,34 @@ import (
 
 	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
-	fi "github.com/glower/bakku-app/pkg/file"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
+
+	"github.com/glower/file-watcher/notification"
+	fi "github.com/glower/file-watcher/util"
 )
 
 // Snapshot ...
 type Snapshot struct {
 	ctx context.Context
 
-	path                          string
-	storage                       snapshotstorage.Storage
-	FileChangeNotificationChannel chan types.FileChangeNotification
-	FileBackupCompleteChannel     chan types.FileBackupComplete
+	path                      string
+	storage                   snapshotstorage.Storage
+	EventCh                   chan notification.Event
+	FileBackupCompleteChannel chan types.FileBackupComplete
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, fileChangeNotificationChan chan types.FileChangeNotification, fileBackupCompleteChan chan types.FileBackupComplete) {
+func Setup(ctx context.Context, eventCh chan notification.Event, fileBackupCompleteChan chan types.FileBackupComplete) {
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
 
 		snap := &Snapshot{
-			ctx:                           ctx,
-			path:                          path,
-			FileChangeNotificationChannel: fileChangeNotificationChan,
-			FileBackupCompleteChannel:     fileBackupCompleteChan,
+			ctx:                       ctx,
+			path:                      path,
+			EventCh:                   eventCh,
+			FileBackupCompleteChannel: fileBackupCompleteChan,
 		}
 		bolt := boltdb.New(path)
 		err := snapshotstorage.Register(bolt)
@@ -91,7 +93,7 @@ func (s *Snapshot) fileBackupComplete(fileBackup types.FileBackupComplete) {
 		return
 	}
 
-	s.FileChangeNotificationChannel <- *backupFileEntry
+	s.EventCh <- *backupFileEntry
 }
 
 func (s *Snapshot) create() {
@@ -108,7 +110,7 @@ func (s *Snapshot) create() {
 				log.Printf("[ERROR] Create(): %v\n", err)
 				return err
 			}
-			s.FileChangeNotificationChannel <- *fileEntry
+			s.EventCh <- *fileEntry
 		}
 		return nil
 	})
@@ -142,8 +144,8 @@ func (s *Snapshot) update() {
 				}
 			}
 			if len(backupToStorages) > 0 {
-				fileEntry.BackupToStorages = backupToStorages
-				s.FileChangeNotificationChannel <- *fileEntry
+				// fileEntry.BackupToStorages = backupToStorages // TODO !!!
+				s.EventCh <- *fileEntry
 			}
 
 		}
@@ -151,7 +153,7 @@ func (s *Snapshot) update() {
 	})
 }
 
-func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *types.FileChangeNotification) error {
+func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *notification.Event) error {
 	log.Printf("storage.updateFileSnapshot(): file=%s, storage=%s", entry.AbsolutePath, backupStorageName)
 	value, err := json.Marshal(entry)
 	if err != nil {
@@ -164,7 +166,7 @@ func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *types.Fil
 	return nil
 }
 
-func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *types.FileChangeNotification) bool {
+func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *notification.Event) bool {
 	snapshotEntryJSON, err := s.storage.Get(entry.AbsolutePath, backupStorageName)
 	if err != nil {
 		log.Printf("[ERROR] fileDifferentToBackup(): %v", err)
@@ -189,8 +191,8 @@ func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *types.
 	return false
 }
 
-func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.ExtendedFileInfoImplementer) (*types.FileChangeNotification, error) {
-	// log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
+func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.ExtendedFileInfoImplementer) (*notification.Event, error) {
+	log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
 
 	if !filepath.IsAbs(absoluteFilePath) {
 		return nil, fmt.Errorf("filepath %s is not absolute", absoluteFilePath)
@@ -223,13 +225,13 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.Extend
 		return nil, err
 	}
 
-	snapshot := types.FileChangeNotification{
+	snapshot := notification.Event{
 		MimeType:           mimeType,
 		AbsolutePath:       absoluteFilePath,
-		Action:             types.Action(types.FileAdded),
+		Action:             notification.ActionType(notification.FileAdded),
 		DirectoryPath:      s.path,
 		Machine:            host,
-		Name:               fileName,
+		FileName:           fileName,
 		RelativePath:       relativePath,
 		Size:               fileInfo.Size(),
 		Timestamp:          fileInfo.ModTime(),
@@ -239,8 +241,8 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.Extend
 	return &snapshot, nil
 }
 
-func unmurshalFileChangeNotification(value string) (types.FileChangeNotification, error) {
-	change := types.FileChangeNotification{}
+func unmurshalFileChangeNotification(value string) (notification.Event, error) {
+	change := notification.Event{}
 	if err := json.Unmarshal([]byte(value), &change); err != nil {
 		return change, fmt.Errorf("cannot unmarshal data [%s]: %v", string(value), err)
 	}
