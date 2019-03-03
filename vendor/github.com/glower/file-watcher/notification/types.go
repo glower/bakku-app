@@ -19,12 +19,6 @@ type Event struct {
 	Timestamp          time.Time
 }
 
-// Error ...
-type Error struct {
-	Stack   string
-	Message string
-}
-
 const (
 	// Invalid action is 0
 	Invalid ActionType = iota

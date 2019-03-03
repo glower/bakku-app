@@ -24,6 +24,9 @@ var (
 	headerRetry = []byte("retry:")
 )
 
+// ConnCallback defines a function to be called on a particular connection event
+type ConnCallback func(c *Client)
+
 // Client handles an incoming server stream
 type Client struct {
 	URL            string
@@ -33,6 +36,7 @@ type Client struct {
 	Headers        map[string]string
 	EncodingBase64 bool
 	EventID        string
+	disconnectcb   ConnCallback
 	mu             sync.Mutex
 }
 
@@ -64,6 +68,12 @@ func (c *Client) Subscribe(stream string, handler func(msg *Event)) error {
 				if err == io.EOF {
 					return nil
 				}
+
+				// run user specified disconnect function
+				if c.disconnectcb != nil {
+					c.disconnectcb(c)
+				}
+
 				return err
 			}
 
@@ -84,29 +94,47 @@ func (c *Client) Subscribe(stream string, handler func(msg *Event)) error {
 
 // SubscribeChan sends all events to the provided channel
 func (c *Client) SubscribeChan(stream string, ch chan *Event) error {
+	var connected bool
+	errch := make(chan error)
+	c.mu.Lock()
 	c.subscribed[ch] = make(chan bool)
+	c.mu.Unlock()
 
-	operation := func() error {
-		resp, err := c.request(stream)
-		if err != nil {
-			c.cleanup(resp, ch)
-			return err
-		}
+	go func() {
+		operation := func() error {
+			resp, err := c.request(stream)
+			if err != nil {
+				c.cleanup(resp, ch)
+				return err
+			}
 
-		if resp.StatusCode != 200 {
-			c.cleanup(resp, ch)
-			return errors.New("could not connect to stream")
-		}
+			if resp.StatusCode != 200 {
+				c.cleanup(resp, ch)
+				return errors.New("could not connect to stream")
+			}
 
-		reader := NewEventStreamReader(resp.Body)
+			if !connected {
+				errch <- nil
+				connected = true
+			}
 
-		go func() {
+			reader := NewEventStreamReader(resp.Body)
+
 			for {
 				// Read each new line and process the type of event
 				event, err := reader.ReadEvent()
 				if err != nil {
-					c.cleanup(resp, ch)
-					return
+					if err == io.EOF {
+						c.cleanup(resp, ch)
+						return nil
+					}
+
+					// run user specified disconnect function
+					if c.disconnectcb != nil {
+						c.disconnectcb(c)
+					}
+
+					return err
 				}
 
 				// If we get an error, ignore it.
@@ -120,18 +148,23 @@ func (c *Client) SubscribeChan(stream string, ch chan *Event) error {
 					select {
 					case <-c.subscribed[ch]:
 						c.cleanup(resp, ch)
-						return
+						return nil
 					case ch <- msg:
 						// message sent
 					}
 				}
 			}
-		}()
+		}
 
-		return nil
-	}
+		err := backoff.Retry(operation, backoff.NewExponentialBackOff())
+		if err != nil && !connected {
+			errch <- err
+		}
+	}()
+	err := <-errch
+	close(errch)
 
-	return backoff.Retry(operation, backoff.NewExponentialBackOff())
+	return err
 }
 
 // SubscribeRaw to an sse endpoint
@@ -152,6 +185,11 @@ func (c *Client) Unsubscribe(ch chan *Event) {
 	if c.subscribed[ch] != nil {
 		c.subscribed[ch] <- true
 	}
+}
+
+// OnDisconnect specifies the function to run when the connection disconnects
+func (c *Client) OnDisconnect(fn ConnCallback) {
+	c.disconnectcb = fn
 }
 
 func (c *Client) request(stream string) (*http.Response, error) {
@@ -215,21 +253,16 @@ func (c *Client) processEvent(msg []byte) (event *Event, err error) {
 	// Trim the last "\n" per the spec.
 	e.Data = bytes.TrimSuffix(e.Data, []byte("\n"))
 
-	if len(e.Data) > 0 {
-		if c.EncodingBase64 {
-			buf := make([]byte, base64.StdEncoding.DecodedLen(len(e.Data)))
+	if c.EncodingBase64 {
+		buf := make([]byte, base64.StdEncoding.DecodedLen(len(e.Data)))
 
-			_, err := base64.StdEncoding.Decode(buf, e.Data)
-			if err != nil {
-				err = fmt.Errorf("failed to decode event message: %s", err)
-			}
-			e.Data = buf
+		_, err := base64.StdEncoding.Decode(buf, e.Data)
+		if err != nil {
+			err = fmt.Errorf("failed to decode event message: %s", err)
 		}
-		return &e, err
+		e.Data = buf
 	}
-
-	// If we made it here, then the event had a problem.
-	return nil, errors.New("invalid event message")
+	return &e, err
 }
 
 func (c *Client) cleanup(resp *http.Response, ch chan *Event) {
@@ -242,7 +275,6 @@ func (c *Client) cleanup(resp *http.Response, ch chan *Event) {
 
 	if c.subscribed[ch] != nil {
 		close(c.subscribed[ch])
-		close(ch)
 		delete(c.subscribed, ch)
 	}
 }
@@ -254,7 +286,7 @@ func trimHeader(size int, data []byte) []byte {
 		data = data[1:]
 	}
 	// Remove trailing new line
-	if data[len(data)-1] == 10 {
+	if len(data) > 0 && data[len(data)-1] == 10 {
 		data = data[:len(data)-1]
 	}
 	return data

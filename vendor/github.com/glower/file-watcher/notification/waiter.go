@@ -11,7 +11,6 @@ package notification
 
 import (
 	"fmt"
-	"runtime/debug"
 	"sync"
 	"time"
 )
@@ -56,10 +55,7 @@ func (w *Waiter) LookupForFileNotification(path string) (chan bool, bool) {
 func (w *Waiter) Wait(fileData *Event) {
 	waitChan, exists := w.LookupForFileNotification(fileData.AbsolutePath)
 	if !exists {
-		w.ErrorCh <- Error{
-			Stack:   string(debug.Stack()),
-			Message: fmt.Sprintf("NotificationWaiter.Wait(): no notification if registered for the path %s", fileData.AbsolutePath),
-		}
+		w.ErrorCh <- FormatError("ERROR", fmt.Sprintf("no notification if registered for the path %s", fileData.AbsolutePath))
 		return
 	}
 	cnt := 0
@@ -68,10 +64,7 @@ func (w *Waiter) Wait(fileData *Event) {
 		case <-waitChan:
 			cnt++
 			if cnt == w.MaxCount {
-				w.ErrorCh <- Error{
-					Stack:   string(debug.Stack()),
-					Message: fmt.Sprintf("exit after %d times of notification for [%s]", w.MaxCount, fileData.AbsolutePath),
-				}
+				w.ErrorCh <- FormatError("ERROR", fmt.Sprintf("exit after %d times of notification for [%s]", w.MaxCount, fileData.AbsolutePath))
 				w.UnregisterFileNotification(fileData.AbsolutePath)
 				close(waitChan)
 				return

@@ -107,7 +107,7 @@ func (i *DirectoryWatcher) StartWatching(root string) {
 		return nil
 	})
 	if err != nil {
-		log.Printf("[ERROR] linux.StartWatching(): %v\n", err)
+		fileError("ERROR", err)
 	}
 }
 
@@ -131,13 +131,13 @@ func goCallbackFileChange(croot, cpath, cfile *C.char, caction C.int) {
 	absoluteFilePath := filepath.Join(path, file)
 	relativeFilePath, err := filepath.Rel(root, absoluteFilePath)
 	if err != nil {
-		fileError(err)
+		fileError("ERROR", err)
 		return
 	}
 
 	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
 	if err != nil {
-		fileError(err)
+		fileError("WARN", err)
 		return
 	}
 

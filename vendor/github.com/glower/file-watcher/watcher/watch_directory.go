@@ -2,10 +2,8 @@ package watcher
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -75,17 +73,20 @@ func Create(callbackCh chan notification.Event, errorCh chan notification.Error,
 	return watcher
 }
 
-func fileError(err error) {
-	watcher.ErrorCh <- notification.Error{
-		Stack:   string(debug.Stack()),
-		Message: err.Error(),
-	}
+func fileError(lvl string, err error) {
+	// TODO: we can print out here if it is configured
+	watcher.ErrorCh <- notification.FormatError(lvl, err.Error())
+}
+
+func fileDebug(lvl string, msg string) {
+	// TODO: we can print out here if it is configured
+	watcher.ErrorCh <- notification.FormatError(lvl, msg)
 }
 
 func fileChangeNotifier(watchDirectoryPath, relativeFilePath string, fileInfo file.ExtendedFileInfoImplementer, action notification.ActionType) {
 
 	if watcher.Options.IgnoreDirectoies == true && fileInfo.IsDir() {
-		log.Printf("fileChangeNotifier(): file change for a directory [%s] is filtered\n", relativeFilePath)
+		fileDebug("DEBUG", fmt.Sprintf("file change for a directory [%s] is filtered", relativeFilePath))
 		return
 	}
 
@@ -93,19 +94,19 @@ func fileChangeNotifier(watchDirectoryPath, relativeFilePath string, fileInfo fi
 
 	for _, fileFilter := range watcher.FileFilters {
 		if strings.Contains(absoluteFilePath, fileFilter) {
-			log.Printf("fileChangeNotifier(): file [%s] is filtered\n", fileFilter)
+			fileDebug("DEBUG", fmt.Sprintf("file [%s] is filtered", fileFilter))
 			return
 		}
 	}
 
 	for _, actionFilter := range watcher.ActionFilters {
 		if action == actionFilter {
-			log.Printf("fileChangeNotifier(): action [%s] is filtered\n", ActionToString(actionFilter))
+			fileDebug("DEBUG", fmt.Sprintf("action [%s] is filtered\n", ActionToString(actionFilter)))
 			return
 		}
 	}
 
-	log.Printf("watch.fileChangeNotifier(): watch directory path [%s], relative file path [%s], action [%s]\n", watchDirectoryPath, relativeFilePath, ActionToString(action))
+	fileDebug("DEBUG", fmt.Sprintf("watch directory path [%s], relative file path [%s], action [%s]\n", watchDirectoryPath, relativeFilePath, ActionToString(action)))
 
 	wait, exists := watcher.NotificationWaiter.LookupForFileNotification(absoluteFilePath)
 	if exists {
@@ -118,7 +119,7 @@ func fileChangeNotifier(watchDirectoryPath, relativeFilePath string, fileInfo fi
 	host, _ := os.Hostname()
 	mimeType, err := fileInfo.ContentType()
 	if err != nil {
-		fileError(fmt.Errorf("can't get ContentType from the file [%s]: %v", absoluteFilePath, err))
+		fileError("WARNING", fmt.Errorf("can't get ContentType from the file [%s]: %v", absoluteFilePath, err))
 		watcher.NotificationWaiter.UnregisterFileNotification(absoluteFilePath)
 		return
 	}
