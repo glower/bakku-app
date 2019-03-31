@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/glower/bakku-app/pkg/backup"
@@ -44,12 +46,17 @@ func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan
 		case <-ctx.Done():
 			return
 		case progress := <-fileBackupProgressChannel:
+			// TODO: don't report progress on backup of snapshot file
+			// get this name from config/package
+			if strings.Contains(progress.FileName, ".snapshot") {
+				continue
+			}
 			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
-			// progressJSON, _ := json.Marshal(progress)
-			// // file fotification for the frontend client over the SSE
-			// sseServer.Publish("files", &sse.Event{
-			// 	Data: []byte(progressJSON),
-			// })
+			progressJSON, _ := json.Marshal(progress)
+			// file fotification for the frontend client over the SSE
+			sseServer.Publish("files", &sse.Event{
+				Data: []byte(progressJSON),
+			})
 		}
 	}
 }
@@ -60,8 +67,8 @@ func processErrors(ctx context.Context, errorCh chan notification.Error) {
 		case <-ctx.Done():
 			return
 		case err := <-errorCh:
-			log.Printf("[%s] %v\n", err.Level, err.Message)
 			if err.Level == "ERROR" || err.Level == "CRITICAL" {
+				log.Printf("[%s] %v\n", err.Level, err.Message)
 				fmt.Println("-----------------------------")
 				fmt.Printf("%v\n", err.Stack)
 				fmt.Println("-----------------------------")

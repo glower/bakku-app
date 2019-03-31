@@ -169,7 +169,8 @@ func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *notificat
 func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *notification.Event) bool {
 	snapshotEntryJSON, err := s.storage.Get(entry.AbsolutePath, backupStorageName)
 	if err != nil {
-		log.Printf("[ERROR] fileDifferentToBackup(): %v", err)
+		log.Printf("fileDifferentToBackup(): %v", err)
+		// TODO: add ErrorBucketNotFound for "bolt.Get(): bucket [fake] not found" and check for it
 		return true
 	}
 	if snapshotEntryJSON == "" {
