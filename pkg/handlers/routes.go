@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -17,6 +18,7 @@ type Resources struct {
 // Router register necessary routes and returns an instance of a router.
 func (res *Resources) Router() *mux.Router {
 	r := mux.NewRouter()
+	r.Methods("GET").Path("/").HandlerFunc(Index)
 	r.Methods("GET").Path("/health").HandlerFunc(StatusOK)
 	r.Methods("GET").Path("/ping").HandlerFunc(Ping)
 	r.Methods("GET").Path("/events").HandlerFunc(res.SSEServer.HTTPHandler)
@@ -33,4 +35,10 @@ func StatusOK(res http.ResponseWriter, _ *http.Request) {
 func Ping(res http.ResponseWriter, _ *http.Request) {
 	res.WriteHeader(http.StatusOK)
 	fmt.Fprint(res, "pong")
+}
+
+// Index returns index page with test UI
+func Index(res http.ResponseWriter, _ *http.Request) {
+	body, _ := ioutil.ReadFile("ui/index.html")
+	fmt.Fprintf(res, "%s", body)
 }

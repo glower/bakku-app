@@ -9,9 +9,11 @@ type FileBackupComplete struct {
 
 // BackupProgress represents a moment of progress.
 type BackupProgress struct {
-	StorageName string  `json:"storage"`
-	FileName    string  `json:"file"`
-	Percent     float64 `json:"percent"`
+	StorageName  string  `json:"storage"`
+	FileName     string  `json:"file"`
+	AbsolutePath string  `json:"path"`
+	ID           string  `json:"id"`
+	Percent      float64 `json:"percent"`
 }
 
 // // Notifications ...

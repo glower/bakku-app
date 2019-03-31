@@ -1,6 +1,8 @@
 package fake
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -38,6 +40,7 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 
 func (s *Storage) Store(ev *notification.Event) {
 	file := ev.AbsolutePath
+	data := []byte(file)
 	p := 0.0
 	for {
 		select {
@@ -45,9 +48,11 @@ func (s *Storage) Store(ev *notification.Event) {
 			sleepRandom()
 			p = p + 5
 			s.fileStorageProgressCh <- types.BackupProgress{
-				StorageName: storageName,
-				FileName:    file,
-				Percent:     p,
+				AbsolutePath: file,
+				StorageName:  storageName,
+				FileName:     ev.FileName,
+				ID:           fmt.Sprintf("%x", sha1.Sum(data)),
+				Percent:      p,
 			}
 			if p >= float64(100.0) {
 				return

@@ -41,6 +41,7 @@ func setupSSE() *sse.Server {
 }
 
 func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
+	log.Printf("\n")
 	for {
 		select {
 		case <-ctx.Done():

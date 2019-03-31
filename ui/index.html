@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        
+    <title>Bakku-App UI</title>
+</head>
+<body>
+    <nav>
+        <div class="nav-wrapper">
+            <a href="#" class="brand-logo">Bakku-App Project</a>
+        </div>
+    </nav>
+    
+    <div id="container">
+        <ul class="collection" id="list"></ul>
+    </div>
+    
+    <!--JavaScript at end of body for optimized loading-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+</body>
+</html>
+
+<script>
+    // var evtSource = new EventSource("//api.example.com/ssedemo.php", { withCredentials: true } ); 
+    var evtSource = new EventSource("//localhost:8080/events?stream=files");
+    evtSource.onmessage = function(e) {
+        let data = JSON.parse(e.data)
+        console.log(data)
+        let id = data.id
+
+        let el = document.getElementById(id);
+        if (el == null) {
+            var newElement = document.createElement("li");
+            newElement.className = "collection-item avatar";
+            newElement.id = id;
+            var eventList = document.getElementById('list');
+            eventList.appendChild(newElement);
+        }
+
+        el.innerHTML = `
+            <i class="material-icons circle green">insert_chart</i>
+            <span class="title">${data.file}</span>
+            <div class="progress">
+                <div class="determinate" style="width: ${data.percent}%"></div>
+            </div>
+            <a href="#!" class="secondary-content">
+                <i class="material-icons">grade</i>
+            </a>
+        `;
+    }
+</script>
