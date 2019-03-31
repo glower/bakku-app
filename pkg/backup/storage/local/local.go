@@ -1,9 +1,7 @@
 package local
 
 import (
-	"context"
 	"fmt"
-	"log"
 	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup/storage"
@@ -18,7 +16,6 @@ type Storage struct {
 	name                  string // storage name
 	eventCh               chan notification.Event
 	fileStorageProgressCh chan types.BackupProgress
-	ctx                   context.Context
 	storagePath           string
 	snapshotPath          string
 }
@@ -27,7 +24,6 @@ const storageName = "local"
 const bufferSize = 1024 * 1024
 
 func init() {
-	log.Println("local.init()")
 	storage.Register(storageName, &Storage{})
 }
 

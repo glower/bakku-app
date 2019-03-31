@@ -1,11 +1,12 @@
 package fake
 
 import (
-	"context"
+	"math/rand"
 	"time"
 
 	"github.com/glower/file-watcher/notification"
 
+	"github.com/glower/bakku-app/pkg/backup/storage"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -15,13 +16,12 @@ type Storage struct {
 	name                  string // storage name
 	eventCh               chan notification.Event
 	fileStorageProgressCh chan types.BackupProgress
-	ctx                   context.Context
 }
 
 const storageName = "fake"
 
 func init() {
-	// storage.Register(storageName, &Storage{})
+	storage.Register(storageName, &Storage{})
 }
 
 // Setup fake storage
@@ -36,32 +36,27 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 	return false
 }
 
-// SyncLocalFilesToBackup ...
-func (s *Storage) SyncLocalFilesToBackup() {}
-
-// SyncSnapshot ...
-func (s *Storage) SyncSnapshot(from, to string) {}
-
-func (s *Storage) store(file string) {
+func (s *Storage) Store(ev *notification.Event) {
+	file := ev.AbsolutePath
 	p := 0.0
-	go func() {
-		for {
-			select {
-			case <-s.ctx.Done():
-				// context has finished - exit
+	for {
+		select {
+		case <-time.After(1 * time.Second):
+			sleepRandom()
+			p = p + 5
+			s.fileStorageProgressCh <- types.BackupProgress{
+				StorageName: storageName,
+				FileName:    file,
+				Percent:     p,
+			}
+			if p >= float64(100.0) {
 				return
-			case <-time.After(1 * time.Second):
-				p = p + 50
-				s.fileStorageProgressCh <- types.BackupProgress{
-					StorageName: storageName,
-					FileName:    file,
-					Percent:     p,
-				}
-				if p >= float64(100.0) {
-					// backup.Finished(file, storageName)
-					return
-				}
 			}
 		}
-	}()
+	}
+}
+
+func sleepRandom() {
+	r := 100000 + rand.Intn(500000)
+	time.Sleep(time.Duration(r) * time.Microsecond)
 }

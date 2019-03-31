@@ -60,6 +60,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 			case notification.FileRemoved:
 				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
+				log.Printf("backup.ProcessNotifications(): [%s] was added or modified\n", file.AbsolutePath)
 				m.sendFileToAllStorages(&file)
 				//// TODO: XXX
 				// if len(file.BackupToStorages) > 0 {
