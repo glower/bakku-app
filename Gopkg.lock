@@ -26,24 +26,16 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:28c4dc5642ff6bccbb20da39a14b3fbdb2175bc62ab309183b9c2f7275876ecb"
+  digest = "1:c34114a62efdc50a5c9d36e096a96d58d4f8fa1f4d2605d153ad252679ac7f9f"
   name = "github.com/glower/file-watcher"
   packages = [
     "notification",
     "util",
-    "watcher"
+    "watcher",
   ]
   pruneopts = "UT"
-  revision = "9522ad63dfe24ed8adb8a2fa8d7e23a9397f5688"
-  version = "v1.0.0"
-
-[[projects]]
-  digest = "1:97df918963298c287643883209a2c3f642e6593379f97ab400c2a2e219ab647d"
-  name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  pruneopts = "UT"
-  revision = "70e17e6d2cc1357a7ca9fb1c81c8b3e4ecb06a5a"
-  version = "v1.3.0"
+  revision = "3719255724ac828ab993b9dff340ddda6d4f0150"
+  version = "v1.3.1"
 
 [[projects]]
   digest = "1:239c4c7fd2159585454003d9be7207167970194216193a8a210b8d29576f19c9"
@@ -88,7 +80,7 @@
     "hcl/token",
     "json/parser",
     "json/scanner",
-    "json/token"
+    "json/token",
   ]
   pruneopts = "UT"
   revision = "8cb6e5b959231cc1119e43259c4a608f9c51a241"
@@ -139,7 +131,7 @@
   name = "github.com/spf13/afero"
   packages = [
     ".",
-    "mem"
+    "mem",
   ]
   pruneopts = "UT"
   revision = "588a75ec4f32903aa5e39a2619ba6a4631e28424"
@@ -206,7 +198,13 @@
   name = "golang.org/x/net"
   packages = [
     "context",
-    "context/ctxhttp"
+    "context/ctxhttp",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "trace",
   ]
   pruneopts = "UT"
   revision = "74de082e2cca95839e88aa0aeee5aadf6ce7710f"
@@ -220,7 +218,7 @@
     "google",
     "internal",
     "jws",
-    "jwt"
+    "jwt",
   ]
   pruneopts = "UT"
   revision = "c85d3e98c914e3a33234ad863dcbff5dbc425bb8"
@@ -249,7 +247,8 @@
     "transform",
     "unicode/bidi",
     "unicode/cldr",
-    "unicode/norm"
+    "unicode/norm",
+    "unicode/rangetable",
   ]
   pruneopts = "UT"
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
@@ -262,7 +261,12 @@
     "drive/v3",
     "gensupport",
     "googleapi",
-    "googleapi/internal/uritemplates"
+    "googleapi/internal/uritemplates",
+    "googleapi/transport",
+    "internal",
+    "option",
+    "transport/http",
+    "transport/http/internal/propagation",
   ]
   pruneopts = "UT"
   revision = "bce707a4d0ea3488942724b3bcc1c8338f38f991"
@@ -281,7 +285,7 @@
     "internal/modules",
     "internal/remote_api",
     "internal/urlfetch",
-    "urlfetch"
+    "urlfetch",
   ]
   pruneopts = "UT"
   revision = "54a98f90d1c46b7731eb8fb305d2a321c30ef610"
@@ -365,7 +369,7 @@
     "github.com/spf13/viper",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
-    "google.golang.org/api/drive/v3"
+    "google.golang.org/api/drive/v3",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
