@@ -16,9 +16,6 @@ import (
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 
-	// "github.com/glower/bakku-app/pkg/types"
-	// "github.com/glower/bakku-app/pkg/watchers"
-
 	"github.com/glower/file-watcher/notification"
 	"github.com/glower/file-watcher/watcher"
 
@@ -63,10 +60,12 @@ func processErrors(ctx context.Context, errorCh chan notification.Error) {
 		case <-ctx.Done():
 			return
 		case err := <-errorCh:
-			log.Printf("[ERROR] %v\n", err.Message)
-			fmt.Println("-----------------------------")
-			fmt.Printf("%v\n", err.Stack)
-			fmt.Println("-----------------------------")
+			log.Printf("[%s] %v\n", err.Level, err.Message)
+			if err.Level == "ERROR" || err.Level == "CRITICAL" {
+				fmt.Println("-----------------------------")
+				fmt.Printf("%v\n", err.Stack)
+				fmt.Println("-----------------------------")
+			}
 		}
 	}
 }
@@ -86,7 +85,7 @@ func main() {
 		ctx,
 		dirs,
 		[]notification.ActionType{},
-		[]string{".crdownload", ".lock", ".snapshot"},
+		[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
 		&watcher.Options{IgnoreDirectoies: true})
 
 	go processErrors(ctx, errorCh)

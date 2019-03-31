@@ -8,14 +8,16 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"time"
 )
 
 // Event holds all of the event source fields
 type Event struct {
-	ID    []byte
-	Data  []byte
-	Event []byte
-	Retry []byte
+	ID        []byte
+	Data      []byte
+	Event     []byte
+	Retry     []byte
+	timestamp time.Time
 }
 
 // EventStreamReader scans an io.Reader looking for EventStream messages.
@@ -59,12 +61,12 @@ func NewEventStreamReader(eventStream io.Reader) *EventStreamReader {
 }
 
 // ReadEvent scans the EventStream for events.
-func (self *EventStreamReader) ReadEvent() ([]byte, error) {
-	if self.scanner.Scan() {
-		event := self.scanner.Bytes()
+func (e *EventStreamReader) ReadEvent() ([]byte, error) {
+	if e.scanner.Scan() {
+		event := e.scanner.Bytes()
 		return event, nil
 	}
-	if err := self.scanner.Err(); err != nil {
+	if err := e.scanner.Err(); err != nil {
 		return nil, err
 	}
 	return nil, io.EOF
