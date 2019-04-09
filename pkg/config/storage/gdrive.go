@@ -6,7 +6,9 @@ import (
 	"github.com/spf13/viper"
 )
 
-const configName = "googleDrive"
+// Must be the same as in pkg/backup/storage/gdrive/gdrive.go
+// const storageName = "gdrive
+const configName = "gdrive"
 
 // GDriveConfig is a struct for Google drive storage configuration
 type GDriveConfig struct {

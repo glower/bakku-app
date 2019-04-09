@@ -2,7 +2,6 @@ package gdrive
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -19,6 +18,7 @@ import (
 	"github.com/glower/file-watcher/notification"
 	"golang.org/x/oauth2/google"
 	drive "google.golang.org/api/drive/v3"
+	"google.golang.org/api/googleapi"
 )
 
 // Storage ...
@@ -92,19 +92,14 @@ func (s *Storage) Store(event *notification.Event) {
 // gdrive.store(): C:\Users\Brown\MyFiles\pixiv\71738080_p0_master1200.jpg > MyFiles\pixiv
 func (s *Storage) store(file, toPath, mimeType string) {
 	sleepRandom()
-	log.Printf(">>> gdrive.store(): [%s] > [gdrive://%s]\n", file, toPath)
+	log.Printf("gdrive.store(): send [%s] -> [gdrive://%s]\n", file, toPath)
+
 	from, err := os.Open(file)
 	if err != nil {
 		log.Fatalf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", file, err)
 		return
 	}
 	defer from.Close()
-	// Grab file info
-	fromInfo, err := from.Stat()
-	if err != nil {
-		log.Fatalf("[ERROR] gdrive.store(): Cannot stat file  [%s]: %v\n", file, err)
-		return
-	}
 	lastFolder := s.GetOrCreateAllFolders(toPath) // TODO: errors?
 
 	f := &drive.File{
@@ -113,17 +108,17 @@ func (s *Storage) store(file, toPath, mimeType string) {
 		Parents:  []string{lastFolder.Id},
 	}
 
-	showProgress := func(current, total int64) {
-		fmt.Printf("Uploaded at %d, %d\n", current, total)
-	}
+	// DefaultUploadChunkSize = 8 * 1024 * 1024
+	chunkSize := googleapi.ChunkSize(5 * 1024 * 1024)
+	contentType := googleapi.ContentType(mimeType)
 
-	// res, err := s.service.Files.Create(f).Media(from).Do()
-	res, err := s.service.Files.Create(f).ResumableMedia(s.ctx, from, fromInfo.Size(), mimeType).ProgressUpdater(showProgress).Do()
+	// TODO: wrap this with createOrUpdateFile
+	res, err := s.service.Files.Create(f).Media(from, chunkSize, contentType).Do()
 
 	if err != nil {
 		log.Fatalf("[ERROR] gdrive.store(): %v", err)
 	}
-	log.Printf("### gdrive.store(): %s, %s, %s DONE\n", res.Name, res.Id, res.MimeType)
+	log.Printf("gdrive.store(): %s, %s, %s DONE\n", res.Name, res.Id, res.MimeType)
 }
 
 func remotePath(absolutePath, relativePath string) string {
