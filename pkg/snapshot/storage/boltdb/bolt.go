@@ -55,19 +55,28 @@ func (s *Storage) Path() string {
 
 // Add info about file to the snapshot, filePath is the key and bucketName is the name of the backup storage
 func (s *Storage) Add(filePath, bucketName string, value []byte) error {
-	log.Printf("bolt.Add(): file=[%s], bucketName=[%s] DBFilePath=[%s]\n", filePath, bucketName, s.DBFilePath)
+	// log.Printf("bolt.Add(): file=[%s], bucketName=[%s] DBFilePath=[%s]\n", filePath, bucketName, s.DBFilePath)
 	if strings.Contains(filePath, s.DBFileName) {
 		return nil
 	}
 	db := s.openDB()
 	defer db.Close()
-	return db.Update(func(tx *bolt.Tx) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
 			return err
 		}
-		return b.Put([]byte(filePath), value)
+		err = b.Put([]byte(filePath), value)
+		if err != nil {
+			return err
+		}
+		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Get information about the file from the snapshot

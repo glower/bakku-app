@@ -193,7 +193,7 @@ func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *notifi
 }
 
 func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.ExtendedFileInfoImplementer) (*notification.Event, error) {
-	log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
+	// log.Printf("snapshot.generateFileEntry(): snapshotPath=%s, filePath=%s\n", s.path, absoluteFilePath)
 
 	if !filepath.IsAbs(absoluteFilePath) {
 		return nil, fmt.Errorf("filepath %s is not absolute", absoluteFilePath)
@@ -209,7 +209,7 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.Extend
 
 	host, err := os.Hostname()
 	if err != nil {
-		log.Printf("snapshot.generateFileEntry(): can't get host name: %v\n", err)
+		log.Printf("[ERROR] snapshot.generateFileEntry(): can't get host name: %v\n", err)
 		host = "unknown"
 	}
 
@@ -240,12 +240,4 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.Extend
 	}
 
 	return &snapshot, nil
-}
-
-func unmurshalFileChangeNotification(value string) (notification.Event, error) {
-	change := notification.Event{}
-	if err := json.Unmarshal([]byte(value), &change); err != nil {
-		return change, fmt.Errorf("cannot unmarshal data [%s]: %v", string(value), err)
-	}
-	return change, nil
 }

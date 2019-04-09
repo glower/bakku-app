@@ -93,11 +93,11 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup bac
 		return
 	}
 
-	log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
+	log.Printf("!!! sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
 	Start(event, storageName)
 	backup.Store(event)
 	Finish(event, storageName)
-	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
+	log.Printf("### sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
 
 	m.FileBackupCompleteCh <- types.FileBackupComplete{
 		BackupStorageName:  storageName,
