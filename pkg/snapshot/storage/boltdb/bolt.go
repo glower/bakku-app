@@ -12,8 +12,6 @@ import (
 	"github.com/glower/bakku-app/pkg/snapshot/storage"
 )
 
-const snapshotStorageName = "boltdb"
-
 // Storage ...
 type Storage struct {
 	path       string // /foo/bar
@@ -100,12 +98,11 @@ func (s *Storage) Remove(filePath, bucketName string) error {
 	db := s.openDB()
 	defer db.Close()
 
-	db.Update(func(tx *bolt.Tx) error {
+	return db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		err := b.Delete([]byte(filePath))
 		return err
 	})
-	return nil
 }
 
 // GetAll entries from the snapshot storage

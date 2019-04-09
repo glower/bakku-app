@@ -57,7 +57,7 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 			defaultPath = backupstorage.DefultFolderName()
 		}
 		s.storagePath = defaultPath
-
+		s.name = storageName
 		credPath := filepath.Join(s.globalConfigPath, "credentials.json")
 		b, err := ioutil.ReadFile(credPath)
 		if err != nil {
@@ -89,39 +89,41 @@ func (s *Storage) Store(event *notification.Event) {
 	s.store(event.AbsolutePath, to, "image/jpeg")
 }
 
-// SyncSnapshot ...
-func (s *Storage) SyncSnapshot(fileChange *notification.Event) {
-	fmt.Printf("\n\n%#v\n\n", fileChange)
-	directoryPath := fileChange.DirectoryPath
-
-	from := directoryPath //snapshot.FilePath(directoryPath)
-	to := filepath.Join(fileChange.WatchDirectoryName)
-	log.Printf("!!!! gdrive.SyncSnapshot(): sync snapshot from [%s] to [gdrive:%s]\n", from, to)
-	s.store(from, to, "application/octet-stream")
-}
-
 // gdrive.store(): C:\Users\Brown\MyFiles\pixiv\71738080_p0_master1200.jpg > MyFiles\pixiv
 func (s *Storage) store(file, toPath, mimeType string) {
 	sleepRandom()
-	log.Printf(" gdrive.store(): [%s] > [gdrive://%s]\n", file, toPath)
+	log.Printf(">>> gdrive.store(): [%s] > [gdrive://%s]\n", file, toPath)
 	from, err := os.Open(file)
 	if err != nil {
 		log.Fatalf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", file, err)
 		return
 	}
 	defer from.Close()
-	lastFolder := s.CreateAllFolders(toPath) // TODO: errors?
+	// Grab file info
+	fromInfo, err := from.Stat()
+	if err != nil {
+		log.Fatalf("[ERROR] gdrive.store(): Cannot stat file  [%s]: %v\n", file, err)
+		return
+	}
+	lastFolder := s.GetOrCreateAllFolders(toPath) // TODO: errors?
 
 	f := &drive.File{
 		Name:     filepath.Base(file),
 		MimeType: mimeType,
 		Parents:  []string{lastFolder.Id},
 	}
-	res, err := s.service.Files.Create(f).Media(from).Do()
+
+	showProgress := func(current, total int64) {
+		fmt.Printf("Uploaded at %d, %d\n", current, total)
+	}
+
+	// res, err := s.service.Files.Create(f).Media(from).Do()
+	res, err := s.service.Files.Create(f).ResumableMedia(s.ctx, from, fromInfo.Size(), mimeType).ProgressUpdater(showProgress).Do()
+
 	if err != nil {
 		log.Fatalf("[ERROR] gdrive.store(): %v", err)
 	}
-	log.Printf("gdrive.store(): %s, %s, %s DONE\n", res.Name, res.Id, res.MimeType)
+	log.Printf("### gdrive.store(): %s, %s, %s DONE\n", res.Name, res.Id, res.MimeType)
 }
 
 func remotePath(absolutePath, relativePath string) string {

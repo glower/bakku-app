@@ -21,7 +21,7 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 	// log.Printf("gdrive.CreateFolder(): name=%s\n", name)
 	folder, err := s.FindFolder(name, &FindFileOptions{})
 	if err != nil {
-		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
+		log.Printf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
 	}
 	if err == nil && folder != nil {
 		return folder
@@ -33,7 +33,7 @@ func (s *Storage) CreateFolder(name string) *drive.File {
 	}).Do()
 
 	if err != nil {
-		log.Panicf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
+		log.Printf("[ERROR] gdrive.CreateFolder(): Unable to create folder [%s]: %v\n", name, err)
 	}
 	return createFolder
 }
@@ -43,7 +43,7 @@ func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File
 	// log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
 	folder, err := s.FindFolder(name, &FindFileOptions{ParentFolderID: parentFolderID})
 	if err != nil {
-		log.Panicf("[ERROR] gdrive.FindOrCreateSubFolder(): Unable to create folder [%s]: %v\n", name, err)
+		log.Printf("[ERROR] gdrive.FindOrCreateSubFolder(): Unable to create folder [%s]: %v\n", name, err)
 	}
 	if err == nil && folder != nil {
 		return folder
@@ -54,17 +54,17 @@ func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) *drive.File
 		Parents: []string{parentFolderID},
 	}).Do()
 	if err != nil {
-		log.Panicf("[ERROR] gdrive.CreateSubFolder(): Unable to create folder [%s] as subfolder of [%s]: %v\n", name, parentFolderID, err)
+		log.Printf("[ERROR] gdrive.CreateSubFolder(): Unable to create folder [%s] as subfolder of [%s]: %v\n", name, parentFolderID, err)
 	}
 	return createFolder
 }
 
-// CreateAllFolders creates all folders from the path like /foo/bar/buz
+// GetOrCreateAllFolders creates all folders from the path like /foo/bar/buz
 // and returns last folder in the path
-func (s *Storage) CreateAllFolders(path string) *drive.File {
+func (s *Storage) GetOrCreateAllFolders(path string) *drive.File {
 	mu.Lock()
 	defer mu.Unlock()
-	log.Printf("gdirve.CreateAllFolders(): %s\n", path)
+	// log.Printf("gdirve.CreateAllFolders(): %s\n", path)
 	paths := strings.Split(path, string(os.PathSeparator))
 	parentID := s.root.Id
 	var f *drive.File
@@ -93,7 +93,7 @@ func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File,
 	}
 	if len(folders.Files) > 1 {
 		for _, folder := range folders.Files {
-			log.Printf(">>> 	Name: %s, ID: %s\n", folder.Name, folder.Id)
+			log.Printf(">>>\t\tName: %s, ID: %s\n", folder.Name, folder.Id)
 		}
 
 		return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
