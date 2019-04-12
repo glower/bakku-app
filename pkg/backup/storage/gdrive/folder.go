@@ -10,6 +10,7 @@ import (
 	drive "google.golang.org/api/drive/v3"
 )
 
+// FindFileOptions holds options for search
 type FindFileOptions struct {
 	ParentFolderID string
 }
@@ -82,7 +83,6 @@ func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File,
 		q = fmt.Sprintf("%s and '%s' in parents", q, params.ParentFolderID)
 	}
 
-	// q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents", name, parentFolderID)
 	folders, err := s.service.Files.List().Q(q).Do()
 	if err != nil {
 		return nil, err
@@ -91,12 +91,10 @@ func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File,
 	if len(folders.Files) == 1 {
 		return folders.Files[0], nil
 	}
-	if len(folders.Files) > 1 {
-		for _, folder := range folders.Files {
-			log.Printf(">>>\t\tName: %s, ID: %s\n", folder.Name, folder.Id)
-		}
 
-		return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
+	// ERROR case
+	for _, folder := range folders.Files {
+		log.Printf(">>>\t\tName: %s, ID: %s\n", folder.Name, folder.Id)
 	}
-	return nil, nil
+	return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
 }

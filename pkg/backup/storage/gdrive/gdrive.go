@@ -2,6 +2,7 @@ package gdrive
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -18,7 +19,6 @@ import (
 	"github.com/glower/file-watcher/notification"
 	"golang.org/x/oauth2/google"
 	drive "google.golang.org/api/drive/v3"
-	"google.golang.org/api/googleapi"
 )
 
 // Storage ...
@@ -61,18 +61,18 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 		credPath := filepath.Join(s.globalConfigPath, "credentials.json")
 		b, err := ioutil.ReadFile(credPath)
 		if err != nil {
-			log.Fatalf("[ERROR] gdrive.Setup(): Unable to read credentials file [%s]: %v", credPath, err)
+			log.Printf("[ERROR] gdrive.Setup(): Unable to read credentials file [%s]: %v", credPath, err)
 			return false
 		}
 
 		config, err := google.ConfigFromJSON(b, drive.DriveScope)
 		if err != nil {
-			log.Fatalf("[ERROR] gdrive.Setup(): Unable to parse client secret file to config: %v", err)
+			log.Printf("[ERROR] gdrive.Setup(): Unable to parse client secret file to config: %v", err)
 		}
 		client := s.getClient(config)
 		srv, err := drive.New(client)
 		if err != nil {
-			log.Fatalf("[ERROR] gdrive.Setup(): Unable to retrieve Drive client: %v", err)
+			log.Printf("[ERROR] gdrive.Setup(): Unable to retrieve Drive client: %v", err)
 		}
 		s.client = client
 		s.service = srv
@@ -86,7 +86,7 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 // Store ...
 func (s *Storage) Store(event *notification.Event) {
 	to := remotePath(event.AbsolutePath, event.RelativePath)
-	s.store(event.AbsolutePath, to, "image/jpeg")
+	s.store(event.AbsolutePath, to, event.MimeType)
 }
 
 // gdrive.store(): C:\Users\Brown\MyFiles\pixiv\71738080_p0_master1200.jpg > MyFiles\pixiv
@@ -94,31 +94,21 @@ func (s *Storage) store(file, toPath, mimeType string) {
 	sleepRandom()
 	log.Printf("gdrive.store(): send [%s] -> [gdrive://%s]\n", file, toPath)
 
-	from, err := os.Open(file)
+	fromFile, err := os.Open(file)
 	if err != nil {
-		log.Fatalf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", file, err)
+		log.Printf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", file, err)
 		return
 	}
-	defer from.Close()
+	defer fromFile.Close()
 	lastFolder := s.GetOrCreateAllFolders(toPath) // TODO: errors?
-
-	f := &drive.File{
-		Name:     filepath.Base(file),
-		MimeType: mimeType,
-		Parents:  []string{lastFolder.Id},
-	}
-
-	// DefaultUploadChunkSize = 8 * 1024 * 1024
-	chunkSize := googleapi.ChunkSize(5 * 1024 * 1024)
-	contentType := googleapi.ContentType(mimeType)
-
-	// TODO: wrap this with createOrUpdateFile
-	res, err := s.service.Files.Create(f).Media(from, chunkSize, contentType).Do()
-
+	fmt.Printf(">>> Create of update file %s in folder %s\n", filepath.Base(file), lastFolder.Name)
+	gFile, err := s.CreateOrUpdateFile(fromFile, filepath.Base(file), mimeType, lastFolder.Id)
 	if err != nil {
-		log.Fatalf("[ERROR] gdrive.store(): %v", err)
+		log.Printf("[ERROR] gdrive.store(): %v", err)
+		return
 	}
-	log.Printf("gdrive.store(): %s, %s, %s DONE\n", res.Name, res.Id, res.MimeType)
+
+	log.Printf("[OK] gdrive.store(): %s, %s, %s DONE\n", gFile.Name, gFile.Id, gFile.MimeType)
 }
 
 func remotePath(absolutePath, relativePath string) string {
