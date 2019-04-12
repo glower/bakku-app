@@ -124,7 +124,7 @@ func main() {
 }
 
 func startHTTPServer(sseServer *sse.Server) *http.Server {
-	port := os.Getenv("PORT")
+	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
 		port = "8080"

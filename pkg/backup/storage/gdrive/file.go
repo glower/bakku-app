@@ -6,14 +6,14 @@ import (
 	"os"
 
 	drive "google.golang.org/api/drive/v3"
-	"google.golang.org/api/googleapi"
 )
 
 // FindFile ...
-func (s *Storage) FindFile(name, folderID, mimeType string) (*drive.File, error) {
-	fmt.Printf(">>> FindFile(): %s [%s]\n", name, mimeType)
+// For testing: https://developers.google.com/drive/api/v3/reference/files/list
+func (s *Storage) FindFile(name, folderID string) (*drive.File, error) {
+	fmt.Printf(">>> FindFile(): %s\n", name)
 
-	q := fmt.Sprintf("mimeType = '%s' and name = '%s' and '%s' in parents", mimeType, name, folderID)
+	q := fmt.Sprintf("mimeType != 'application/vnd.google-apps.folder' and trashed = false and name = '%s' and '%s' in parents", name, folderID)
 	files, err := s.service.Files.List().Q(q).Do()
 
 	if err != nil {
@@ -22,11 +22,8 @@ func (s *Storage) FindFile(name, folderID, mimeType string) (*drive.File, error)
 		return nil, err
 	}
 
-	fmt.Printf("!!!!!! gdrive.FindFile(): files total [%d]\n", len(files.Files))
-
 	if len(files.Files) == 0 {
 		fmt.Printf(">>> gdrive.FindFile(): file [%s] not found in [%s]\n", name, folderID)
-		fmt.Printf("q=%s\n", q)
 		return nil, nil
 	}
 
@@ -46,25 +43,24 @@ func (s *Storage) CreateOrUpdateFile(fromFile *os.File, fileName, mimeType, fold
 	mu.Lock()
 	defer mu.Unlock()
 
-	f := &drive.File{
-		Name:     fileName,
-		MimeType: mimeType,
-		Parents:  []string{folderID},
-	}
-
 	// DefaultUploadChunkSize = 8 * 1024 * 1024
-	chunkSize := googleapi.ChunkSize(5 * 1024 * 1024)
-	contentType := googleapi.ContentType(mimeType)
+	// chunkSize := googleapi.ChunkSize(5 * 1024 * 1024)
+	// contentType := googleapi.ContentType(mimeType)
 
-	// TODO: wrap this with createOrUpdateFile
-	file, err := s.FindFile(fileName, folderID, mimeType)
+	file, err := s.FindFile(fileName, folderID)
 	if err == nil && file == nil { // file was not found, no error no file
-		file, err = s.service.Files.Create(f).Media(fromFile, chunkSize, contentType).Do()
+		f := &drive.File{
+			Name:     fileName,
+			MimeType: mimeType,
+			Parents:  []string{folderID},
+		}
+		file, err = s.service.Files.Create(f).Media(fromFile).Do()
 		return file, err
 	}
 
 	if err == nil && file != nil {
-		file, err = s.service.Files.Update("", f).Media(fromFile, chunkSize, contentType).Do()
+		log.Printf("gdrive.CreateOrUpdateFile(): try to update file [%s] with id [%s]\n", file.Name, file.Id)
+		file, err = s.service.Files.Update(file.Id, nil).Media(fromFile).Do()
 		return file, err
 	}
 

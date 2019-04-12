@@ -78,7 +78,7 @@ func (s *Storage) GetOrCreateAllFolders(path string) *drive.File {
 
 // FindFolder returns a folder by name if a single folder is found or an error. If no folder is found, return nil
 func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File, error) {
-	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s'", name)
+	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '%s'", name)
 	if params.ParentFolderID != "" {
 		q = fmt.Sprintf("%s and '%s' in parents", q, params.ParentFolderID)
 	}
@@ -93,6 +93,7 @@ func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File,
 	}
 
 	// ERROR case
+	log.Printf("[ERROR] gdrive.FindFolder(): Found %d folders:\n", len(folders.Files))
 	for _, folder := range folders.Files {
 		log.Printf(">>>\t\tName: %s, ID: %s\n", folder.Name, folder.Id)
 	}
