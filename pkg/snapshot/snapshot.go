@@ -33,7 +33,7 @@ type Snapshot struct {
 func Setup(ctx context.Context, eventCh chan notification.Event, fileBackupCompleteChan chan types.FileBackupComplete) {
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
-
+		var err error
 		snap := &Snapshot{
 			ctx:                       ctx,
 			path:                      path,
@@ -41,7 +41,7 @@ func Setup(ctx context.Context, eventCh chan notification.Event, fileBackupCompl
 			FileBackupCompleteChannel: fileBackupCompleteChan,
 		}
 		bolt := boltdb.New(path)
-		err := snapshotstorage.Register(bolt)
+		err = snapshotstorage.Register(bolt)
 		if err != nil {
 			log.Panicf("[PANIC] snapshot.Setup(): %v\n", err)
 		}
@@ -50,9 +50,13 @@ func Setup(ctx context.Context, eventCh chan notification.Event, fileBackupCompl
 		go snap.processFileBackupComplete()
 
 		if !bolt.Exist() {
-			snap.create()
+			err = snap.create()
 		} else {
-			snap.update()
+			err = snap.update()
+		}
+
+		if err != nil {
+			log.Panicf("[PANIC] not aible create/update a snapshot: %v\n", err)
 		}
 	}
 }
@@ -95,10 +99,10 @@ func (s *Snapshot) fileBackupComplete(fileBackup types.FileBackupComplete) {
 	s.EventCh <- *backupFileEntry
 }
 
-func (s *Snapshot) create() {
+func (s *Snapshot) create() error {
 	log.Printf("snapshot.Create(): path=%s\n", s.path)
 
-	filepath.Walk(s.path, func(file string, fileInfo os.FileInfo, err error) error {
+	return filepath.Walk(s.path, func(file string, fileInfo os.FileInfo, err error) error {
 		if strings.Contains(file, s.storage.FileName()) {
 			return nil
 		}
@@ -106,7 +110,6 @@ func (s *Snapshot) create() {
 			xFileInfo := fi.ExtendedFileInformation(file, fileInfo)
 			fileEntry, err := s.generateFileEntry(file, xFileInfo)
 			if err != nil {
-				log.Printf("[ERROR] Create(): %v\n", err)
 				return err
 			}
 			s.EventCh <- *fileEntry
@@ -115,16 +118,16 @@ func (s *Snapshot) create() {
 	})
 }
 
-func (s *Snapshot) update() {
+func (s *Snapshot) update() error {
 	log.Printf("snapshot.update(): path=%s\n", s.path)
 
 	// read all supported backup storages form the config
 	backupStorages, err := storageconfig.Active()
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
-	filepath.Walk(s.path, func(filePath string, fileInfo os.FileInfo, err error) error {
+	return filepath.Walk(s.path, func(filePath string, fileInfo os.FileInfo, err error) error {
 		if strings.Contains(filePath, s.storage.FileName()) {
 			return nil
 		}
@@ -132,13 +135,12 @@ func (s *Snapshot) update() {
 			xFileInfo := fi.ExtendedFileInformation(filePath, fileInfo)
 			fileEntry, err := s.generateFileEntry(filePath, xFileInfo)
 			if err != nil {
-				log.Printf("[ERROR] Update(): %v\n", err)
 				return err
 			}
 			backupToStorages := []string{}
 			for _, backupStorage := range backupStorages {
 				if s.fileDifferentToBackup(backupStorage, fileEntry) {
-					log.Printf("snapshot.update(): local file [%s] is different to the remote copy in [%s] storage", fileEntry.AbsolutePath, backupStorage)
+					// log.Printf("snapshot.update(): local file [%s] is different to the remote copy in [%s] storage", fileEntry.AbsolutePath, backupStorage)
 					backupToStorages = append(backupToStorages, backupStorage)
 				}
 			}

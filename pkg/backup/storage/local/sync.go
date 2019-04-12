@@ -49,7 +49,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 		}
 
 		// write a chunk
-		var written = 0
+		var written int
 		if written, err = writeBuffer.Write(buf[:n]); err != nil {
 			panic(err)
 		}

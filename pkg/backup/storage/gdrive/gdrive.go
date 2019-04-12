@@ -1,7 +1,6 @@
 package gdrive
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,7 +26,6 @@ type Storage struct {
 	globalConfigPath      string
 	eventCh               chan notification.Event
 	fileStorageProgressCh chan types.BackupProgress
-	ctx                   context.Context
 	storagePath           string
 	root                  *drive.File
 	tokenFile             string
@@ -69,7 +67,15 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 		if err != nil {
 			log.Printf("[ERROR] gdrive.Setup(): Unable to parse client secret file to config: %v", err)
 		}
-		client := s.getClient(config)
+		client, err := s.getClient(config)
+		if err != nil {
+			log.Printf("[ERROR] gdrive.Setup(): Unable to create new client: %v", err)
+		}
+
+		// TODO: drive.New is deprecated, use something like this:
+		// ctx := context.Background()
+		// srv, err := drive.NewService(ctx, option.WithAPIKey("xbc"))
+		// need ctx object form the main here I think
 		srv, err := drive.New(client)
 		if err != nil {
 			log.Printf("[ERROR] gdrive.Setup(): Unable to retrieve Drive client: %v", err)

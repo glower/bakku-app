@@ -43,7 +43,7 @@ func Register(s Storage) error {
 		return fmt.Errorf("storage.Register(): called twice for [%s]", path)
 	}
 
-	log.Printf("storage.Register(): snapshot storage for the path [%s] registered\n", path)
+	// log.Printf("storage.Register(): snapshot storage for the path [%s] registered\n", path)
 	snapshotStorages[path] = s
 	return nil
 }

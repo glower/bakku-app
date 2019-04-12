@@ -43,8 +43,7 @@ func (f *FakeStorage) Remove(filePath string, bucketName string) error {
 
 func TestRegisterStorage(t *testing.T) {
 	type args struct {
-		path string
-		s    Storage
+		s Storage
 	}
 
 	testBackupPath := "/foo/bar"
@@ -102,7 +101,10 @@ func TestRegisterStorage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			Register(tt.args.s)
+			err := Register(tt.args.s)
+			if err != nil {
+				t.Errorf("storage.Register(): error was not expected: [%v]", err)
+			}
 			storage, err := GetByPath(tt.path)
 
 			if !tt.errExpected && err != nil {

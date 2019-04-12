@@ -1,5 +1,5 @@
 # Binaries for programs and plugins
-bin/*.exe
+bin/
 *.exe
 *.exe~
 *.dll

@@ -2,13 +2,20 @@ export CGO_ENABLED?=1
 REPO=bakku-app/
 GO?=go
 
+LINT_FLAGS := run -v --deadline=120s
+LINTER_EXE := golangci-lint
+LINTER:= ./bin/$(LINTER_EXE)
+
 check: gofmt lint
 
 test:
 	$(GO) test -tags=integration -timeout 120s -v ./...
 
-lint:
-	golangci-lint run -v
+$(LINTER):
+	curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.15.0
+
+lint: $(LINTER)
+	$(LINTER) $(LINT_FLAGS)
 
 GFMT=find . -not \( \( -wholename "./vendor" \) -prune \) -name "*.go" | xargs gofmt -l
 gofmt:

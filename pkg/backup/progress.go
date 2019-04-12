@@ -28,7 +28,6 @@ func Start(fileChange *notification.Event, storage string) {
 	}
 
 	filesInProgress[key] = time.Now()
-	return
 }
 
 // InProgress ...

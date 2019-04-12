@@ -110,14 +110,12 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup bac
 func Stop() {
 	// block here untill all files are transferd
 	for {
-		select {
-		case <-time.After(1 * time.Second):
-			inProgress := TotalFilesInProgres()
-			log.Printf("TotalFilesInProgres: %d\n", inProgress)
-			if true {
-				teardownAll()
-				return
-			}
+		<-time.After(1 * time.Second)
+		inProgress := TotalFilesInProgres()
+		log.Printf("TotalFilesInProgres: %d\n", inProgress)
+		if true {
+			teardownAll()
+			return
 		}
 	}
 }

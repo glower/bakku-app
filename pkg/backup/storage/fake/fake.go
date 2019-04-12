@@ -38,25 +38,24 @@ func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
 	return false
 }
 
+// Store file on event
 func (s *Storage) Store(ev *notification.Event) {
 	file := ev.AbsolutePath
 	data := []byte(file)
 	p := 0.0
 	for {
-		select {
-		case <-time.After(1 * time.Second):
-			sleepRandom()
-			p = p + 5
-			s.fileStorageProgressCh <- types.BackupProgress{
-				AbsolutePath: file,
-				StorageName:  storageName,
-				FileName:     ev.FileName,
-				ID:           fmt.Sprintf("%x", sha1.Sum(data)),
-				Percent:      p,
-			}
-			if p >= float64(100.0) {
-				return
-			}
+		<-time.After(1 * time.Second)
+		sleepRandom()
+		p = p + 5
+		s.fileStorageProgressCh <- types.BackupProgress{
+			AbsolutePath: file,
+			StorageName:  storageName,
+			FileName:     ev.FileName,
+			ID:           fmt.Sprintf("%x", sha1.Sum(data)),
+			Percent:      p,
+		}
+		if p >= float64(100.0) {
+			return
 		}
 	}
 }
