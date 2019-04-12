@@ -42,6 +42,13 @@ func (f *FakeStorage) Remove(filePath string, bucketName string) error {
 }
 
 func TestRegisterStorage(t *testing.T) {
+
+	// test empty storage
+	_, err := GetByPath("/foo")
+	if err.Error() != "snapshot storage is empty" {
+		t.Errorf("storage.GetByPath(): error [%s] was expected but it's [%s]", "snapshot storage is empty", err.Error())
+	}
+
 	type args struct {
 		s Storage
 	}
@@ -98,11 +105,19 @@ func TestRegisterStorage(t *testing.T) {
 			path:        "/some/path",
 			errExpected: true,
 		},
+		{
+			name: "4: get backup storage withempty path",
+			args: args{
+				s: fake,
+			},
+			path:        "",
+			errExpected: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := Register(tt.args.s)
-			if err != nil {
+			if !tt.errExpected && err != nil {
 				t.Errorf("storage.Register(): error was not expected: [%v]", err)
 			}
 			storage, err := GetByPath(tt.path)
@@ -120,4 +135,5 @@ func TestRegisterStorage(t *testing.T) {
 			}
 		})
 	}
+
 }

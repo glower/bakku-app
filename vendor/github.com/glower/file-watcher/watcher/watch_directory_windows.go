@@ -33,7 +33,7 @@ static inline void WatchDirectory(char* dir) {
 	handle = FindFirstChangeNotification(
   		dir,   		// directory to watch
 		TRUE,  		// do watch subtree
-		FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME
+		FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME
 	);
 	ovl.hEvent = CreateEvent(
 		NULL,  		// default security attribute
@@ -130,6 +130,8 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := notification.ActionType(int(caction))
+
+	log.Printf("goCallbackFileChange(): path=%s, file=%s, action=%s\n", path, file, ActionToString(action))
 
 	absoluteFilePath := filepath.Join(path, file)
 	fi, err := fileinfo.GetFileInformation(absoluteFilePath)

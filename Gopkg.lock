@@ -26,7 +26,7 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:34635767d9e6d075d6d71918faec7f8e5d01c969852b3a0b16b276042eaf5c17"
+  digest = "1:bea6ff379ad6c649619a271973425859153aa1d1edf3d88319254e1ea4835b6e"
   name = "github.com/glower/file-watcher"
   packages = [
     "notification",
@@ -34,8 +34,8 @@
     "watcher"
   ]
   pruneopts = "UT"
-  revision = "72abb8c8c0eacdb0dd5a1be68065014926e2be27"
-  version = "v1.4.2"
+  revision = "9cb28ab0ff61df434a667eaa7a71118cae85b6ab"
+  version = "v1.4.3"
 
 [[projects]]
   digest = "1:239c4c7fd2159585454003d9be7207167970194216193a8a210b8d29576f19c9"

@@ -37,7 +37,6 @@ func ExtendedFileInformation(absoluteFilePath string, fileInfo os.FileInfo) Exte
 }
 
 func GetFileInformation(absoluteFilePath string) (ExtendedFileInfoImplementer, error) {
-
 	fileInfo, err := os.Stat(absoluteFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("can't stat file [%s]: %v", absoluteFilePath, err)
