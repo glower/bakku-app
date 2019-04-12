@@ -33,7 +33,7 @@ static inline void WatchDirectory(char* dir) {
 	handle = FindFirstChangeNotification(
   		dir,   		// directory to watch
 		TRUE,  		// do watch subtree
-		FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME
+		FILE_NOTIFY_CHANGE_LAST_WRITE | FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME
 	);
 	ovl.hEvent = CreateEvent(
 		NULL,  		// default security attribute
@@ -101,6 +101,7 @@ static inline void WatchDirectory(char* dir) {
 import "C"
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"unsafe"
@@ -111,6 +112,11 @@ import (
 
 // StartWatching starts a CGO function for getting the notifications
 func (w *DirectoryWatcher) StartWatching(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		fileError("CRITICAL", err)
+		return
+	}
+
 	log.Printf("windows.StartWatching(): for [%s]\n", path)
 	cpath := C.CString(path)
 	defer func() {
@@ -124,6 +130,8 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	path := strings.TrimSpace(C.GoString(cpath))
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := notification.ActionType(int(caction))
+
+	log.Printf("goCallbackFileChange(): path=%s, file=%s, action=%s\n", path, file, ActionToString(action))
 
 	absoluteFilePath := filepath.Join(path, file)
 	fi, err := fileinfo.GetFileInformation(absoluteFilePath)

@@ -125,13 +125,12 @@ func (s *Storage) GetAll(bucketName string) (map[string]string, error) {
 		if b == nil {
 			return fmt.Errorf("bolt.Get(): bucket [%s] not found", bucketName)
 		}
-		b.ForEach(func(k, v []byte) error {
+		return b.ForEach(func(k, v []byte) error {
 			filePath := string(k)
 			fileInfoJSON := string(v)
 			result[filePath] = fileInfoJSON
 			return nil
 		})
-		return nil
 	})
 	if err != nil {
 		return nil, err

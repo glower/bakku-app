@@ -17,7 +17,6 @@ type Storage struct {
 	eventCh               chan notification.Event
 	fileStorageProgressCh chan types.BackupProgress
 	storagePath           string
-	snapshotPath          string
 }
 
 const storageName = "local"

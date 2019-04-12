@@ -100,8 +100,10 @@ func TestStorage_Get(t *testing.T) {
 		DBFilePath: testDBFilePath,
 	}
 
-	testStorage.Add("/foo/bar", "test", []byte("buzz"))
-
+	err := testStorage.Add("/foo/bar", "test", []byte("buzz"))
+	if err != nil {
+		t.Errorf("storage.Add(): error was not expected: [%v]", err)
+	}
 	tests := []struct {
 		name    string
 		s       *Storage
@@ -186,9 +188,14 @@ func TestStorage_GetAll(t *testing.T) {
 		DBFilePath: testDBFilePath,
 	}
 
-	testStorage.Add("/foo/bar", "test", []byte("buzz"))
-	testStorage.Add("/aaa", "test", []byte("bbb"))
-
+	err := testStorage.Add("/foo/bar", "test", []byte("buzz"))
+	if err != nil {
+		t.Errorf("storage.Add(): error was not expected: [%v]", err)
+	}
+	err = testStorage.Add("/aaa", "test", []byte("bbb"))
+	if err != nil {
+		t.Errorf("storage.Add(): error was not expected: [%v]", err)
+	}
 	tests := []struct {
 		name    string
 		s       *Storage

@@ -15,6 +15,9 @@ type FakeFileInfo struct {
 	relativeFilePath   string
 }
 
+func (i *FakeFileInfo) Checksum() (string, error) {
+	return "ABCabc", nil
+}
 func (i *FakeFileInfo) IsTemporaryFile() bool {
 	return false
 }

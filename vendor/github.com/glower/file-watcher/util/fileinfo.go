@@ -1,7 +1,9 @@
 package file
 
 import (
+	"crypto/sha512"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 )
@@ -11,6 +13,7 @@ type FileInformation struct {
 }
 type FileInformationImplementer interface {
 	ContentType() (string, error)
+	Checksum() (string, error)
 }
 
 // ExtendedFileInfo is combined receiver for os.FileInfo functions and ContentType()
@@ -34,7 +37,6 @@ func ExtendedFileInformation(absoluteFilePath string, fileInfo os.FileInfo) Exte
 }
 
 func GetFileInformation(absoluteFilePath string) (ExtendedFileInfoImplementer, error) {
-
 	fileInfo, err := os.Stat(absoluteFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("can't stat file [%s]: %v", absoluteFilePath, err)
@@ -55,6 +57,7 @@ func (i *FileInformation) ContentType() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer out.Close()
 
 	// Only the first 512 bytes are used to sniff the content type.
 	buffer := make([]byte, 512)
@@ -69,4 +72,20 @@ func (i *FileInformation) ContentType() (string, error) {
 	contentType := http.DetectContentType(buffer)
 
 	return contentType, nil
+}
+
+// Checksum returns a string representation of SHA-512/256 checksum
+func (i *FileInformation) Checksum() (string, error) {
+	f, err := os.Open(i.absoluteFilePath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha512.New512_256()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
