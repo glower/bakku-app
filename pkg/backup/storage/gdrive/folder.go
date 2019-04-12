@@ -10,6 +10,7 @@ import (
 	drive "google.golang.org/api/drive/v3"
 )
 
+// FindFileOptions holds options for search
 type FindFileOptions struct {
 	ParentFolderID string
 }
@@ -77,12 +78,11 @@ func (s *Storage) GetOrCreateAllFolders(path string) *drive.File {
 
 // FindFolder returns a folder by name if a single folder is found or an error. If no folder is found, return nil
 func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File, error) {
-	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s'", name)
+	q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '%s'", name)
 	if params.ParentFolderID != "" {
 		q = fmt.Sprintf("%s and '%s' in parents", q, params.ParentFolderID)
 	}
 
-	// q := fmt.Sprintf("mimeType = 'application/vnd.google-apps.folder' and name = '%s' and '%s' in parents", name, parentFolderID)
 	folders, err := s.service.Files.List().Q(q).Do()
 	if err != nil {
 		return nil, err
@@ -91,12 +91,11 @@ func (s *Storage) FindFolder(name string, params *FindFileOptions) (*drive.File,
 	if len(folders.Files) == 1 {
 		return folders.Files[0], nil
 	}
-	if len(folders.Files) > 1 {
-		for _, folder := range folders.Files {
-			log.Printf(">>>\t\tName: %s, ID: %s\n", folder.Name, folder.Id)
-		}
 
-		return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
+	// ERROR case
+	log.Printf("[ERROR] gdrive.FindFolder(): Found %d folders:\n", len(folders.Files))
+	for _, folder := range folders.Files {
+		log.Printf(">>>\t\tName: %s, ID: %s\n", folder.Name, folder.Id)
 	}
-	return nil, nil
+	return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
 }

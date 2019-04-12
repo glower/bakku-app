@@ -60,7 +60,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 			case notification.FileRemoved:
 				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
-				log.Printf("backup.ProcessNotifications(): [%s] was added or modified\n", file.AbsolutePath)
+				// log.Printf("backup.ProcessNotifications(): [%s] was added or modified\n", file.AbsolutePath)
 				m.sendFileToAllStorages(&file)
 				//// TODO: XXX
 				// if len(file.BackupToStorages) > 0 {
@@ -83,7 +83,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 
 func (m *StorageManager) sendFileToAllStorages(event *notification.Event) {
 	for storageName, storageProvider := range backupstorage.GetAll() {
-		log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
+		// log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
 		go m.sendFileToStorage(event, storageProvider, storageName)
 	}
 }
@@ -93,11 +93,11 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup bac
 		return
 	}
 
-	log.Printf("!!! sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
+	// log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
 	Start(event, storageName)
 	backup.Store(event)
 	Finish(event, storageName)
-	log.Printf("### sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
+	// log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
 
 	m.FileBackupCompleteCh <- types.FileBackupComplete{
 		BackupStorageName:  storageName,

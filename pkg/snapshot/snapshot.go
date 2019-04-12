@@ -92,7 +92,6 @@ func (s *Snapshot) fileBackupComplete(fileBackup types.FileBackupComplete) {
 		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
 		return
 	}
-
 	s.EventCh <- *backupFileEntry
 }
 
