@@ -1,6 +1,10 @@
 package notification
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // ActionType represents what happens with the file
 type ActionType int
@@ -17,6 +21,8 @@ type Event struct {
 	WatchDirectoryName string
 	Size               int64
 	Timestamp          time.Time
+	UUID               uuid.UUID
+	Checksum           string
 }
 
 const (

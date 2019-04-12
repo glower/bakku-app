@@ -101,6 +101,7 @@ static inline void WatchDirectory(char* dir) {
 import "C"
 import (
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"unsafe"
@@ -111,6 +112,11 @@ import (
 
 // StartWatching starts a CGO function for getting the notifications
 func (w *DirectoryWatcher) StartWatching(path string) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		fileError("CRITICAL", err)
+		return
+	}
+
 	log.Printf("windows.StartWatching(): for [%s]\n", path)
 	cpath := C.CString(path)
 	defer func() {

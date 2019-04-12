@@ -59,6 +59,7 @@ static inline void *WatchDirectory(char* root, char* dir) {
 */
 import "C"
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -99,6 +100,10 @@ func convertMaskToAction(mask int) notification.ActionType {
 
 // StartWatching starts a CGO function for getting the notifications
 func (i *DirectoryWatcher) StartWatching(root string) {
+	if _, err := os.Stat(root); os.IsNotExist(err) {
+		fileError("CRITICAL", fmt.Errorf("cannot start watching [%s]: no such directory", root))
+		return
+	}
 	log.Printf("linux.StartWatching(): for [%s]\n", root)
 	err := filepath.Walk(root, func(path string, f os.FileInfo, err error) error {
 		if f.IsDir() {
