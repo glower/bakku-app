@@ -1,6 +1,7 @@
 package gdrive
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/config"
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
@@ -22,6 +23,8 @@ import (
 
 // Storage ...
 type Storage struct {
+	ctx context.Context
+
 	name                  string // storage name
 	globalConfigPath      string
 	eventCh               chan notification.Event
@@ -37,22 +40,23 @@ type Storage struct {
 const storageName = "gdrive"
 
 func init() {
-	backupstorage.Register(storageName, &Storage{})
+	backup.Register(storageName, &Storage{})
 }
 
 // Setup gdrive storage
-func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
+func (s *Storage) Setup(m *backup.StorageManager) bool {
 	gdriveConfig := gdrive.GoogleDriveConfig()
 	if gdriveConfig.Active {
+		s.ctx = m.Ctx
 		s.eventCh = make(chan notification.Event)
-		s.fileStorageProgressCh = fileStorageProgressCh
+		s.fileStorageProgressCh = m.FileBackupProgressCh
 
 		s.globalConfigPath = config.GetConfigPath()
 		s.credentialsFile = gdriveConfig.CredentialsFile
 		s.tokenFile = gdriveConfig.TokenFile
 		defaultPath := gdriveConfig.Path
 		if defaultPath == "" {
-			defaultPath = backupstorage.DefultFolderName()
+			defaultPath = backup.DefultFolderName()
 		}
 		s.storagePath = defaultPath
 		s.name = storageName

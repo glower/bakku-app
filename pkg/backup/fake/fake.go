@@ -8,7 +8,7 @@ import (
 
 	"github.com/glower/file-watcher/notification"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -23,16 +23,16 @@ type Storage struct {
 const storageName = "fake"
 
 func init() {
-	storage.Register(storageName, &Storage{})
+	backup.Register(storageName, &Storage{})
 }
 
 // Setup fake storage
-func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
+func (s *Storage) Setup(m *backup.StorageManager) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
 		s.eventCh = make(chan notification.Event)
-		s.fileStorageProgressCh = fileStorageProgressCh
+		s.fileStorageProgressCh = m.FileBackupProgressCh
 		return true
 	}
 	return false

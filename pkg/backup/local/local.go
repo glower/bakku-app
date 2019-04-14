@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
+
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
 
@@ -23,7 +24,7 @@ const storageName = "local"
 const bufferSize = 1024 * 1024
 
 func init() {
-	storage.Register(storageName, &Storage{})
+	backup.Register(storageName, &Storage{})
 }
 
 // StoreOptions ...
@@ -32,12 +33,12 @@ type StoreOptions struct {
 }
 
 // Setup local storage
-func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
+func (s *Storage) Setup(m *backup.StorageManager) bool {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
 		s.eventCh = make(chan notification.Event)
-		s.fileStorageProgressCh = fileStorageProgressCh
+		s.fileStorageProgressCh = m.FileBackupProgressCh
 		storagePath := filepath.Clean(config.Path)
 		s.storagePath = storagePath
 		return true
