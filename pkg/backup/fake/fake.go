@@ -10,6 +10,7 @@ import (
 
 	"github.com/glower/bakku-app/pkg/backup"
 	conf "github.com/glower/bakku-app/pkg/config/storage"
+	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -17,29 +18,31 @@ import (
 type Storage struct {
 	name                  string // storage name
 	eventCh               chan notification.Event
+	MessageCh             chan message.Message
 	fileStorageProgressCh chan types.BackupProgress
 }
 
-const storageName = "fake"
+const storageName = "storage.fake"
 
 func init() {
 	backup.Register(storageName, &Storage{})
 }
 
 // Setup fake storage
-func (s *Storage) Setup(m *backup.StorageManager) bool {
+func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 	config := conf.ProviderConf(storageName)
 	if config.Active {
 		s.name = storageName
+		s.MessageCh = m.MessageCh
 		s.eventCh = make(chan notification.Event)
 		s.fileStorageProgressCh = m.FileBackupProgressCh
-		return true
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 // Store file on event
-func (s *Storage) Store(ev *notification.Event) {
+func (s *Storage) Store(ev *notification.Event) error {
 	file := ev.AbsolutePath
 	data := []byte(file)
 	p := 0.0
@@ -55,7 +58,7 @@ func (s *Storage) Store(ev *notification.Event) {
 			Percent:      p,
 		}
 		if p >= float64(100.0) {
-			return
+			return nil
 		}
 	}
 }

@@ -2,11 +2,13 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/glower/file-watcher/notification"
 
+	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
@@ -14,16 +16,17 @@ type teardown func()
 
 // Storage represents an interface for a backup storage provider
 type Storage interface {
-	Setup(*StorageManager) bool
-	Store(*notification.Event)
+	Setup(*StorageManager) (bool, error)
+	Store(*notification.Event) error
 }
 
 var teardowns = make(map[string]teardown)
 
 // StorageManager ...
 type StorageManager struct {
-	Ctx                  context.Context
-	ErrorCh              chan notification.Error
+	Ctx context.Context
+
+	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
 	FileBackupCompleteCh chan types.FileBackupComplete
@@ -35,20 +38,24 @@ func Setup(ctx context.Context, eventCh chan notification.Event) *StorageManager
 		Ctx: ctx,
 
 		EventCh:              eventCh,
-		ErrorCh:              make(chan notification.Error),
+		MessageCh:            make(chan message.Message),
 		FileBackupProgressCh: make(chan types.BackupProgress),
 		FileBackupCompleteCh: make(chan types.FileBackupComplete),
 	}
 
 	for name, storage := range GetAll() {
-		ok := storage.Setup(m)
-		if ok {
+		ok, err := storage.Setup(m)
+		if ok && err == nil {
 			log.Printf("Setup(): backup storage [%s] is ready\n", name)
 			_, cancel := context.WithCancel(context.Background())
 			teardowns[name] = func() { cancel() }
-		} else {
+		} else if !ok && err == nil {
 			log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
 			Unregister(name)
+		}
+		if err != nil {
+			log.Printf("[ERROR] Setup(): backup storage [%s] error=%v\n", name, err)
+			// TODO: write error to the error channel
 		}
 	}
 	go m.ProcessNotifications(ctx)
@@ -89,10 +96,15 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 
 	// log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
 	Start(event, storageName)
-	backup.Store(event)
-	Finish(event, storageName)
-	// log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
+	err := backup.Store(event)
+	if err != nil {
+		fmt.Printf("[ERROR] Store(): %v\n", err)
+		// TODO: we are in the go routine, so send error over the channel
+		Finish(event, storageName)
+		return
+	}
 
+	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
 	m.FileBackupCompleteCh <- types.FileBackupComplete{
 		BackupStorageName:  storageName,
 		AbsolutePath:       event.AbsolutePath,
