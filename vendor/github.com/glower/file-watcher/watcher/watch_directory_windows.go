@@ -131,8 +131,6 @@ func goCallbackFileChange(cpath, cfile *C.char, caction C.int) {
 	file := strings.TrimSpace(C.GoString(cfile))
 	action := notification.ActionType(int(caction))
 
-	log.Printf("goCallbackFileChange(): path=%s, file=%s, action=%s\n", path, file, ActionToString(action))
-
 	absoluteFilePath := filepath.Join(path, file)
 	fi, err := fileinfo.GetFileInformation(absoluteFilePath)
 

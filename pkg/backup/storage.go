@@ -1,12 +1,9 @@
-package storage
+package backup
 
 import (
 	"sync"
 
 	"log"
-
-	"github.com/glower/bakku-app/pkg/types"
-	"github.com/glower/file-watcher/notification"
 )
 
 const defultFolderName = "bakku-app"
@@ -16,19 +13,13 @@ func DefultFolderName() string {
 	return defultFolderName
 }
 
-// BackupStorage represents an interface for a backup storage provider
-type BackupStorage interface {
-	Setup(chan types.BackupProgress) bool
-	Store(*notification.Event)
-}
-
 var (
 	storagesM sync.RWMutex
-	storages  = make(map[string]BackupStorage)
+	storages  = make(map[string]Storage)
 )
 
 // Register a storage implementation by name.
-func Register(name string, s BackupStorage) {
+func Register(name string, s Storage) {
 	if name == "" {
 		panic("storage.Register(): could not register a StorageFactory with an empty name")
 	}
@@ -50,7 +41,7 @@ func Register(name string, s BackupStorage) {
 }
 
 // GetAll returns a map of all registered backup storages
-func GetAll() map[string]BackupStorage {
+func GetAll() map[string]Storage {
 	return storages
 }
 

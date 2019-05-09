@@ -1,6 +1,7 @@
 package gdrive
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,9 +12,10 @@ import (
 	"strings"
 	"time"
 
-	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
+	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/config"
 	gdrive "github.com/glower/bakku-app/pkg/config/storage"
+	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/glower/file-watcher/notification"
 	"golang.org/x/oauth2/google"
@@ -22,8 +24,11 @@ import (
 
 // Storage ...
 type Storage struct {
+	ctx context.Context
+
 	name                  string // storage name
 	globalConfigPath      string
+	MessageCh             chan message.Message
 	eventCh               chan notification.Event
 	fileStorageProgressCh chan types.BackupProgress
 	storagePath           string
@@ -34,87 +39,95 @@ type Storage struct {
 	service               *drive.Service
 }
 
-const storageName = "gdrive"
+const storageName = "storage.gdrive"
 
 func init() {
-	backupstorage.Register(storageName, &Storage{})
+	backup.Register(storageName, &Storage{})
 }
 
 // Setup gdrive storage
-func (s *Storage) Setup(fileStorageProgressCh chan types.BackupProgress) bool {
+func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 	gdriveConfig := gdrive.GoogleDriveConfig()
 	if gdriveConfig.Active {
+		s.ctx = m.Ctx
 		s.eventCh = make(chan notification.Event)
-		s.fileStorageProgressCh = fileStorageProgressCh
+		s.fileStorageProgressCh = m.FileBackupProgressCh
+		s.MessageCh = m.MessageCh
 
 		s.globalConfigPath = config.GetConfigPath()
 		s.credentialsFile = gdriveConfig.CredentialsFile
 		s.tokenFile = gdriveConfig.TokenFile
 		defaultPath := gdriveConfig.Path
 		if defaultPath == "" {
-			defaultPath = backupstorage.DefultFolderName()
+			defaultPath = backup.DefultFolderName()
 		}
 		s.storagePath = defaultPath
 		s.name = storageName
 		credPath := filepath.Join(s.globalConfigPath, "credentials.json")
 		b, err := ioutil.ReadFile(credPath)
 		if err != nil {
-			log.Printf("[ERROR] gdrive.Setup(): Unable to read credentials file [%s]: %v", credPath, err)
-			return false
+			return false, fmt.Errorf("unable to read credentials file [%s]: %v", credPath, err)
 		}
 
 		config, err := google.ConfigFromJSON(b, drive.DriveScope)
 		if err != nil {
-			log.Printf("[ERROR] gdrive.Setup(): Unable to parse client secret file to config: %v", err)
+			return false, fmt.Errorf("unable to parse client secret file to config: %v", err)
 		}
 		client, err := s.getClient(config)
 		if err != nil {
-			log.Printf("[ERROR] gdrive.Setup(): Unable to create new client: %v", err)
+			return false, fmt.Errorf("unable to create new client: %v", err)
 		}
 
 		// TODO: drive.New is deprecated, use something like this:
 		// ctx := context.Background()
-		// srv, err := drive.NewService(ctx, option.WithAPIKey("xbc"))
-		// need ctx object form the main here I think
+		// srv, err := drive.NewService(s.ctx, option.WithAPIKey("xbc"))
 		srv, err := drive.New(client)
 		if err != nil {
-			log.Printf("[ERROR] gdrive.Setup(): Unable to retrieve Drive client: %v", err)
+			return false, fmt.Errorf("unable to retrieve gDrive client: %v", err)
 		}
 		s.client = client
 		s.service = srv
 
-		s.root = s.CreateFolder(s.storagePath)
-		return true
+		s.root, err = s.CreateFolder(s.storagePath)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 // Store ...
-func (s *Storage) Store(event *notification.Event) {
+func (s *Storage) Store(event *notification.Event) error {
 	to := remotePath(event.AbsolutePath, event.RelativePath)
-	s.store(event.AbsolutePath, to, event.MimeType)
+	return s.store(event.AbsolutePath, to, event.MimeType)
 }
 
 // gdrive.store(): C:\Users\Brown\MyFiles\pixiv\71738080_p0_master1200.jpg > MyFiles\pixiv
-func (s *Storage) store(file, toPath, mimeType string) {
+func (s *Storage) store(file, toPath, mimeType string) error {
 	sleepRandom()
-	log.Printf("gdrive.store(): send [%s] -> [gdrive://%s]\n", file, toPath)
+	log.Printf("[DEBUG] gdrive.store(): send [%s] -> [%s]\n", file, filepath.Join(s.storagePath, toPath))
 
 	fromFile, err := os.Open(file)
 	if err != nil {
-		log.Printf("[ERROR] gdrive.store(): Cannot open file  [%s]: %v\n", file, err)
-		return
+		return fmt.Errorf("cannot open file  [%s]: %v", file, err)
 	}
 	defer fromFile.Close()
-	lastFolder := s.GetOrCreateAllFolders(toPath) // TODO: errors?
-	fmt.Printf(">>> Create of update file %s in folder %s\n", filepath.Base(file), lastFolder.Name)
+	lastFolder, err := s.GetOrCreateAllFolders(toPath)
+	if err != nil {
+		return err
+	}
+	// if lastFolder == nil {
+	// 	return fmt.Errorf("foler was not found or created")
+	// }
+	fmt.Printf("[DEBUG] Create of update file %s in folder %s\n", filepath.Base(file), lastFolder.Name)
 	gFile, err := s.CreateOrUpdateFile(fromFile, filepath.Base(file), mimeType, lastFolder.Id)
 	if err != nil {
-		log.Printf("[ERROR] gdrive.store(): %v", err)
-		return
+		return err
 	}
 
 	log.Printf("[OK] gdrive.store(): %s, %s, %s DONE\n", gFile.Name, gFile.Id, gFile.MimeType)
+	return nil
 }
 
 func remotePath(absolutePath, relativePath string) string {

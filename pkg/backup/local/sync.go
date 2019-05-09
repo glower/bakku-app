@@ -2,6 +2,7 @@ package local
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -10,12 +11,11 @@ import (
 	"github.com/glower/bakku-app/pkg/types"
 )
 
-func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
+func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 	log.Printf("storage.local.store(): Copy file from [%s] to [%s]\n", fromPath, toPath)
 	from, err := os.Open(fromPath)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.store(): Cannot open file  [%s]: %v\n", fromPath, err)
-		return
+		return fmt.Errorf("cannot open file  [%s]: %v", fromPath, err)
 	}
 	defer from.Close()
 	fromStrats, _ := from.Stat()
@@ -24,14 +24,12 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 
 	fileStoragePath := filepath.Dir(toPath)
 	if err := os.MkdirAll(fileStoragePath, 0744); err != nil {
-		log.Printf("[ERROR] storage.local.store():  MkdirAll for path: [%s] err: %v", fileStoragePath, err)
-		return
+		return fmt.Errorf("mkdirAll for path: [%s] err: %v", fileStoragePath, err)
 	}
 
 	to, err := os.OpenFile(toPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-		log.Printf("[ERROR] storage.local.store(): Cannot open file [%s] to write: %v\n", toPath, err)
-		return
+		return fmt.Errorf("cannot open file [%s] to write: %v", toPath, err)
 	}
 	defer to.Close()
 	writeBuffer := bufio.NewWriter(to)
@@ -61,8 +59,9 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) {
 	}
 
 	if err = writeBuffer.Flush(); err != nil {
-		panic(err)
+		return fmt.Errorf("cannot write buffer: %v", err)
 	}
+	return nil
 }
 
 func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name string) {

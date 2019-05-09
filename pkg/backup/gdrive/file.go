@@ -25,10 +25,12 @@ func (s *Storage) FindFile(name, folderID string) (*drive.File, error) {
 	if len(files.Files) == 1 {
 		return files.Files[0], nil
 	}
+	
 	for _, file := range files.Files {
 		log.Printf(">>>\t\tName: %s, ID: %s\n", file.Name, file.Id)
 	}
-	return nil, fmt.Errorf("gdrive.CreateFolder(): Too many folders found")
+
+	return nil, fmt.Errorf("gdrive.FindFile(): Too many files (%d) found", len(files.Files))
 }
 
 // CreateOrUpdateFile ...

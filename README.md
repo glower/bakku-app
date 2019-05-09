@@ -2,33 +2,11 @@
 
 This is my fun project to get some practice in golang. The idea is to store changed files automatically to some cloud or whatever is emplemented as a storage provider. I use native windows/linux API to get notifications on file changes (using CGO).
 
-This version is unstable and under development, don't have any tests here.
+This version is unstable and under development, don't use it for anything
 
 TODO (more like idea list):
-- [x] refactor code duplication in storage/gdrive and storage/local
-- [x] refactor snapshot code to work with different storages in the same time
-- [x] refactor sync of snapshot
-- [x] automate Windows build
-- [x] add recursive directory notifications for linux (not perfect)
-- [x] write storage plugin for local file system
+- [ ] write good readme
 - [ ] write storage plugin for S3
-- [x] write storage plugin google drive (not ready)
-- [x] write local configuration (viper)
 - [ ] write REST endpoints for updating configuration
 - [ ] write GUI in electron for displaying progress
-- [x] scan and backup all files from the directory on the first run
-- [x] store local state of the backuped files for each storage provider (leveldb files are stored)(was changed to boltdb)
-- [x] on start compare states between local and remote storage
-- [x] need some sort of flat DB to store info about files (leveldb is used)(was changed to boltdb)
-- [ ] implement filters like: store jpg to google drive and store raw to S3
-- [x] add abstraction for leveldb (was changed to boltdb)
-- [x] add abstraction for viper configs (config and config/storage)
-- [x] add tests after first stable version
-    - [x] add tests for basic file change notification
-    - [x] add tests for snapshots
-    - [x] add tests for configs
-    - [x] add tests for storage
-- [ ] add logic what to do with deleted files
-- [ ] add logic for renaming of the files (not working now)
-- [ ] add logrus or something else for logging
-- [ ] add a concept for error handling (notifications?)
+

@@ -2,23 +2,31 @@ package backup
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
-	backupstorage "github.com/glower/bakku-app/pkg/backup/storage"
 	"github.com/glower/file-watcher/notification"
 
+	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/types"
 )
 
 type teardown func()
 
+// Storage represents an interface for a backup storage provider
+type Storage interface {
+	Setup(*StorageManager) (bool, error)
+	Store(*notification.Event) error
+}
+
 var teardowns = make(map[string]teardown)
 
 // StorageManager ...
 type StorageManager struct {
-	ctx context.Context
+	Ctx context.Context
 
+	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
 	FileBackupCompleteCh chan types.FileBackupComplete
@@ -27,22 +35,27 @@ type StorageManager struct {
 // Setup runs all implemented storages
 func Setup(ctx context.Context, eventCh chan notification.Event) *StorageManager {
 	m := &StorageManager{
-		ctx: ctx,
+		Ctx: ctx,
 
 		EventCh:              eventCh,
+		MessageCh:            make(chan message.Message),
 		FileBackupProgressCh: make(chan types.BackupProgress),
 		FileBackupCompleteCh: make(chan types.FileBackupComplete),
 	}
 
-	for name, storage := range backupstorage.GetAll() {
-		ok := storage.Setup(m.FileBackupProgressCh)
-		if ok {
+	for name, storage := range GetAll() {
+		ok, err := storage.Setup(m)
+		if ok && err == nil {
 			log.Printf("Setup(): backup storage [%s] is ready\n", name)
 			_, cancel := context.WithCancel(context.Background())
 			teardowns[name] = func() { cancel() }
-		} else {
+		} else if !ok && err == nil {
 			log.Printf("storage.SetupManager(): storage [%s] is not configured\n", name)
-			backupstorage.Unregister(name)
+			Unregister(name)
+		}
+		if err != nil {
+			log.Printf("[ERROR] Setup(): backup storage [%s] error=%v\n", name, err)
+			// TODO: write error to the error channel
 		}
 	}
 	go m.ProcessNotifications(ctx)
@@ -62,18 +75,6 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
 				// log.Printf("backup.ProcessNotifications(): [%s] was added or modified\n", file.AbsolutePath)
 				m.sendFileToAllStorages(&file)
-				//// TODO: XXX
-				// if len(file.BackupToStorages) > 0 {
-				// 	storages := backupstorage.GetAll()
-				// 	for _, storageName := range file.BackupToStorages {
-				// 		if storageProvider, ok := storages[storageName]; ok {
-				// 			go m.sendFileToStorage(&file, storageProvider, storageName)
-				// 		}
-				// 	}
-				// } else {
-				// 	m.sendFileToAllStorages(&file)
-				// }
-
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
 			}
@@ -82,23 +83,28 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 }
 
 func (m *StorageManager) sendFileToAllStorages(event *notification.Event) {
-	for storageName, storageProvider := range backupstorage.GetAll() {
+	for storageName, storageProvider := range GetAll() {
 		// log.Printf("storage.sendFileToAllStorages(): send notification to [%s] storage provider\n", storageName)
 		go m.sendFileToStorage(event, storageProvider, storageName)
 	}
 }
 
-func (m *StorageManager) sendFileToStorage(event *notification.Event, backup backupstorage.BackupStorage, storageName string) {
+func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Storage, storageName string) {
 	if InProgress(event, storageName) {
 		return
 	}
 
 	// log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
 	Start(event, storageName)
-	backup.Store(event)
-	Finish(event, storageName)
-	// log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
+	err := backup.Store(event)
+	if err != nil {
+		fmt.Printf("[ERROR] Store(): %v\n", err)
+		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
+		Finish(event, storageName)
+		return
+	}
 
+	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
 	m.FileBackupCompleteCh <- types.FileBackupComplete{
 		BackupStorageName:  storageName,
 		AbsolutePath:       event.AbsolutePath,
@@ -123,6 +129,6 @@ func Stop() {
 func teardownAll() {
 	for name, teardown := range teardowns {
 		teardown()
-		backupstorage.Unregister(name)
+		Unregister(name)
 	}
 }

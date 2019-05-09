@@ -15,6 +15,8 @@ import (
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 
+	// autoimport
+	_ "github.com/glower/bakku-app/pkg"
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 
@@ -22,11 +24,6 @@ import (
 	"github.com/glower/file-watcher/watcher"
 
 	"github.com/r3labs/sse"
-
-	// for auto import
-	_ "github.com/glower/bakku-app/pkg/backup/storage/fake"
-	_ "github.com/glower/bakku-app/pkg/backup/storage/gdrive"
-	_ "github.com/glower/bakku-app/pkg/backup/storage/local"
 )
 
 func init() {
