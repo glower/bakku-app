@@ -83,7 +83,7 @@ func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 		// srv, err := drive.NewService(s.ctx, option.WithAPIKey("xbc"))
 		srv, err := drive.New(client)
 		if err != nil {
-			log.Printf("[ERROR] gdrive.Setup(): Unable to retrieve Drive client: %v", err)
+			return false, fmt.Errorf("unable to retrieve gDrive client: %v", err)
 		}
 		s.client = client
 		s.service = srv

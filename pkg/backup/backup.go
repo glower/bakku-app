@@ -99,7 +99,7 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	err := backup.Store(event)
 	if err != nil {
 		fmt.Printf("[ERROR] Store(): %v\n", err)
-		// TODO: we are in the go routine, so send error over the channel
+		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
 		Finish(event, storageName)
 		return
 	}
