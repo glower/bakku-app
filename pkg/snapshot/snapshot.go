@@ -11,6 +11,7 @@ import (
 
 	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
+	"github.com/glower/bakku-app/pkg/message"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
@@ -26,24 +27,26 @@ type Snapshot struct {
 	path                      string
 	storage                   snapshotstorage.Storage
 	EventCh                   chan notification.Event
+	MessageCh                 chan message.Message
 	FileBackupCompleteChannel chan types.FileBackupComplete
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, eventCh chan notification.Event, fileBackupCompleteChan chan types.FileBackupComplete) {
+func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) {
 	dirs := config.DirectoriesToWatch()
 	for _, path := range dirs {
 		var err error
 		snap := &Snapshot{
 			ctx:                       ctx,
 			path:                      path,
+			MessageCh:                 messageCh,
 			EventCh:                   eventCh,
 			FileBackupCompleteChannel: fileBackupCompleteChan,
 		}
 		bolt := boltdb.New(path)
 		err = snapshotstorage.Register(bolt)
 		if err != nil {
-			log.Panicf("[PANIC] snapshot.Setup(): %v\n", err)
+			snap.MessageCh <- message.FormatMessage("PANIC", err.Error(), "snapshot")
 		}
 
 		snap.storage = bolt
@@ -56,7 +59,7 @@ func Setup(ctx context.Context, eventCh chan notification.Event, fileBackupCompl
 		}
 
 		if err != nil {
-			log.Panicf("[PANIC] not aible create/update a snapshot: %v\n", err)
+			snap.MessageCh <- message.FormatMessage("PANIC", err.Error(), "snapshot")
 		}
 	}
 }
@@ -80,20 +83,20 @@ func (s *Snapshot) fileBackupComplete(fileBackup types.FileBackupComplete) {
 
 	fileEntry, err := s.generateFileEntry(fileBackup.AbsolutePath, nil)
 	if err != nil {
-		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
+		s.MessageCh <- message.FormatMessage("ERROR", err.Error(), "snapshot.fileBackupComplete")
 		return
 	}
 
 	err = s.updateFileSnapshot(fileBackup.BackupStorageName, fileEntry)
 	if err != nil {
-		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
+		s.MessageCh <- message.FormatMessage("ERROR", err.Error(), "snapshot.fileBackupComplete")
 		return
 	}
 
 	// backup the snapshot file
 	backupFileEntry, err := s.generateFileEntry(s.storage.FilePath(), nil)
 	if err != nil {
-		log.Printf("[ERROR] snapshot.fileBackupComplete(): %v\n", err)
+		s.MessageCh <- message.FormatMessage("ERROR", err.Error(), "snapshot.fileBackupComplete")
 		return
 	}
 	s.EventCh <- *backupFileEntry
@@ -103,6 +106,9 @@ func (s *Snapshot) create() error {
 	log.Printf("snapshot.Create(): path=%s\n", s.path)
 
 	return filepath.Walk(s.path, func(file string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if strings.Contains(file, s.storage.FileName()) {
 			return nil
 		}
@@ -128,6 +134,9 @@ func (s *Snapshot) update() error {
 	}
 
 	return filepath.Walk(s.path, func(filePath string, fileInfo os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if strings.Contains(filePath, s.storage.FileName()) {
 			return nil
 		}
