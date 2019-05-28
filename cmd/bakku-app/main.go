@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/glower/bakku-app/pkg/backup"
+	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
 
@@ -50,29 +51,46 @@ func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan
 				continue
 			}
 			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
-			progressJSON, _ := json.Marshal(progress)
+			progressJSON, err := json.Marshal(progress)
+			if err != nil {
+				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
+			}
 			// file fotification for the frontend client over the SSE
 			sseServer.Publish("files", &sse.Event{
-				Data: []byte(progressJSON),
+				Data: progressJSON,
 			})
 		}
 	}
 }
 
-func processErrors(ctx context.Context, errorCh chan notification.Error) {
+func processErrors(ctx context.Context, errorCh chan notification.Error, messageCh chan message.Message, sseServer *sse.Server) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case err := <-errorCh:
 			if err.Level == "ERROR" || err.Level == "CRITICAL" {
-				log.Printf("[%s] %v\n", err.Level, err.Message)
-				fmt.Println("-----------------------------")
-				fmt.Printf("%v\n", err.Stack)
-				fmt.Println("-----------------------------")
+				publishEventMessage(sseServer, message.Message{
+					Type:    err.Level,
+					Message: err.Message,
+					Source:  "watcher",
+				})
 			}
+		case msg := <-messageCh:
+			publishEventMessage(sseServer, msg)
 		}
 	}
+}
+
+func publishEventMessage(sseServer *sse.Server, msg message.Message) {
+	messageJSON, err := json.Marshal(msg)
+	if err != nil {
+		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
+	}
+	log.Printf("[%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
+	sseServer.Publish("message", &sse.Event{
+		Data: messageJSON,
+	})
 }
 
 func main() {
@@ -93,10 +111,12 @@ func main() {
 		[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
 		&watcher.Options{IgnoreDirectoies: true})
 
-	go processErrors(ctx, errorCh)
+	messageCh := make(chan message.Message)
 
-	backupStorageManager := backup.Setup(ctx, eventCh)
-	snapshot.Setup(ctx, eventCh, backupStorageManager.FileBackupCompleteCh)
+	go processErrors(ctx, errorCh, messageCh, sseServer)
+
+	backupStorageManager := backup.Setup(ctx, eventCh, messageCh)
+	snapshot.Setup(ctx, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
 
 	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressCh, sseServer)
 	startHTTPServer(sseServer)

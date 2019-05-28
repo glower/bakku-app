@@ -15,9 +15,3 @@ type BackupProgress struct {
 	ID           string  `json:"id"`
 	Percent      float64 `json:"percent"`
 }
-
-// // Notifications ...
-// type Notifications struct {
-// 	FileChangeChan chan FileChangeNotification
-// 	DoneChan       chan bool
-// }

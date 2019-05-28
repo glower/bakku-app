@@ -2,7 +2,6 @@ package backup
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -33,12 +32,12 @@ type StorageManager struct {
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, eventCh chan notification.Event) *StorageManager {
+func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message) *StorageManager {
 	m := &StorageManager{
 		Ctx: ctx,
 
 		EventCh:              eventCh,
-		MessageCh:            make(chan message.Message),
+		MessageCh:            messageCh,
 		FileBackupProgressCh: make(chan types.BackupProgress),
 		FileBackupCompleteCh: make(chan types.FileBackupComplete),
 	}
@@ -98,7 +97,6 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	Start(event, storageName)
 	err := backup.Store(event)
 	if err != nil {
-		fmt.Printf("[ERROR] Store(): %v\n", err)
 		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
 		Finish(event, storageName)
 		return

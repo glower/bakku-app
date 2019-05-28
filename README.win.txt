@@ -11,6 +11,10 @@ Exeptions: seh
 
 Add C:\Program Files\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin to the PATH environment variable
 
-2. Create an .bakkuapp directory in the User drirectory, copy the config.yml.example to this directory and rename it to config.yml
+2. Create an .bakkuapp directory (mkdir .bakkuapp) in the User drirectory, copy the config.yml.example to this directory and rename it to config.yml
 
 3. Copy credentials.json with credentials for GoogleDrive file to .bakkuapp directory
+
+> mkdir .bakkuapp
+> notepad.exe .\.bakkuapp\credentials.json
+> notepad.exe .\.bakkuapp\config.yml
