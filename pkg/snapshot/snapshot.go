@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/message"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
@@ -32,9 +31,8 @@ type Snapshot struct {
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) {
-	dirs := config.DirectoriesToWatch()
-	for _, path := range dirs {
+func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) {
+	for _, path := range dirsToWatch {
 		var err error
 		snap := &Snapshot{
 			ctx:                       ctx,

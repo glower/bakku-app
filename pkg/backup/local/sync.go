@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -53,6 +55,10 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		}
 		totalWritten = totalWritten + written
 
+		if s.addLatency {
+			sleepRandom()
+		}
+
 		if opt.reportProgress {
 			s.reportProgress(int64(written), int64(totalSize), int64(totalWritten), from.Name())
 		}
@@ -62,6 +68,11 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		return fmt.Errorf("cannot write buffer: %v", err)
 	}
 	return nil
+}
+
+func sleepRandom() {
+	r := 500000 + rand.Intn(2000000)
+	time.Sleep(time.Duration(r) * time.Microsecond)
 }
 
 func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name string) {

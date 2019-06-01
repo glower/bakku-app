@@ -20,6 +20,7 @@ type Storage struct {
 	MessageCh             chan message.Message
 	fileStorageProgressCh chan types.BackupProgress
 	storagePath           string
+	addLatency            bool
 }
 
 const storageName = "storage.local"
@@ -36,7 +37,7 @@ type StoreOptions struct {
 
 // Setup local storage
 func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
-	config := conf.ProviderConf(storageName)
+	config := conf.LocalDriveConfig()
 	if config.Active {
 		s.name = storageName
 		s.eventCh = make(chan notification.Event)
@@ -44,6 +45,7 @@ func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 		s.fileStorageProgressCh = m.FileBackupProgressCh
 		storagePath := filepath.Clean(config.Path)
 		s.storagePath = storagePath
+		s.addLatency = config.AddLatency
 		return true, nil
 	}
 	return false, nil

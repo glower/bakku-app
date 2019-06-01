@@ -32,12 +32,18 @@ func init() {
 	config.ReadDefaultConfig()
 }
 
-// TODO: try this out: https://github.com/antage/eventsource
+// TODO: move me to sso/evet package
 func setupSSE() *sse.Server {
 	events := sse.New()
 	events.CreateStream("files")
 	events.CreateStream("messages")
 	return events
+}
+
+func stopSSE(sseServer *sse.Server) {
+	sseServer.RemoveStream("files")
+	sseServer.RemoveStream("messages")
+	sseServer.Close()
 }
 
 func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
@@ -132,7 +138,7 @@ func main() {
 	messageCh := make(chan message.Message)
 
 	backupStorageManager := backup.Setup(ctx, eventCh, messageCh)
-	snapshot.Setup(ctx, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
+	snapshot.Setup(ctx, dirs, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
 
 	go processErrors(ctx, errorCh, messageCh, sseServer)
 	go ping(ctx, sseServer)
@@ -151,8 +157,7 @@ func main() {
 
 	log.Print("The service is shutting down...")
 	cancel()
-	sseServer.RemoveStream("files")
-	sseServer.Close()
+	stopSSE(sseServer)
 	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first

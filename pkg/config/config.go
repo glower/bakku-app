@@ -65,3 +65,4 @@ func DirectoriesToWatch() []string {
 	}
 	return result
 }
+
