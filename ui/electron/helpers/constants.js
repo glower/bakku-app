@@ -1,0 +1,10 @@
+'use strict';
+
+module.exports = {
+    APP_NAME: 'Bakk-App',
+    MAIN_WINDOW_WIDTH: 250,
+    MAIN_WINDOW_HEIGHT: 150,
+    UPDATER_WINDOW_WIDTH: 500,
+    UPDATER_WINDOW_HEIGHT: 250,
+    UPDATE_PERIOD: 1500,
+};

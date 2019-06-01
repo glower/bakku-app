@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/message"
@@ -35,11 +36,11 @@ func init() {
 func setupSSE() *sse.Server {
 	events := sse.New()
 	events.CreateStream("files")
+	events.CreateStream("messages")
 	return events
 }
 
 func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
-	log.Printf("\n")
 	for {
 		select {
 		case <-ctx.Done():
@@ -82,13 +83,30 @@ func processErrors(ctx context.Context, errorCh chan notification.Error, message
 	}
 }
 
+func ping(ctx context.Context, sseServer *sse.Server) {
+	fmt.Printf("strting ping")
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(60 * time.Second):
+			publishEventMessage(sseServer, message.Message{
+				Message: "ping",
+				Type:    "INFO",
+				Source:  "main",
+				Time:    time.Now(),
+			})
+		}
+	}
+}
+
 func publishEventMessage(sseServer *sse.Server, msg message.Message) {
 	messageJSON, err := json.Marshal(msg)
 	if err != nil {
 		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
 	}
-	log.Printf("[%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
-	sseServer.Publish("message", &sse.Event{
+	log.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
+	sseServer.Publish("messages", &sse.Event{
 		Data: messageJSON,
 	})
 }
@@ -113,12 +131,13 @@ func main() {
 
 	messageCh := make(chan message.Message)
 
-	go processErrors(ctx, errorCh, messageCh, sseServer)
-
 	backupStorageManager := backup.Setup(ctx, eventCh, messageCh)
 	snapshot.Setup(ctx, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
 
+	go processErrors(ctx, errorCh, messageCh, sseServer)
+	go ping(ctx, sseServer)
 	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressCh, sseServer)
+
 	startHTTPServer(sseServer)
 
 	// server will block here untill we got SIGTERM/kill
@@ -162,6 +181,6 @@ func startHTTPServer(sseServer *sse.Server) *http.Server {
 			log.Printf("[ERROR] Failed to run server: %v", err)
 		}
 	}()
-	log.Print("The service is ready to listen and serve.")
+	log.Print("[OK] The service is ready to listen and serve.")
 	return srv
 }
