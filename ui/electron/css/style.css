@@ -22,7 +22,7 @@ nav {
 }
 
 footer {
-  background-color: #d8d8d8;
+  background-color: #ddd;
   height: 40px;
 }
 
@@ -31,14 +31,31 @@ footer.footer-copyright {
 }
 
 li span.title {
-  font-size: 13px;
+  font-size: 14px;
   margin: 1px;
   padding: 1px;
 }
 
 li span.info {
-  color: green;
-  font-size: 10px;
+  color: #888;
+  font-size: 11px;
   margin: 1px;
   padding: 1px;
+}
+
+.material-icons {
+  padding-right: 10px;
+  position: relative;
+  /* Adjust these values accordingly */
+  top: 5px;
+  left: 5px;
+}
+
+.preloader-wrapper.xsmall {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  /* Adjust these values accordingly */
+  top: -5px;
+  left: -5px;
 }

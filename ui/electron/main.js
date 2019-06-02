@@ -5,9 +5,6 @@ const windowFactory = require('./helpers/window-factory');
 const { APP_NAME, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT } = require('./helpers/constants');
 const WindowsToaster = require('node-notifier').WindowsToaster;
 
-// const { APP_NAME, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT, UPDATER_WINDOW_HEIGHT, UPDATER_WINDOW_WIDTH } = require('./constants');
-
-
 let tray = null
 let window = undefined;
 var notifier = new WindowsToaster({
@@ -19,7 +16,6 @@ app.on('ready', () => {
    createTray()
    createWindow()
    createNotificationListener("messages")
-   // createProgressListener("files")
 })
 
 const createTray = () => {
@@ -37,44 +33,21 @@ function setTrayListeners(tray) {
    tray.on('right-click', () => manageTrayRightClick(tray));
    tray.on('click', (event, bounds) => {
       const windowBounds = window.getBounds();
-      console.log(windowBounds)
-      // { x: 524, y: 216, width: 487, height: 401 }
       const trayBounds = tray.getBounds();
       const x = Math.round(trayBounds.x + (trayBounds.width / 2) - (windowBounds.width / 2));;
       const y = Math.round(trayBounds.y - windowBounds.height);
       window.setPosition(x, y, false);
-
-   //    window.setBounds({
-   //       width: MAIN_WINDOW_WIDTH,
-   //       height: MAIN_WINDOW_HEIGHT,
-   //       x: x, //always changes in runtime
-   //       y: y, //always changes in runtime
-   //   });
-
       window.isVisible() ? hideAllWindows() : showAllWindows();
    });
 }
 
-// const changePosition = ()=>{
-//    const position = calculateWindowPosition();
-//    window.setBounds({
-//        width: W_WIDTH,
-//        height: W_HEIGHT,
-//        x: position.x, //always changes in runtime
-//        y: position.y //always changes in runtime
-//    });
-//  }
-
 const createWindow = () => {
    window = windowFactory.get('main');
    setWindowConfigs(window);
-   // setApplicationMenuToEnableCopyPaste();
 
    window.loadFile(path.join(__dirname, 'index.html'));
    window.webContents.send('loading', {});
    setWindowListeners(window);
-
-   // setInterval(() => updater.execute(window), 86400000);
 }
 
 function setWindowListeners(window) {
