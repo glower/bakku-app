@@ -1,0 +1,44 @@
+/* html {
+  font-size: 12px;
+} */
+
+nav {
+  background-color: #d8d8d8;
+  height: 60px;
+}
+
+.container {
+  width: 100%;
+}
+
+.collection .collection-item {
+  height: 55px;
+  padding: 2px 5px 2px 10px;
+}
+
+.container .collection {
+  margin: 0px;
+  padding: 0px;
+}
+
+footer {
+  background-color: #d8d8d8;
+  height: 40px;
+}
+
+footer.footer-copyright {
+  padding: 0px;
+}
+
+li span.title {
+  font-size: 13px;
+  margin: 1px;
+  padding: 1px;
+}
+
+li span.info {
+  color: green;
+  font-size: 10px;
+  margin: 1px;
+  padding: 1px;
+}

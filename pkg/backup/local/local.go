@@ -33,6 +33,7 @@ func init() {
 // StoreOptions ...
 type StoreOptions struct {
 	reportProgress bool
+	fileID         string
 }
 
 // Setup local storage
@@ -62,5 +63,8 @@ func (s *Storage) Store(event *notification.Event) error {
 
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)
-	return s.store(from, to, StoreOptions{reportProgress: false})
+	return s.store(from, to, StoreOptions{
+		reportProgress: true,
+		fileID:         event.UUID.String(), // Or checksum?
+	})
 }

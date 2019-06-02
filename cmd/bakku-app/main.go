@@ -32,17 +32,21 @@ func init() {
 	config.ReadDefaultConfig()
 }
 
+var streams = []string{"files", "messages", "ping"}
+
 // TODO: move me to sso/evet package
 func setupSSE() *sse.Server {
 	events := sse.New()
-	events.CreateStream("files")
-	events.CreateStream("messages")
+	for _, name := range streams {
+		events.CreateStream(name)
+	}
 	return events
 }
 
 func stopSSE(sseServer *sse.Server) {
-	sseServer.RemoveStream("files")
-	sseServer.RemoveStream("messages")
+	for _, name := range streams {
+		sseServer.RemoveStream(name)
+	}
 	sseServer.Close()
 }
 
@@ -57,7 +61,7 @@ func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan
 			if strings.Contains(progress.FileName, ".snapshot") {
 				continue
 			}
-			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, err := json.Marshal(progress)
 			if err != nil {
 				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
@@ -81,16 +85,15 @@ func processErrors(ctx context.Context, errorCh chan notification.Error, message
 					Type:    err.Level,
 					Message: err.Message,
 					Source:  "watcher",
-				})
+				}, "messages")
 			}
 		case msg := <-messageCh:
-			publishEventMessage(sseServer, msg)
+			publishEventMessage(sseServer, msg, "messages")
 		}
 	}
 }
 
 func ping(ctx context.Context, sseServer *sse.Server) {
-	fmt.Printf("strting ping")
 	for {
 		select {
 		case <-ctx.Done():
@@ -101,18 +104,18 @@ func ping(ctx context.Context, sseServer *sse.Server) {
 				Type:    "INFO",
 				Source:  "main",
 				Time:    time.Now(),
-			})
+			}, "ping")
 		}
 	}
 }
 
-func publishEventMessage(sseServer *sse.Server, msg message.Message) {
+func publishEventMessage(sseServer *sse.Server, msg message.Message, channel string) {
 	messageJSON, err := json.Marshal(msg)
 	if err != nil {
 		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
 	}
 	log.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
-	sseServer.Publish("messages", &sse.Event{
+	sseServer.Publish(channel, &sse.Event{
 		Data: messageJSON,
 	})
 }

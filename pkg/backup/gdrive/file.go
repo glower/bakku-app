@@ -8,6 +8,8 @@ import (
 	drive "google.golang.org/api/drive/v3"
 )
 
+const bufferSize = 1024 * 1024
+
 // FindFile ...
 // For testing: https://developers.google.com/drive/api/v3/reference/files/list
 func (s *Storage) FindFile(name, folderID string) (*drive.File, error) {
@@ -25,7 +27,7 @@ func (s *Storage) FindFile(name, folderID string) (*drive.File, error) {
 	if len(files.Files) == 1 {
 		return files.Files[0], nil
 	}
-	
+
 	for _, file := range files.Files {
 		log.Printf(">>>\t\tName: %s, ID: %s\n", file.Name, file.Id)
 	}
@@ -54,6 +56,7 @@ func (s *Storage) CreateOrUpdateFile(fromFile *os.File, fileName, mimeType, fold
 	}
 
 	if err == nil && file != nil {
+		// Media needs io.Reader so we can make progress from it
 		file, err = s.service.Files.Update(file.Id, nil).Media(fromFile).Do()
 		return file, err
 	}

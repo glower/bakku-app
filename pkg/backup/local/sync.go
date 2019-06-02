@@ -20,7 +20,10 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		return fmt.Errorf("cannot open file  [%s]: %v", fromPath, err)
 	}
 	defer from.Close()
-	fromStrats, _ := from.Stat()
+	fromStrats, err := from.Stat()
+	if err != nil {
+		return err
+	}
 	readBuffer := bufio.NewReader(from)
 	totalSize := fromStrats.Size()
 
@@ -42,7 +45,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		// read a chunk
 		n, err := readBuffer.Read(buf)
 		if err != nil && err != io.EOF {
-			panic(err)
+			return err
 		}
 		if n == 0 {
 			break
@@ -51,7 +54,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		// write a chunk
 		var written int
 		if written, err = writeBuffer.Write(buf[:n]); err != nil {
-			panic(err)
+			return err
 		}
 		totalWritten = totalWritten + written
 
@@ -60,7 +63,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		}
 
 		if opt.reportProgress {
-			s.reportProgress(int64(written), int64(totalSize), int64(totalWritten), from.Name())
+			s.reportProgress(int64(written), int64(totalSize), int64(totalWritten), from.Name(), opt.fileID)
 		}
 	}
 
@@ -71,11 +74,11 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 }
 
 func sleepRandom() {
-	r := 500000 + rand.Intn(2000000)
+	r := 1500000 + rand.Intn(10000000)
 	time.Sleep(time.Duration(r) * time.Microsecond)
 }
 
-func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name string) {
+func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name, id string) {
 	var percent float64
 	if int64(written) == totalSize {
 		percent = float64(100)
@@ -84,8 +87,10 @@ func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name st
 	}
 
 	s.fileStorageProgressCh <- types.BackupProgress{
-		StorageName: storageName,
-		FileName:    name,
-		Percent:     percent,
+		ID:           id,
+		StorageName:  storageName,
+		FileName:     filepath.Base(name),
+		AbsolutePath: name,
+		Percent:      percent,
 	}
 }
