@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/message"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
 	"github.com/glower/bakku-app/pkg/snapshot/storage/boltdb"
 	"github.com/glower/bakku-app/pkg/types"
+	"github.com/google/uuid"
 
 	"github.com/glower/file-watcher/notification"
 	fi "github.com/glower/file-watcher/util"
@@ -32,9 +32,8 @@ type Snapshot struct {
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) {
-	dirs := config.DirectoriesToWatch()
-	for _, path := range dirs {
+func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) {
+	for _, path := range dirsToWatch {
 		var err error
 		snap := &Snapshot{
 			ctx:                       ctx,
@@ -118,6 +117,7 @@ func (s *Snapshot) create() error {
 			if err != nil {
 				return err
 			}
+			// TODO: don't fire events for the first time, collect data first
 			s.EventCh <- *fileEntry
 		}
 		return nil
@@ -236,6 +236,11 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.Extend
 		return nil, err
 	}
 
+	checksum, err := fileInfo.Checksum()
+	if err != nil {
+		return nil, err
+	}
+
 	snapshot := notification.Event{
 		MimeType:           mimeType,
 		AbsolutePath:       absoluteFilePath,
@@ -247,6 +252,8 @@ func (s *Snapshot) generateFileEntry(absoluteFilePath string, fileInfo fi.Extend
 		Size:               fileInfo.Size(),
 		Timestamp:          fileInfo.ModTime(),
 		WatchDirectoryName: filepath.Base(s.path),
+		UUID:               uuid.New(),
+		Checksum:           checksum,
 	}
 
 	return &snapshot, nil

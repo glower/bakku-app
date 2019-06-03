@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/glower/bakku-app/pkg/backup"
 	"github.com/glower/bakku-app/pkg/message"
@@ -31,15 +32,25 @@ func init() {
 	config.ReadDefaultConfig()
 }
 
-// TODO: try this out: https://github.com/antage/eventsource
+var streams = []string{"files", "messages", "ping"}
+
+// TODO: move me to sso/evet package
 func setupSSE() *sse.Server {
 	events := sse.New()
-	events.CreateStream("files")
+	for _, name := range streams {
+		events.CreateStream(name)
+	}
 	return events
 }
 
+func stopSSE(sseServer *sse.Server) {
+	for _, name := range streams {
+		sseServer.RemoveStream(name)
+	}
+	sseServer.Close()
+}
+
 func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
-	log.Printf("\n")
 	for {
 		select {
 		case <-ctx.Done():
@@ -50,7 +61,7 @@ func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan
 			if strings.Contains(progress.FileName, ".snapshot") {
 				continue
 			}
-			log.Printf("ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, err := json.Marshal(progress)
 			if err != nil {
 				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
@@ -74,21 +85,37 @@ func processErrors(ctx context.Context, errorCh chan notification.Error, message
 					Type:    err.Level,
 					Message: err.Message,
 					Source:  "watcher",
-				})
+				}, "messages")
 			}
 		case msg := <-messageCh:
-			publishEventMessage(sseServer, msg)
+			publishEventMessage(sseServer, msg, "messages")
 		}
 	}
 }
 
-func publishEventMessage(sseServer *sse.Server, msg message.Message) {
+func ping(ctx context.Context, sseServer *sse.Server) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(60 * time.Second):
+			publishEventMessage(sseServer, message.Message{
+				Message: "ping",
+				Type:    "INFO",
+				Source:  "main",
+				Time:    time.Now(),
+			}, "ping")
+		}
+	}
+}
+
+func publishEventMessage(sseServer *sse.Server, msg message.Message, channel string) {
 	messageJSON, err := json.Marshal(msg)
 	if err != nil {
 		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
 	}
-	log.Printf("[%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
-	sseServer.Publish("message", &sse.Event{
+	log.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
+	sseServer.Publish(channel, &sse.Event{
 		Data: messageJSON,
 	})
 }
@@ -113,12 +140,13 @@ func main() {
 
 	messageCh := make(chan message.Message)
 
-	go processErrors(ctx, errorCh, messageCh, sseServer)
-
 	backupStorageManager := backup.Setup(ctx, eventCh, messageCh)
-	snapshot.Setup(ctx, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
+	snapshot.Setup(ctx, dirs, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
 
+	go processErrors(ctx, errorCh, messageCh, sseServer)
+	go ping(ctx, sseServer)
 	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressCh, sseServer)
+
 	startHTTPServer(sseServer)
 
 	// server will block here untill we got SIGTERM/kill
@@ -132,8 +160,7 @@ func main() {
 
 	log.Print("The service is shutting down...")
 	cancel()
-	sseServer.RemoveStream("files")
-	sseServer.Close()
+	stopSSE(sseServer)
 	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first
@@ -162,6 +189,6 @@ func startHTTPServer(sseServer *sse.Server) *http.Server {
 			log.Printf("[ERROR] Failed to run server: %v", err)
 		}
 	}()
-	log.Print("The service is ready to listen and serve.")
+	log.Print("[OK] The service is ready to listen and serve.")
 	return srv
 }

@@ -32,7 +32,6 @@ func ProviderConf(name string) *Config {
 		active = false
 	}
 	conf.Active = active
-
 	return &conf
 }
 
