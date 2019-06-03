@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/glower/bakku-app/pkg/backup"
+	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/types"
@@ -139,9 +140,11 @@ func main() {
 		&watcher.Options{IgnoreDirectoies: true})
 
 	messageCh := make(chan message.Message)
+	backupDoneCh := make(chan types.FileBackupComplete)
 
-	backupStorageManager := backup.Setup(ctx, eventCh, messageCh)
-	snapshot.Setup(ctx, dirs, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
+	eventCache := event.New(ctx, eventCh, backupDoneCh)
+	backupStorageManager := backup.Setup(ctx, eventCache.EvenOutCh, messageCh, backupDoneCh)
+	snapshot.Setup(ctx, dirs, eventCh, messageCh, backupDoneCh)
 
 	go processErrors(ctx, errorCh, messageCh, sseServer)
 	go ping(ctx, sseServer)

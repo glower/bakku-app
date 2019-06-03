@@ -74,7 +74,7 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 }
 
 func sleepRandom() {
-	r := 1500000 + rand.Intn(10000000)
+	r := 500000 + rand.Intn(10000000)
 	time.Sleep(time.Duration(r) * time.Microsecond)
 }
 

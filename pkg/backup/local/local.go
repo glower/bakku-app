@@ -58,7 +58,7 @@ func (s *Storage) Store(event *notification.Event) error {
 	relativePath := event.RelativePath
 	directoryPath := event.DirectoryPath
 
-	fmt.Printf("\nlocal.Store():\n")
+	// fmt.Printf("\nlocal.Store():\n")
 	fmt.Printf(">\tabsolutePath:\t%s\n>\trelativePath:\t%s\n>\tdirectoryPath:\t%s\n\n", absolutePath, relativePath, directoryPath)
 
 	from := absolutePath

@@ -49,7 +49,7 @@ func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.
 		}
 
 		snap.storage = bolt
-		go snap.processFileBackupComplete()
+		// go snap.processFileBackupComplete()
 
 		if !bolt.Exist() {
 			err = snap.create()

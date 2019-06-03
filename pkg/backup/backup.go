@@ -32,14 +32,14 @@ type StorageManager struct {
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message) *StorageManager {
+func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) *StorageManager {
 	m := &StorageManager{
 		Ctx: ctx,
 
 		EventCh:              eventCh,
 		MessageCh:            messageCh,
 		FileBackupProgressCh: make(chan types.BackupProgress),
-		FileBackupCompleteCh: make(chan types.FileBackupComplete),
+		FileBackupCompleteCh: fileBackupCompleteChan, //make(chan types.FileBackupComplete),
 	}
 
 	for name, storage := range GetAll() {
@@ -93,7 +93,7 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 		return
 	}
 
-	// log.Printf("sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
+	log.Printf("!!!!!!!!!!!!!! sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
 	Start(event, storageName)
 	err := backup.Store(event)
 	if err != nil {

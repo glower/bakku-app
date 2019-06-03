@@ -27,9 +27,7 @@ const createProgressListener = () => {
         let id = data.id
         let el = getFreeListElement(id)
         if (el != null) {
-            
             let progress = "";
-            
             if (data.percent == 0) {
                 progress = `<i class="tiny material-icons">file_upload</i> Uploading ...
                     <a href="#!" class="secondary-content">${loading}</a>`
@@ -39,20 +37,17 @@ const createProgressListener = () => {
             } else {
                 progress = `<i class="tiny material-icons">done</i> Synced
                 <a href="#!" class="secondary-content"><i class="material-icons">cloud_done</i></a>`
+                el.setAttribute("data-done", true);
             }
 
             el.setAttribute("data-id", id);
-            el.innerHTML = `
-                <span class="title">${data.file}</span><br>
-                <span class="info">${progress}</span>
-                `;
+            el.innerHTML = `<span class="title">${data.file}</span><br>
+                <span class="info">${progress}</span>`;
         }
     }
 }
 
 const getFreeListElement = (id) => {
-    console.log("getFreeListElement")
-
     let list = document.getElementsByClassName("collection-item");
 
     for (var i = 0; i < list.length; i++) {
@@ -64,9 +59,22 @@ const getFreeListElement = (id) => {
             if (file.dataset.id == id) {
                 return list[i]
             }
-            // console.log("element id:", file.dataset.id)
         }
     }
+
+    // find element what is done
+    for (var i = 0; i < list.length; i++) {
+        let file = document.querySelector(`#item-${i}`);
+        console.log("dataset:", file.dataset)
+        if (file.dataset.done != null && file.dataset.done == "true") {
+            console.log(`element ${i} is done, return it!`)
+            list[i].setAttribute("data-done", false);
+            list[i].setAttribute("data-id", "");
+            list[i].innerHTML = ""
+            return list[i]
+        }
+    }
+
     return null
 }
 
