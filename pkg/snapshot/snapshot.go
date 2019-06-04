@@ -24,23 +24,23 @@ import (
 type Snapshot struct {
 	ctx context.Context
 
-	path                      string
-	storage                   snapshotstorage.Storage
-	EventCh                   chan notification.Event
-	MessageCh                 chan message.Message
-	FileBackupCompleteChannel chan types.FileBackupComplete
+	path                 string
+	storage              snapshotstorage.Storage
+	EventCh              chan notification.Event
+	MessageCh            chan message.Message
+	FileBackupCompleteCh chan types.FileBackupComplete
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) {
+func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteCh chan types.FileBackupComplete) {
 	for _, path := range dirsToWatch {
 		var err error
 		snap := &Snapshot{
-			ctx:                       ctx,
-			path:                      path,
-			MessageCh:                 messageCh,
-			EventCh:                   eventCh,
-			FileBackupCompleteChannel: fileBackupCompleteChan,
+			ctx:                  ctx,
+			path:                 path,
+			MessageCh:            messageCh,
+			EventCh:              eventCh,
+			FileBackupCompleteCh: fileBackupCompleteCh,
 		}
 		bolt := boltdb.New(path)
 		err = snapshotstorage.Register(bolt)
@@ -68,7 +68,7 @@ func (s *Snapshot) processFileBackupComplete() {
 		select {
 		case <-s.ctx.Done():
 			return
-		case fileBackup := <-s.FileBackupCompleteChannel:
+		case fileBackup := <-s.FileBackupCompleteCh:
 			go s.fileBackupComplete(fileBackup)
 		}
 	}

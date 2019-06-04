@@ -6,12 +6,11 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/r3labs/sse"
 )
 
 // Resources ...
 type Resources struct {
-	SSEServer *sse.Server
+	// SSEServer *sse.Server
 	// FSChanges []chan watch.FileChangeInfo
 }
 
@@ -21,7 +20,6 @@ func (res *Resources) Router() *mux.Router {
 	r.Methods("GET").Path("/").HandlerFunc(Index)
 	r.Methods("GET").Path("/health").HandlerFunc(StatusOK)
 	r.Methods("GET").Path("/ping").HandlerFunc(Ping)
-	r.Methods("GET").Path("/events").HandlerFunc(res.SSEServer.HTTPHandler)
 
 	return r
 }

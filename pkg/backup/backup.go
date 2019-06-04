@@ -32,14 +32,14 @@ type StorageManager struct {
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteChan chan types.FileBackupComplete) *StorageManager {
+func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteCh chan types.FileBackupComplete) *StorageManager {
 	m := &StorageManager{
 		Ctx: ctx,
 
 		EventCh:              eventCh,
 		MessageCh:            messageCh,
 		FileBackupProgressCh: make(chan types.BackupProgress),
-		FileBackupCompleteCh: fileBackupCompleteChan, //make(chan types.FileBackupComplete),
+		FileBackupCompleteCh: fileBackupCompleteCh,
 	}
 
 	for name, storage := range GetAll() {

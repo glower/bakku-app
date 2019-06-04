@@ -17,36 +17,36 @@ var (
 	inProgress int32
 )
 
-// Cache ...
-type Cache struct {
+// Buffer TODO: rename me to Buffer!
+type Buffer struct {
 	Ctx context.Context
 
-	MaxElementsInCache    int32
+	MaxElementsInBuffer   int32
 	MaxElementsInProgress int32
-	// var ops uint64
-	Timeout                time.Duration
-	EvenInCh               chan notification.Event
-	EvenOutCh              chan notification.Event
-	FileBackupCompleteChan chan types.FileBackupComplete
+
+	Timeout              time.Duration
+	EvenOutCh            chan<- notification.Event
+	EvenInCh             <-chan notification.Event
+	FileBackupCompleteCh <-chan types.FileBackupComplete
 }
 
 // New ...
-func New(ctx context.Context, eventInCh chan notification.Event, fileBackupCompleteChan chan types.FileBackupComplete) *Cache {
+func New(ctx context.Context, eventInCh <-chan notification.Event, fileBackupCompleteCh <-chan types.FileBackupComplete) *Buffer {
 	// eventCh := make(chan notification.Event)
-	c := &Cache{
-		Ctx:                    ctx,
-		MaxElementsInCache:     1000,
-		MaxElementsInProgress:  5,
-		Timeout:                5 * time.Second,
-		EvenInCh:               eventInCh,
-		EvenOutCh:              make(chan notification.Event),
-		FileBackupCompleteChan: fileBackupCompleteChan,
+	c := &Buffer{
+		Ctx:                   ctx,
+		MaxElementsInBuffer:   1000,
+		MaxElementsInProgress: 5,
+		Timeout:               5 * time.Second,
+		EvenInCh:              eventInCh,
+		EvenOutCh:             make(chan notification.Event),
+		FileBackupCompleteCh:  fileBackupCompleteCh,
 	}
 	go c.processEvents()
 	return c
 }
 
-func (c *Cache) processEvents() {
+func (c *Buffer) processEvents() {
 	for {
 		select {
 		case <-c.Ctx.Done():
@@ -61,7 +61,7 @@ func (c *Cache) processEvents() {
 	}
 }
 
-func (c *Cache) sendAllBack() {
+func (c *Buffer) sendAllBack() {
 	for _, e := range events {
 		if inProgress >= c.MaxElementsInProgress {
 			fmt.Printf(">>> %d/%d files are progress, wait ... \n", inProgress, len(events))
@@ -69,7 +69,7 @@ func (c *Cache) sendAllBack() {
 				select {
 				case <-c.Ctx.Done():
 					return
-				case <-c.FileBackupCompleteChan:
+				case <-c.FileBackupCompleteCh:
 					atomic.AddInt32(&inProgress, -1)
 					fmt.Printf(">>> continue ... \n")
 					return
