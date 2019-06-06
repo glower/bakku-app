@@ -24,23 +24,30 @@ import (
 type Snapshot struct {
 	ctx context.Context
 
-	path                 string
-	storage              snapshotstorage.Storage
-	EventCh              chan notification.Event
-	MessageCh            chan message.Message
+	path      string
+	storage   snapshotstorage.Storage
+	EventCh   chan notification.Event
+	MessageCh chan message.Message
+	*SnapshotManger
+}
+
+type SnapshotManger struct {
 	FileBackupCompleteCh chan types.FileBackupComplete
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteCh chan types.FileBackupComplete) {
+func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message) *SnapshotManger {
+	sm := &SnapshotManger{
+		FileBackupCompleteCh: make(chan types.FileBackupComplete),
+	}
 	for _, path := range dirsToWatch {
 		var err error
 		snap := &Snapshot{
-			ctx:                  ctx,
-			path:                 path,
-			MessageCh:            messageCh,
-			EventCh:              eventCh,
-			FileBackupCompleteCh: fileBackupCompleteCh,
+			ctx:            ctx,
+			path:           path,
+			MessageCh:      messageCh,
+			EventCh:        eventCh,
+			SnapshotManger: sm,
 		}
 		bolt := boltdb.New(path)
 		err = snapshotstorage.Register(bolt)
@@ -49,7 +56,7 @@ func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.
 		}
 
 		snap.storage = bolt
-		// go snap.processFileBackupComplete()
+		go snap.processFileBackupComplete()
 
 		if !bolt.Exist() {
 			err = snap.create()
@@ -61,6 +68,7 @@ func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.
 			snap.MessageCh <- message.FormatMessage("PANIC", err.Error(), "snapshot")
 		}
 	}
+	return sm
 }
 
 func (s *Snapshot) processFileBackupComplete() {

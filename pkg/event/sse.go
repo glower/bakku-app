@@ -26,7 +26,7 @@ type SSE struct {
 }
 
 // NewSSE ...
-func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, errorCh chan notification.Error, messageCh chan message.Message) *SSE {
+func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, errorCh chan notification.Error, messageCh chan message.Message, eventBuffer *Buffer) *SSE {
 	events := sse.New()
 	for _, name := range streams {
 		events.CreateStream(name)

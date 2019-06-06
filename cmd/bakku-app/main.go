@@ -14,7 +14,6 @@ import (
 	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
-	"github.com/glower/bakku-app/pkg/types"
 
 	// autoimport
 	_ "github.com/glower/bakku-app/pkg"
@@ -46,18 +45,15 @@ func main() {
 		[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
 		&watcher.Options{IgnoreDirectoies: true})
 
-	messageCh := make(chan message.Message)
-	backupDoneCh := make(chan types.FileBackupComplete)
+	// TODO: don't like it, refactor it
+	GolbMessageCh := make(chan message.Message)
 
-	eventBuffer := event.New(ctx, eventCh, backupDoneCh)
-
-	backupStorageManager := backup.Setup(ctx, eventBuffer.EvenOutCh, messageCh, backupDoneCh)
-
-	snapshot.Setup(ctx, dirs, eventCh, messageCh, backupDoneCh)
-
+	eventBuffer := event.New(ctx, eventCh)
+	backupStorageManager := backup.Setup(ctx, GolbMessageCh, eventBuffer)
+	snapShotManager := snapshot.Setup(ctx, dirs, eventCh, GolbMessageCh)
 	router := startHTTPServer()
-
-	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, errorCh, messageCh)
+	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, errorCh, GolbMessageCh, eventBuffer)
+	backupStorageManager.SubscribeForFileBackupCompleteEvent(snapShotManager.FileBackupCompleteCh)
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt

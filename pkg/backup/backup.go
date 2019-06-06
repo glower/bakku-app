@@ -7,6 +7,7 @@ import (
 
 	"github.com/glower/file-watcher/notification"
 
+	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/types"
 )
@@ -28,19 +29,26 @@ type StorageManager struct {
 	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
-	FileBackupCompleteCh chan types.FileBackupComplete
+	fileBackupCompleteCh []chan types.FileBackupComplete
+
+	// BackupEventsSubscriber chan chan interface{}
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, eventCh chan notification.Event, messageCh chan message.Message, fileBackupCompleteCh chan types.FileBackupComplete) *StorageManager {
+func Setup(ctx context.Context, messageCh chan message.Message, eventBuffer *event.Buffer) *StorageManager {
+	// eventCh chan<- notification.Event, fileBackupCompleteCh chan types.FileBackupComplete
 	m := &StorageManager{
 		Ctx: ctx,
 
-		EventCh:              eventCh,
+		EventCh:              eventBuffer.EvenOutCh, //eventCh,
 		MessageCh:            messageCh,
 		FileBackupProgressCh: make(chan types.BackupProgress),
-		FileBackupCompleteCh: fileBackupCompleteCh,
+		fileBackupCompleteCh: []chan types.FileBackupComplete{},
+
+		// BackupEventsSubscriber: make(chan chan interface{}),
 	}
+
+	m.fileBackupCompleteCh = append(m.fileBackupCompleteCh, eventBuffer.BackupDoneCh)
 
 	for name, storage := range GetAll() {
 		ok, err := storage.Setup(m)
@@ -103,10 +111,21 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	}
 
 	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
-	m.FileBackupCompleteCh <- types.FileBackupComplete{
+	m.fileBackupComple(types.FileBackupComplete{
 		BackupStorageName:  storageName,
 		AbsolutePath:       event.AbsolutePath,
 		WatchDirectoryName: event.WatchDirectoryName,
+	})
+}
+
+func (m *StorageManager) SubscribeForFileBackupCompleteEvent(ch chan types.FileBackupComplete) {
+	// TODO: add mutex
+	m.fileBackupCompleteCh = append(m.fileBackupCompleteCh, ch)
+}
+
+func (m *StorageManager) fileBackupComple(e types.FileBackupComplete) {
+	for _, ch := range m.fileBackupCompleteCh {
+		ch <- e
 	}
 }
 

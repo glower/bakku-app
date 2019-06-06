@@ -21,26 +21,26 @@ var (
 type Buffer struct {
 	Ctx context.Context
 
-	MaxElementsInBuffer   int32
-	MaxElementsInProgress int32
+	maxElementsInBuffer   int32
+	maxElementsInProgress int32
 
-	Timeout              time.Duration
-	EvenOutCh            chan<- notification.Event
-	EvenInCh             <-chan notification.Event
-	FileBackupCompleteCh <-chan types.FileBackupComplete
+	timeout      time.Duration
+	EvenOutCh    chan notification.Event
+	evenInCh     chan notification.Event
+	BackupDoneCh chan types.FileBackupComplete
 }
 
 // New ...
-func New(ctx context.Context, eventInCh <-chan notification.Event, fileBackupCompleteCh <-chan types.FileBackupComplete) *Buffer {
+func New(ctx context.Context, eventInCh chan notification.Event) *Buffer {
 	// eventCh := make(chan notification.Event)
 	c := &Buffer{
 		Ctx:                   ctx,
-		MaxElementsInBuffer:   1000,
-		MaxElementsInProgress: 5,
-		Timeout:               5 * time.Second,
-		EvenInCh:              eventInCh,
+		maxElementsInBuffer:   1000,
+		maxElementsInProgress: 5,
+		timeout:               5 * time.Second,
+		evenInCh:              eventInCh,
 		EvenOutCh:             make(chan notification.Event),
-		FileBackupCompleteCh:  fileBackupCompleteCh,
+		BackupDoneCh:          make(chan types.FileBackupComplete),
 	}
 	go c.processEvents()
 	return c
@@ -53,9 +53,9 @@ func (c *Buffer) processEvents() {
 			return
 		// case <-c.FileBackupCompleteChan:
 		// 	atomic.AddInt32(&inProgress, -1)
-		case e := <-c.EvenInCh:
+		case e := <-c.evenInCh:
 			addEvent(e.AbsolutePath, e)
-		case <-time.After(c.Timeout):
+		case <-time.After(c.timeout):
 			go c.sendAllBack()
 		}
 	}
@@ -63,13 +63,13 @@ func (c *Buffer) processEvents() {
 
 func (c *Buffer) sendAllBack() {
 	for _, e := range events {
-		if inProgress >= c.MaxElementsInProgress {
+		if inProgress >= c.maxElementsInProgress {
 			fmt.Printf(">>> %d/%d files are progress, wait ... \n", inProgress, len(events))
 			for {
 				select {
 				case <-c.Ctx.Done():
 					return
-				case <-c.FileBackupCompleteCh:
+				case <-c.BackupDoneCh:
 					atomic.AddInt32(&inProgress, -1)
 					fmt.Printf(">>> continue ... \n")
 					return
