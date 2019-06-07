@@ -15,3 +15,9 @@ type BackupProgress struct {
 	ID           string  `json:"id"`
 	Percent      float64 `json:"percent"`
 }
+
+type BackupStatus struct {
+	TotalFiles      int    `json:"total"`
+	FilesInProgress int    `json:"in_progress"`
+	Status          string `json:"status"`
+}

@@ -23,17 +23,18 @@ type Buffer struct {
 
 	maxElementsInBuffer   int32
 	maxElementsInProgress int32
+	evenInCh              chan notification.Event
+	timeout               time.Duration
 
-	timeout      time.Duration
-	EvenOutCh    chan notification.Event
-	evenInCh     chan notification.Event
-	BackupDoneCh chan types.FileBackupComplete
+	EvenOutCh      chan notification.Event
+	BackupDoneCh   chan types.FileBackupComplete
+	BackupStatusCh chan types.BackupStatus
 }
 
 // New ...
 func New(ctx context.Context, eventInCh chan notification.Event) *Buffer {
 	// eventCh := make(chan notification.Event)
-	c := &Buffer{
+	b := &Buffer{
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
 		maxElementsInProgress: 5,
@@ -41,53 +42,68 @@ func New(ctx context.Context, eventInCh chan notification.Event) *Buffer {
 		evenInCh:              eventInCh,
 		EvenOutCh:             make(chan notification.Event),
 		BackupDoneCh:          make(chan types.FileBackupComplete),
+		BackupStatusCh:        make(chan types.BackupStatus),
 	}
-	go c.processEvents()
-	return c
+	go b.processEvents()
+	return b
 }
 
-func (c *Buffer) processEvents() {
+func (b *Buffer) processEvents() {
 	for {
 		select {
-		case <-c.Ctx.Done():
+		case <-b.Ctx.Done():
 			return
-		// case <-c.FileBackupCompleteChan:
-		// 	atomic.AddInt32(&inProgress, -1)
-		case e := <-c.evenInCh:
-			addEvent(e.AbsolutePath, e)
-		case <-time.After(c.timeout):
-			go c.sendAllBack()
+		case e := <-b.evenInCh:
+			b.addEvent(e.AbsolutePath, e)
+		case <-time.After(b.timeout):
+			go b.sendAllBack()
 		}
 	}
 }
 
-func (c *Buffer) sendAllBack() {
+func (b *Buffer) sendAllBack() {
 	for _, e := range events {
-		if inProgress >= c.maxElementsInProgress {
+		if inProgress >= b.maxElementsInProgress {
 			fmt.Printf(">>> %d/%d files are progress, wait ... \n", inProgress, len(events))
 			for {
 				select {
-				case <-c.Ctx.Done():
+				case <-b.Ctx.Done():
 					return
-				case <-c.BackupDoneCh:
+				case <-b.BackupDoneCh:
 					atomic.AddInt32(&inProgress, -1)
 					fmt.Printf(">>> continue ... \n")
 					return
 				}
 			}
 		} else {
-			c.EvenOutCh <- e
+			b.EvenOutCh <- e
 			removeEvent(e.AbsolutePath)
 			atomic.AddInt32(&inProgress, 1)
 		}
+		b.BackupStatusCh <- types.BackupStatus{
+			FilesInProgress: int(inProgress),
+			TotalFiles:      len(events),
+			Status:          "uploading",
+		}
+	}
+	b.BackupStatusCh <- types.BackupStatus{
+		FilesInProgress: 0,
+		TotalFiles:      0,
+		Status:          "waiting",
 	}
 }
 
 // addEvent adds an event to the internal cache
-func addEvent(path string, e notification.Event) {
+func (b *Buffer) addEvent(path string, e notification.Event) {
 	eventsM.Lock()
 	defer eventsM.Unlock()
 	events[path] = e
+
+	b.BackupStatusCh <- types.BackupStatus{
+		FilesInProgress: 0,
+		TotalFiles:      len(events),
+		Status:          "preparing",
+	}
 }
 
 func removeEvent(path string) {
