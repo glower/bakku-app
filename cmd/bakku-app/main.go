@@ -2,20 +2,19 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
+
+	"github.com/gorilla/mux"
 
 	"github.com/glower/bakku-app/pkg/backup"
+	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
-	"github.com/glower/bakku-app/pkg/types"
 
 	// autoimport
 	_ "github.com/glower/bakku-app/pkg"
@@ -24,109 +23,18 @@ import (
 
 	"github.com/glower/file-watcher/notification"
 	"github.com/glower/file-watcher/watcher"
-
-	"github.com/r3labs/sse"
 )
 
 func init() {
 	config.ReadDefaultConfig()
 }
 
-var streams = []string{"files", "messages", "ping"}
-
-// TODO: move me to sso/evet package
-func setupSSE() *sse.Server {
-	events := sse.New()
-	for _, name := range streams {
-		events.CreateStream(name)
-	}
-	return events
-}
-
-func stopSSE(sseServer *sse.Server) {
-	for _, name := range streams {
-		sseServer.RemoveStream(name)
-	}
-	sseServer.Close()
-}
-
-func processProgressCallback(ctx context.Context, fileBackupProgressChannel chan types.BackupProgress, sseServer *sse.Server) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case progress := <-fileBackupProgressChannel:
-			// TODO: don't report progress on backup of snapshot file
-			// get this name from config/package
-			if strings.Contains(progress.FileName, ".snapshot") {
-				continue
-			}
-			log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
-			progressJSON, err := json.Marshal(progress)
-			if err != nil {
-				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
-			}
-			// file fotification for the frontend client over the SSE
-			sseServer.Publish("files", &sse.Event{
-				Data: progressJSON,
-			})
-		}
-	}
-}
-
-func processErrors(ctx context.Context, errorCh chan notification.Error, messageCh chan message.Message, sseServer *sse.Server) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case err := <-errorCh:
-			if err.Level == "ERROR" || err.Level == "CRITICAL" {
-				publishEventMessage(sseServer, message.Message{
-					Type:    err.Level,
-					Message: err.Message,
-					Source:  "watcher",
-				}, "messages")
-			}
-		case msg := <-messageCh:
-			publishEventMessage(sseServer, msg, "messages")
-		}
-	}
-}
-
-func ping(ctx context.Context, sseServer *sse.Server) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(60 * time.Second):
-			publishEventMessage(sseServer, message.Message{
-				Message: "ping",
-				Type:    "INFO",
-				Source:  "main",
-				Time:    time.Now(),
-			}, "ping")
-		}
-	}
-}
-
-func publishEventMessage(sseServer *sse.Server, msg message.Message, channel string) {
-	messageJSON, err := json.Marshal(msg)
-	if err != nil {
-		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
-	}
-	log.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
-	sseServer.Publish(channel, &sse.Event{
-		Data: messageJSON,
-	})
-}
-
 func main() {
 	log.Println("Starting the service ...")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-
-	sseServer := setupSSE()
 
 	// read from the configuration file a list of directories to watch
 	dirs := config.DirectoriesToWatch()
@@ -138,16 +46,24 @@ func main() {
 		[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
 		&watcher.Options{IgnoreDirectoies: true})
 
-	messageCh := make(chan message.Message)
+	router := startHTTPServer()
 
-	backupStorageManager := backup.Setup(ctx, eventCh, messageCh)
-	snapshot.Setup(ctx, dirs, eventCh, messageCh, backupStorageManager.FileBackupCompleteCh)
+	// TODO: don't like it, refactor it
+	GolbMessageCh := make(chan message.Message)
 
-	go processErrors(ctx, errorCh, messageCh, sseServer)
-	go ping(ctx, sseServer)
-	go processProgressCallback(ctx, backupStorageManager.FileBackupProgressCh, sseServer)
+	eventBuffer := event.NewBuffer(ctx, eventCh)
+	fmt.Println("event buffer is up and running ...")
+	backupStorageManager := backup.Setup(ctx, GolbMessageCh, eventBuffer)
+	fmt.Println("backup storage manager is up and running ...")
+	// THIS NEEDS TO START ASAP!!!
+	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, errorCh, GolbMessageCh, eventBuffer)
+	fmt.Println("SSE server is up and running ...")
+	snapShotManager := snapshot.Setup(ctx, dirs, eventCh, GolbMessageCh)
+	fmt.Println("snapshot manager is up and running ...")
 
-	startHTTPServer(sseServer)
+	backupStorageManager.SubscribeForFileBackupCompleteEvent(snapShotManager.FileBackupCompleteCh)
+
+	fmt.Println("!!! All Services Are Up And Running !!!")
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -160,23 +76,21 @@ func main() {
 
 	log.Print("The service is shutting down...")
 	cancel()
-	stopSSE(sseServer)
+	sseServer.StopSSE()
 	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(sseServer *sse.Server) *http.Server {
+func startHTTPServer() *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
 		port = "8080"
 	}
 
-	r := handlers.Resources{
-		SSEServer: sseServer,
-	}
+	r := handlers.Resources{}
 	router := r.Router()
 	srv := &http.Server{
 		Addr:    ":" + port,
@@ -189,6 +103,6 @@ func startHTTPServer(sseServer *sse.Server) *http.Server {
 			log.Printf("[ERROR] Failed to run server: %v", err)
 		}
 	}()
-	log.Print("[OK] The service is ready to listen and serve.")
-	return srv
+	log.Print("[OK] The service is ready to listen and serve!")
+	return router
 }
