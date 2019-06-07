@@ -15,7 +15,7 @@ import (
 	"github.com/r3labs/sse"
 )
 
-var streams = []string{"files", "messages", "ping"}
+var streams = []string{"files", "messages", "ping", "status"}
 
 type SSE struct {
 	ctx context.Context
@@ -45,6 +45,7 @@ func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types
 	// errorCh chan notification.Error
 	// messageCh chan message.Message
 	// fileBackupCompleteBCh broadcast.Broadcast
+	go s.processBackupStatus(eventBuffer.BackupStatusCh)
 	go s.processErrors(errorCh, messageCh)
 	go s.processProgressCallback(backupProgressCh)
 	go s.ping()
@@ -61,6 +62,24 @@ func (s *SSE) StopSSE() {
 
 func (s *SSE) addEventRoute() {
 	s.router.Methods("GET").Path("/events").HandlerFunc(s.server.HTTPHandler)
+}
+
+func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case bs := <-status:
+			log.Printf("[SSE] processBackupStatus(): [%s] [%d/%d]\n", bs.Status, bs.FilesInProgress, bs.TotalFiles)
+			stautsJSON, err := json.Marshal(bs)
+			if err != nil {
+				stautsJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
+			}
+			s.server.Publish("status", &sse.Event{
+				Data: stautsJSON,
+			})
+		}
+	}
 }
 
 func (s *SSE) processProgressCallback(backupProgressCh chan types.BackupProgress) {

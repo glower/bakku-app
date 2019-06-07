@@ -14,8 +14,28 @@ const loading = `
     </div>
 `
 
+const createBackupStatusListener = () => {
+    console.log("createBackupStatusListener()");
+
+    var evtSource = new EventSource(`http://localhost:8080/events?stream=status`);
+    evtSource.onerror = (err) => {
+        console.error("!!! createBackupStatusListener():", err)
+    }
+    evtSource.onmessage = (evt) => {
+        let data = JSON.parse(evt.data)
+        let prog = data.done * 100 / data.total
+
+        let progress = `
+        <div class="progress">
+            <div class="determinate" style="width: ${prog}%"></div>
+        </div>
+        <div id="backup-status-text">Uploaded ${data.done} of ${data.total} (${data.status})</div>`
+        let el = document.getElementById("backup-status")
+        el.innerHTML = progress
+    }
+}
+
 const createProgressListener = () => {
-    // alert("createProgressListener")
     console.log("createProgressListener()");
 
     var evtSource = new EventSource(`http://localhost:8080/events?stream=files`);
@@ -78,4 +98,5 @@ const getFreeListElement = (id) => {
     return null
 }
 
+document.addEventListener('DOMContentLoaded', createBackupStatusListener);
 document.addEventListener('DOMContentLoaded', createProgressListener);

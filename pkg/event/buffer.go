@@ -14,7 +14,8 @@ import (
 var (
 	eventsM    sync.RWMutex
 	events     = make(map[string]notification.Event)
-	inProgress int32
+	inProgress int32 // int64?
+	done       int32
 )
 
 // Buffer TODO: rename me to Buffer!
@@ -31,9 +32,9 @@ type Buffer struct {
 	BackupStatusCh chan types.BackupStatus
 }
 
-// New ...
-func New(ctx context.Context, eventInCh chan notification.Event) *Buffer {
-	// eventCh := make(chan notification.Event)
+// NewBuffer ...
+func NewBuffer(ctx context.Context, eventInCh chan notification.Event) *Buffer {
+	fmt.Println("event.NewBuffer(): starting event buffer")
 	b := &Buffer{
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
@@ -61,6 +62,8 @@ func (b *Buffer) processEvents() {
 	}
 }
 
+// TODO: we can have multiple BackupDone events for the same file (different backup provider!)
+// so the `done` counter needs to be fixed somehow!
 func (b *Buffer) sendAllBack() {
 	for _, e := range events {
 		if inProgress >= b.maxElementsInProgress {
@@ -71,6 +74,7 @@ func (b *Buffer) sendAllBack() {
 					return
 				case <-b.BackupDoneCh:
 					atomic.AddInt32(&inProgress, -1)
+					atomic.AddInt32(&done, 1)
 					fmt.Printf(">>> continue ... \n")
 					return
 				}
@@ -80,13 +84,17 @@ func (b *Buffer) sendAllBack() {
 			removeEvent(e.AbsolutePath)
 			atomic.AddInt32(&inProgress, 1)
 		}
+
 		b.BackupStatusCh <- types.BackupStatus{
+			FilesDone:       int(done),
 			FilesInProgress: int(inProgress),
 			TotalFiles:      len(events),
 			Status:          "uploading",
 		}
 	}
+
 	b.BackupStatusCh <- types.BackupStatus{
+		FilesDone:       0,
 		FilesInProgress: 0,
 		TotalFiles:      0,
 		Status:          "waiting",
@@ -95,15 +103,16 @@ func (b *Buffer) sendAllBack() {
 
 // addEvent adds an event to the internal cache
 func (b *Buffer) addEvent(path string, e notification.Event) {
+	// fmt.Printf("event.Buffer.addEent(): file path [%s]\n", path)
 	eventsM.Lock()
 	defer eventsM.Unlock()
 	events[path] = e
-
-	b.BackupStatusCh <- types.BackupStatus{
-		FilesInProgress: 0,
-		TotalFiles:      len(events),
-		Status:          "preparing",
-	}
+	// b.BackupStatusCh <- types.BackupStatus{
+	// 	FilesInProgress: 0,
+	// 	FilesDone:       int(done),
+	// 	TotalFiles:      len(events),
+	// 	Status:          "preparing",
+	// }
 }
 
 func removeEvent(path string) {

@@ -59,3 +59,19 @@ li span.info {
   top: -5px;
   left: -5px;
 }
+
+#backup-status-text {
+  font-size: 10px;
+  margin: 0px;
+  padding: 0px;
+}
+
+.progress {
+  /* position: relative;
+  height: 4px;
+  display: block;
+  width: 100%;
+  background-color: #acece6;
+  border-radius: 2px; */
+  margin: .5rem 0 0.5rem 0;
+}

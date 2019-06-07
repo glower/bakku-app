@@ -52,6 +52,7 @@ func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.
 		bolt := boltdb.New(path)
 		err = snapshotstorage.Register(bolt)
 		if err != nil {
+			fmt.Printf("snapshot.Setup(): PANIC %v\n", err)
 			snap.MessageCh <- message.FormatMessage("PANIC", err.Error(), "snapshot")
 		}
 
@@ -125,7 +126,6 @@ func (s *Snapshot) create() error {
 			if err != nil {
 				return err
 			}
-			// TODO: don't fire events for the first time, collect data first
 			s.EventCh <- *fileEntry
 		}
 		return nil
@@ -187,7 +187,7 @@ func (s *Snapshot) updateFileSnapshot(backupStorageName string, entry *notificat
 func (s *Snapshot) fileDifferentToBackup(backupStorageName string, entry *notification.Event) bool {
 	snapshotEntryJSON, err := s.storage.Get(entry.AbsolutePath, backupStorageName)
 	if err != nil {
-		log.Printf("fileDifferentToBackup(): %v", err)
+		// log.Printf("[INFO] fileDifferentToBackup(): %v", err)
 		// TODO: add ErrorBucketNotFound for "bolt.Get(): bucket [fake] not found" and check for it
 		return true
 	}

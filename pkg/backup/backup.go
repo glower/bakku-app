@@ -30,8 +30,6 @@ type StorageManager struct {
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
 	fileBackupCompleteCh []chan types.FileBackupComplete
-
-	// BackupEventsSubscriber chan chan interface{}
 }
 
 // Setup runs all implemented storages
@@ -44,8 +42,6 @@ func Setup(ctx context.Context, messageCh chan message.Message, eventBuffer *eve
 		MessageCh:            messageCh,
 		FileBackupProgressCh: make(chan types.BackupProgress),
 		fileBackupCompleteCh: []chan types.FileBackupComplete{},
-
-		// BackupEventsSubscriber: make(chan chan interface{}),
 	}
 
 	m.fileBackupCompleteCh = append(m.fileBackupCompleteCh, eventBuffer.BackupDoneCh)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -45,15 +46,24 @@ func main() {
 		[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
 		&watcher.Options{IgnoreDirectoies: true})
 
+	router := startHTTPServer()
+
 	// TODO: don't like it, refactor it
 	GolbMessageCh := make(chan message.Message)
 
-	eventBuffer := event.New(ctx, eventCh)
+	eventBuffer := event.NewBuffer(ctx, eventCh)
+	fmt.Println("event buffer is up and running ...")
 	backupStorageManager := backup.Setup(ctx, GolbMessageCh, eventBuffer)
-	snapShotManager := snapshot.Setup(ctx, dirs, eventCh, GolbMessageCh)
-	router := startHTTPServer()
+	fmt.Println("backup storage manager is up and running ...")
+	// THIS NEEDS TO START ASAP!!!
 	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, errorCh, GolbMessageCh, eventBuffer)
+	fmt.Println("SSE server is up and running ...")
+	snapShotManager := snapshot.Setup(ctx, dirs, eventCh, GolbMessageCh)
+	fmt.Println("snapshot manager is up and running ...")
+
 	backupStorageManager.SubscribeForFileBackupCompleteEvent(snapShotManager.FileBackupCompleteCh)
+
+	fmt.Println("!!! All Services Are Up And Running !!!")
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -93,6 +103,6 @@ func startHTTPServer() *mux.Router {
 			log.Printf("[ERROR] Failed to run server: %v", err)
 		}
 	}()
-	log.Print("[OK] The service is ready to listen and serve.")
+	log.Print("[OK] The service is ready to listen and serve!")
 	return router
 }
