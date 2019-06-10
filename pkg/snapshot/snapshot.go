@@ -52,7 +52,6 @@ func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.
 		bolt := boltdb.New(path)
 		err = snapshotstorage.Register(bolt)
 		if err != nil {
-			fmt.Printf("snapshot.Setup(): PANIC %v\n", err)
 			snap.MessageCh <- message.FormatMessage("PANIC", err.Error(), "snapshot")
 		}
 

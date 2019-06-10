@@ -67,7 +67,7 @@ func (b *Buffer) processEvents() {
 func (b *Buffer) sendAllBack() {
 	for _, e := range events {
 		if inProgress >= b.maxElementsInProgress {
-			fmt.Printf(">>> %d/%d files are progress, wait ... \n", inProgress, len(events))
+			fmt.Printf(">>> %d/%d files are in progress, wait ... \n", inProgress, len(events))
 			for {
 				select {
 				case <-b.Ctx.Done():
@@ -107,12 +107,6 @@ func (b *Buffer) addEvent(path string, e notification.Event) {
 	eventsM.Lock()
 	defer eventsM.Unlock()
 	events[path] = e
-	// b.BackupStatusCh <- types.BackupStatus{
-	// 	FilesInProgress: 0,
-	// 	FilesDone:       int(done),
-	// 	TotalFiles:      len(events),
-	// 	Status:          "preparing",
-	// }
 }
 
 func removeEvent(path string) {
