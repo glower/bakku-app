@@ -62,7 +62,7 @@ li span.info {
 
 #backup-status-text {
   font-size: 10px;
-  margin: 0px;
+  margin: 0 0 0 20px;
   padding: 0px;
 }
 
@@ -71,7 +71,11 @@ li span.info {
   height: 4px;
   display: block;
   width: 100%;
-  background-color: #acece6;
   border-radius: 2px; */
-  margin: .5rem 0 0.5rem 0;
+  background-color:whitesmoke;
+  margin: 0 0 0.5rem 0;
+}
+
+.progress .determinate {
+  background-color: darkblue;
 }

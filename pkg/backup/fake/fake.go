@@ -30,7 +30,7 @@ func init() {
 
 // Setup fake storage
 func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
-	config := conf.ProviderConf(storageName)
+	config := conf.FakeDriverConfig()
 	if config.Active {
 		s.name = storageName
 		s.MessageCh = m.MessageCh
@@ -49,7 +49,7 @@ func (s *Storage) Store(ev *notification.Event) error {
 	for {
 		<-time.After(1 * time.Second)
 		sleepRandom()
-		p = p + 5
+		p = p + 1 + float64(rand.Intn(4))
 		s.fileStorageProgressCh <- types.BackupProgress{
 			AbsolutePath: file,
 			StorageName:  storageName,
@@ -64,6 +64,6 @@ func (s *Storage) Store(ev *notification.Event) error {
 }
 
 func sleepRandom() {
-	r := 100000 + rand.Intn(500000)
+	r := 1000000 + rand.Intn(3000000)
 	time.Sleep(time.Duration(r) * time.Microsecond)
 }
