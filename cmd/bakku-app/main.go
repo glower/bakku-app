@@ -37,8 +37,6 @@ func main() {
 	flag.BoolVar(&useFakeEvents, "fake", false, "use fake events")
 	flag.Parse()
 
-	fmt.Printf(">>>>>> useFakeEvents=%v\n", useFakeEvents)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)

@@ -76,7 +76,7 @@ const getFreeListElement = (id) => {
             return list[i]
         } else {
             let file = document.querySelector(`#item-${i}`);
-            if (file.dataset.id == id) {
+            if (file != null && file.dataset != null && file.dataset.id == id) {
                 return list[i]
             }
         }

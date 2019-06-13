@@ -7,6 +7,7 @@ function getMain() {
     return new BrowserWindow({
         webPreferences: {
             nodeIntegration: true
+            // devTools: true
         },
         skipTaskbar: true,
         width: MAIN_WINDOW_WIDTH,

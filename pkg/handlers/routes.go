@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
+	"github.com/glower/bakku-app/pkg/config"
 	"github.com/gorilla/mux"
 )
 
@@ -20,6 +22,8 @@ func (res *Resources) Router() *mux.Router {
 	r.Methods("GET").Path("/").HandlerFunc(Index)
 	r.Methods("GET").Path("/health").HandlerFunc(StatusOK)
 	r.Methods("GET").Path("/ping").HandlerFunc(Ping)
+
+	r.Methods("GET").Path("/api/config").HandlerFunc(Config)
 
 	return r
 }
@@ -39,4 +43,17 @@ func Ping(res http.ResponseWriter, _ *http.Request) {
 func Index(res http.ResponseWriter, _ *http.Request) {
 	body, _ := ioutil.ReadFile("ui/index.html")
 	fmt.Fprintf(res, "%s", body)
+}
+
+// type ConfigJSON struct {
+// 	Directories []string ``
+// }
+
+// Config returns local configuration
+func Config(w http.ResponseWriter, r *http.Request) {
+	// TODO: return complete configuration
+	dirs := config.DirectoriesToWatch()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(dirs)
 }

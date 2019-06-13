@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, net } = require('electron');
 const path = require('path');
 const EventSource = require("eventsource");
 const windowFactory = require('./helpers/window-factory');
@@ -130,6 +130,23 @@ ipcMain.on('fixHeight', (event, height) => window.setSize(MAIN_WINDOW_WIDTH, hei
 if (app.dock) app.dock.hide();
 
 // Attach listener in the main process with the given ID
-ipcMain.on('settings-action', (event, arg) => {
-   console.log("MAIN: settings action !!!!", arg);
+ipcMain.on('get-config-action', (event, arg) => {
+   console.log("MAIN: call /api/config");
+   // const { net } = require('electron');
+   const req = net.request('http://localhost:8080/api/config');
+   req.on('response', (response) => {
+      console.log(`STATUS: ${response.statusCode}`)
+      // console.log(`HEADERS: ${JSON.stringify(response.headers)}`)
+      response.on('data', (chunk) => {
+         console.log(`BODY: ${chunk}`);
+         window.webContents.send('reply', chunk);
+      })
+      response.on('error', (error) => {
+         console.log(`ERROR: ${JSON.stringify(error)}`)
+      })
+      response.on('end', () => {
+         console.log('No more data in response.')
+      })
+   });
+   req.end()
 });
