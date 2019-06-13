@@ -1,10 +1,13 @@
 'use strict';
 
 const { BrowserWindow } = require('electron');
-const { APP_NAME, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT, UPDATER_WINDOW_HEIGHT, UPDATER_WINDOW_WIDTH } = require('./constants');
+const { APP_NAME, MAIN_WINDOW_WIDTH, MAIN_WINDOW_HEIGHT } = require('./constants');
 
 function getMain() {
     return new BrowserWindow({
+        webPreferences: {
+            nodeIntegration: true
+        },
         skipTaskbar: true,
         width: MAIN_WINDOW_WIDTH,
         height: MAIN_WINDOW_HEIGHT,

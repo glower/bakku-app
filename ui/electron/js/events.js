@@ -19,7 +19,7 @@ const createBackupStatusListener = () => {
 
     var evtSource = new EventSource(`http://localhost:8080/events?stream=status`);
     evtSource.onerror = (err) => {
-        console.error("!!! createBackupStatusListener():", err)
+        // console.error("!!! createBackupStatusListener():", err)
     }
     evtSource.onmessage = (evt) => {
         let data = JSON.parse(evt.data)
@@ -40,7 +40,7 @@ const createProgressListener = () => {
 
     var evtSource = new EventSource(`http://localhost:8080/events?stream=files`);
     evtSource.onerror = (err) => {
-        console.error("!!! createProgressListener():", err)
+        // console.error("!!! createProgressListener():", err)
     }
     evtSource.onmessage = (evt) => {
         let data = JSON.parse(evt.data)

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain } = require('electron');
 const path = require('path');
 const EventSource = require("eventsource");
 const windowFactory = require('./helpers/window-factory');
@@ -19,7 +19,7 @@ app.on('ready', () => {
 })
 
 const createTray = () => {
-   tray = new Tray(path.join('icon.png'))
+   tray = new Tray(path.join('spaceship.png'))
    setTrayConfigs(tray);
    setTrayListeners(tray);
 }
@@ -45,7 +45,7 @@ const createWindow = () => {
    window = windowFactory.get('main');
    setWindowConfigs(window);
 
-   window.loadFile(path.join(__dirname, 'index.html'));
+   window.loadFile(path.join(__dirname, 'view/progress.html'));
    window.webContents.send('loading', {});
    setWindowListeners(window);
 }
@@ -102,10 +102,6 @@ function manageTrayRightClick(tray) {
    tray.popUpContextMenu(trayMenu);
 }
 
-
-ipcMain.on('fixHeight', (event, height) => window.setSize(MAIN_WINDOW_WIDTH, height, true));
-if (app.dock) app.dock.hide();
-
 // https://www.npmjs.com/package/node-notifier#within-electron-packaging
 const createNotificationListener = (name) => {
    console.log("createNotificationListener():", name)
@@ -118,10 +114,10 @@ const createNotificationListener = (name) => {
       let data = JSON.parse(evt.data)
       console.log(data)
       notifier.notify({
-            title: data.type, // String. Required
-            message: data.message, // String. Required if remove is not defined
-            sound: false, // Bool | String (as defined by http://msdn.microsoft.com/en-us/library/windows/apps/hh761492.aspx)
-            wait: false, // Bool. Wait for User Action against Notification or times out
+            title: data.type,
+            message: data.message,
+            sound: false,
+            wait: false,
          },
          function (error, response) {
             console.log(response);
@@ -130,3 +126,10 @@ const createNotificationListener = (name) => {
    }
 }
 
+ipcMain.on('fixHeight', (event, height) => window.setSize(MAIN_WINDOW_WIDTH, height, true));
+if (app.dock) app.dock.hide();
+
+// Attach listener in the main process with the given ID
+ipcMain.on('settings-action', (event, arg) => {
+   console.log("MAIN: settings action !!!!", arg);
+});
