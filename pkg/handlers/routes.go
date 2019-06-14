@@ -45,15 +45,19 @@ func Index(res http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(res, "%s", body)
 }
 
-// type ConfigJSON struct {
-// 	Directories []string ``
-// }
+// ConfigJSON ...
+type ConfigJSON struct {
+	Directories []string `json:"directories"`
+}
 
 // Config returns local configuration
 func Config(w http.ResponseWriter, r *http.Request) {
 	// TODO: return complete configuration
 	dirs := config.DirectoriesToWatch()
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dirs)
+
+	err := json.NewEncoder(w).Encode(ConfigJSON{dirs})
+	if err != nil {
+		json.NewEncoder(w).Encode(fmt.Sprintf(`{"error": "%s"}`, err))
+	}
 }

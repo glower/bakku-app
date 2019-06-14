@@ -131,15 +131,14 @@ if (app.dock) app.dock.hide();
 
 // Attach listener in the main process with the given ID
 ipcMain.on('get-config-action', (event, arg) => {
-   console.log("MAIN: call /api/config");
    // const { net } = require('electron');
    const req = net.request('http://localhost:8080/api/config');
    req.on('response', (response) => {
       console.log(`STATUS: ${response.statusCode}`)
       // console.log(`HEADERS: ${JSON.stringify(response.headers)}`)
       response.on('data', (chunk) => {
-         console.log(`BODY: ${chunk}`);
-         window.webContents.send('reply', chunk);
+         // TODO: how big is chunk here?
+         window.webContents.send('get-config-action-reply', chunk);
       })
       response.on('error', (error) => {
          console.log(`ERROR: ${JSON.stringify(error)}`)

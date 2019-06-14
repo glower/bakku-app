@@ -9,12 +9,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     document.querySelector('#settings-tab').addEventListener('click', () => {
-        console.log("TAB: [settings] call settings endpoint!");
-        let r = ipcRenderer.send('get-config-action');
-        ipcRenderer.on('reply', (event, data) => {
-            // let json = JSON.stringify(data);
-            // console.log(bufferOriginal.toString('utf8'));
-            console.log("data", data.toString('utf8'));
+        ipcRenderer.send('get-config-action');
+        ipcRenderer.on('get-config-action-reply', (event, data) => {
+            let json = JSON.parse(data.toString('utf8'));
+            console.log(json);
+            if (json.directories != null) {
+                let list = document.getElementById("directories-list");
+                list.innerHTML = ""; // reset the old list
+                json.directories.forEach(dir => {
+                    console.log("Dir:", dir)
+                    list.innerHTML += `
+                    <li class="collection-item">
+                        <label>
+                            <input type="checkbox" class="filled-in" checked="checked" />
+                            <span>${dir}</span>
+                        </label>
+                    </li>`
+                });
+            }
         });
     });
 })
