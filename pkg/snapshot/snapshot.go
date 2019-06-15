@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/glower/bakku-app/pkg/config"
 	storageconfig "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/message"
 	snapshotstorage "github.com/glower/bakku-app/pkg/snapshot/storage"
@@ -36,20 +37,23 @@ type SnapshotManger struct {
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, dirsToWatch []string, eventCh chan notification.Event, messageCh chan message.Message) *SnapshotManger {
+func Setup(ctx context.Context, conf *config.WatchConfig, eventCh chan notification.Event, messageCh chan message.Message) *SnapshotManger {
 	sm := &SnapshotManger{
 		FileBackupCompleteCh: make(chan types.FileBackupComplete),
 	}
-	for _, path := range dirsToWatch {
+	for _, e := range conf.DirsToWatch {
+		if !e.Active {
+			continue
+		}
 		var err error
 		snap := &Snapshot{
 			ctx:            ctx,
-			path:           path,
+			path:           e.Path,
 			MessageCh:      messageCh,
 			EventCh:        eventCh,
 			SnapshotManger: sm,
 		}
-		bolt := boltdb.New(path)
+		bolt := boltdb.New(e.Path)
 		err = snapshotstorage.Register(bolt)
 		if err != nil {
 			snap.MessageCh <- message.FormatMessage("PANIC", err.Error(), "snapshot")

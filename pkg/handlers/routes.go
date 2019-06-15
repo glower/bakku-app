@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -45,19 +44,16 @@ func Index(res http.ResponseWriter, _ *http.Request) {
 	fmt.Fprintf(res, "%s", body)
 }
 
-// ConfigJSON ...
-type ConfigJSON struct {
-	Directories []string `json:"directories"`
-}
-
 // Config returns local configuration
 func Config(w http.ResponseWriter, r *http.Request) {
 	// TODO: return complete configuration
-	dirs := config.DirectoriesToWatch()
+	conf := config.DirectoriesToWatch()
+	fmt.Printf("!!! %v\n", conf)
+	json := conf.ToJSON()
 	w.Header().Set("Content-Type", "application/json")
-
-	err := json.NewEncoder(w).Encode(ConfigJSON{dirs})
-	if err != nil {
-		json.NewEncoder(w).Encode(fmt.Sprintf(`{"error": "%s"}`, err))
-	}
+	w.Write([]byte(json))
+	// err := json.NewEncoder(w).Encode(ConfigJSON{dirs})
+	// if err != nil {
+	// 	json.NewEncoder(w).Encode(fmt.Sprintf(`{"error": "%s"}`, err))
+	// }
 }

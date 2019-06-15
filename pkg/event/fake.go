@@ -6,13 +6,14 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/file-watcher/notification"
 	"github.com/google/uuid"
 )
 
 var cnt = 0
 
-func Fake(ctx context.Context, dirsToWatch []string) (chan notification.Event, chan notification.Error) {
+func Fake(ctx context.Context, _ *config.WatchConfig) (chan notification.Event, chan notification.Error) {
 	eventCh := make(chan notification.Event)
 	errorCh := make(chan notification.Error)
 	go createFakeEvents(ctx, eventCh)
