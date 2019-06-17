@@ -50,6 +50,7 @@ func main() {
 	if useFakeEvents {
 		GlobEventCh, GlobErrorCh = event.Fake(ctx, dirs)
 	} else {
+		// stup file chage notifications
 		GlobEventCh, GlobErrorCh = watcher.Setup(
 			ctx,
 			dirs,
