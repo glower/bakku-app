@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -48,21 +49,34 @@ func ReadDefaultConfig() {
 	}
 }
 
+type WatchConfig struct {
+	DirsToWatch []Watch `json:"dirs_to_watch"`
+}
+
+// Watch ...
+type Watch struct {
+	Path   string `json:"path"`
+	Active bool   `json:"active"`
+}
+
 // DirectoriesToWatch returns a list of directories to watch for the file changes
-func DirectoriesToWatch() []string {
-	var result []string
-	dirs, ok := viper.Get("watch").([]interface{})
-	if !ok {
-		log.Println("config.DirectoriesToWatch(): nothing to watch")
-		return result
+func DirectoriesToWatch() *WatchConfig {
+	result := &WatchConfig{}
+
+	err := viper.Unmarshal(&result)
+	if err != nil {
+		panic("Unable to unmarshal config")
 	}
-	for _, dir := range dirs {
-		path, ok := dir.(string)
-		if !ok {
-			log.Println("SetupWatchers(): invalid path")
-		}
-		result = append(result, path)
-	}
+
 	return result
 }
 
+func (c *WatchConfig) ToJSON() string {
+	fmt.Printf("WatchConfig.WatchConfig(): %v\n", c)
+	jsonConf, err := json.Marshal(c)
+	if err != nil {
+		panic("Unable to unmarshal config")
+	}
+	fmt.Printf("WatchConfig.WatchConfig(): json=%s\n", jsonConf)
+	return string(jsonConf)
+}

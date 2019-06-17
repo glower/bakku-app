@@ -3,11 +3,12 @@ package watcher
 import (
 	"context"
 
+	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/file-watcher/notification"
 )
 
 // Setup adds a watcher for a file changes in specified directories and returns a channel for notifications
-func Setup(ctx context.Context, dirsToWatch []string, actionFilters []notification.ActionType, fileFilters []string, options *Options) (chan notification.Event, chan notification.Error) {
+func Setup(ctx context.Context, conf *config.WatchConfig, actionFilters []notification.ActionType, fileFilters []string, options *Options) (chan notification.Event, chan notification.Error) {
 	eventCh := make(chan notification.Event)
 	errorCh := make(chan notification.Error)
 
@@ -17,8 +18,10 @@ func Setup(ctx context.Context, dirsToWatch []string, actionFilters []notificati
 
 	watcher := Create(eventCh, errorCh, actionFilters, fileFilters, options)
 
-	for _, dir := range dirsToWatch {
-		go watcher.StartWatching(dir)
+	for _, e := range conf.DirsToWatch {
+		if e.Active {
+			go watcher.StartWatching(e.Path)
+		}
 	}
 
 	return eventCh, errorCh
