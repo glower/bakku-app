@@ -51,12 +51,19 @@ func main() {
 		GlobEventCh, GlobErrorCh = event.Fake(ctx, dirs)
 	} else {
 		// stup file chage notifications
-		GlobEventCh, GlobErrorCh = watcher.Setup(
+		w := watcher.Setup(
 			ctx,
-			dirs,
+			[]string{}, // TODO: remove me from the method!
 			[]notification.ActionType{},
 			[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
 			&watcher.Options{IgnoreDirectoies: true})
+		GlobEventCh = w.EventCh
+		GlobErrorCh = w.ErrorCh
+		for _, d := range dirs.DirsToWatch {
+			if d.Active {
+				w.StartWatching(d.Path)
+			}
+		}
 	}
 	router := startHTTPServer()
 
