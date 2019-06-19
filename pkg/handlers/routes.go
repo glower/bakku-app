@@ -6,11 +6,14 @@ import (
 	"net/http"
 
 	"github.com/glower/bakku-app/pkg/config"
+	"github.com/glower/file-watcher/watcher"
+
 	"github.com/gorilla/mux"
 )
 
 // Resources ...
 type Resources struct {
+	FileWatcher *watcher.Watch
 	// TODO: need here
 	// 1. file watcher object
 	// 2. snapshot manager here
@@ -25,7 +28,7 @@ func (res *Resources) Router() *mux.Router {
 	r.Methods("GET").Path("/ping").HandlerFunc(Ping)
 
 	r.Methods("GET").Path("/api/config").HandlerFunc(Config)
-	r.Methods("PSOT").Path("/api/config").HandlerFunc(UpdateConfig)
+	r.Methods("PSOT").Path("/api/config").HandlerFunc(res.UpdateConfig)
 
 	return r
 }
@@ -50,12 +53,21 @@ func Index(res http.ResponseWriter, _ *http.Request) {
 // Config returns local configuration
 func Config(w http.ResponseWriter, r *http.Request) {
 	// TODO: return complete configuration
-	json := config.DirectoriesToWatch().ToJSON()
+	conf, err := config.DirectoriesToWatch()
+	if err != nil {
+		ServerError(w, err.Error())
+		return
+	}
+	json, err := conf.ToJSON()
+	if err != nil {
+		ServerError(w, err.Error())
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(json))
 }
 
-func UpdateConfig(w http.ResponseWriter, r *http.Request) {
+func (res *Resources) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	// TODO:
 	// 1. Add/Remove directories to file watcher
 	// 	  watcher.Add(dir)/watcher.Remove(dir)
@@ -63,4 +75,17 @@ func UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	//    snapshot.Add(dir)
 	// 3. Update the config
 	// OR call some config manager and let the manager manage all this
+
+	conf, err := config.FromJSON(r.Body)
+	if err != nil {
+		ServerError(w, err.Error())
+		return
+	}
+	fmt.Printf("api.UpdateConfig(): %v\n", conf)
+	w.WriteHeader(201)
+}
+
+func ServerError(w http.ResponseWriter, m string) {
+	w.WriteHeader(500)
+	w.Write([]byte(fmt.Sprintf(`{"error", "%s"}`, m)))
 }

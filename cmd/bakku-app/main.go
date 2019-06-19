@@ -42,21 +42,22 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	// read from the configuration file a list of directories to watch
-	dirs := config.DirectoriesToWatch()
+	dirs, _ := config.DirectoriesToWatch()
 
 	var GlobEventCh chan notification.Event
 	var GlobErrorCh chan notification.Error
 
+	w := &watcher.Watch{}
 	if useFakeEvents {
-		GlobEventCh, GlobErrorCh = event.Fake(ctx, dirs)
+		w = event.Fake(ctx, dirs)
 	} else {
-		// stup file chage notifications
-		w := watcher.Setup(
+		// stup file change notifications
+		w = watcher.Setup(
 			ctx,
-			[]string{}, // TODO: remove me from the method!
-			[]notification.ActionType{},
-			[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
-			&watcher.Options{IgnoreDirectoies: true})
+			&watcher.Options{
+				IgnoreDirectoies: true,
+				FileFilters: []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
+			})
 		GlobEventCh = w.EventCh
 		GlobErrorCh = w.ErrorCh
 		for _, d := range dirs.DirsToWatch {
@@ -65,7 +66,7 @@ func main() {
 			}
 		}
 	}
-	router := startHTTPServer()
+	router := startHTTPServer(w)
 
 	// TODO: don't like it, refactor it
 	GolbMessageCh := make(chan message.Message)
@@ -103,14 +104,16 @@ func main() {
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer() *mux.Router {
+func startHTTPServer(fileWatcher *watcher.Watch) *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
 		port = "8080"
 	}
 
-	r := handlers.Resources{}
+	r := handlers.Resources{
+		FileWatcher: fileWatcher,
+	}
 	router := r.Router()
 	srv := &http.Server{
 		Addr:    ":" + port,
