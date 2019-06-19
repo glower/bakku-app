@@ -47,11 +47,12 @@ func main() {
 	var GlobEventCh chan notification.Event
 	var GlobErrorCh chan notification.Error
 
+	var w *watcher.Watch
 	if useFakeEvents {
-		GlobEventCh, GlobErrorCh = event.Fake(ctx, dirs)
+		w = event.Fake(ctx, dirs)
 	} else {
 		// stup file change notifications
-		w := watcher.Setup(
+		w = watcher.Setup(
 			ctx,
 			&watcher.Options{
 				IgnoreDirectoies: true,
@@ -65,7 +66,7 @@ func main() {
 			}
 		}
 	}
-	router := startHTTPServer()
+	router := startHTTPServer(w)
 
 	// TODO: don't like it, refactor it
 	GolbMessageCh := make(chan message.Message)
@@ -103,14 +104,16 @@ func main() {
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer() *mux.Router {
+func startHTTPServer(fileWatcher watcher.Watch) *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
 		port = "8080"
 	}
 
-	r := handlers.Resources{}
+	r := handlers.Resources{
+		FileWatcher: fileWatcher,
+	}
 	router := r.Router()
 	srv := &http.Server{
 		Addr:    ":" + port,
