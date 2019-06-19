@@ -23,6 +23,7 @@ func Fake(ctx context.Context, _ *config.WatchConfig) *watcher.Watch {
 		EventCh: eventCh,
 		ErrorCh: errorCh,
 	}
+	return w
 }
 
 func createFakeEvents(ctx context.Context, e chan notification.Event) {

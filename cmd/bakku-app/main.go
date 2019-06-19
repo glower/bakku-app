@@ -42,12 +42,12 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
 	// read from the configuration file a list of directories to watch
-	dirs := config.DirectoriesToWatch()
+	dirs, _ := config.DirectoriesToWatch()
 
 	var GlobEventCh chan notification.Event
 	var GlobErrorCh chan notification.Error
 
-	var w *watcher.Watch
+	w := &watcher.Watch{}
 	if useFakeEvents {
 		w = event.Fake(ctx, dirs)
 	} else {
@@ -104,7 +104,7 @@ func main() {
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(fileWatcher watcher.Watch) *mux.Router {
+func startHTTPServer(fileWatcher *watcher.Watch) *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")

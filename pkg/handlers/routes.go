@@ -13,7 +13,7 @@ import (
 
 // Resources ...
 type Resources struct {
-	FileWatcher watcher.Watch
+	FileWatcher *watcher.Watch
 	// TODO: need here
 	// 1. file watcher object
 	// 2. snapshot manager here
