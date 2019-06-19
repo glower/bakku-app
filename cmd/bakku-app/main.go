@@ -50,13 +50,13 @@ func main() {
 	if useFakeEvents {
 		GlobEventCh, GlobErrorCh = event.Fake(ctx, dirs)
 	} else {
-		// stup file chage notifications
+		// stup file change notifications
 		w := watcher.Setup(
 			ctx,
-			[]string{}, // TODO: remove me from the method!
-			[]notification.ActionType{},
-			[]string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"}, // TODO: move me to some config
-			&watcher.Options{IgnoreDirectoies: true})
+			&watcher.Options{
+				IgnoreDirectoies: true,
+				FileFilters: []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
+			})
 		GlobEventCh = w.EventCh
 		GlobErrorCh = w.ErrorCh
 		for _, d := range dirs.DirsToWatch {
