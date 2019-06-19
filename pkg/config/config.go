@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -61,31 +60,23 @@ type Watch struct {
 }
 
 // DirectoriesToWatch returns a list of directories to watch for the file changes
-func DirectoriesToWatch() (*WatchConfig, error) {
+func DirectoriesToWatch() *WatchConfig {
 	result := &WatchConfig{}
 
 	err := viper.Unmarshal(&result)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal config: %v", err)
+		panic("Unable to unmarshal config")
 	}
 
-	return result, nil
+	return result
 }
 
-func (c *WatchConfig) ToJSON() (string, error) {
+func (c *WatchConfig) ToJSON() string {
+	fmt.Printf("WatchConfig.WatchConfig(): %v\n", c)
 	jsonConf, err := json.Marshal(c)
 	if err != nil {
-		return "", fmt.Errorf("unable to marshal config: %v", err)
+		panic("Unable to unmarshal config")
 	}
-	return string(jsonConf), nil
-}
-
-func FromJSON(input io.ReadCloser) (*WatchConfig, error) {
-	conf := &WatchConfig{}
-	decoder := json.NewDecoder(input)
-	err := decoder.Decode(&conf)
-	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal config: %v", err)
-	}
-	return conf, nil
+	fmt.Printf("WatchConfig.WatchConfig(): json=%s\n", jsonConf)
+	return string(jsonConf)
 }

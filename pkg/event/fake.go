@@ -8,22 +8,16 @@ import (
 
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/file-watcher/notification"
-	"github.com/glower/file-watcher/watcher"
 	"github.com/google/uuid"
 )
 
 var cnt = 0
 
-func Fake(ctx context.Context, _ *config.WatchConfig) *watcher.Watch {
+func Fake(ctx context.Context, _ *config.WatchConfig) (chan notification.Event, chan notification.Error) {
 	eventCh := make(chan notification.Event)
 	errorCh := make(chan notification.Error)
 	go createFakeEvents(ctx, eventCh)
-	// return eventCh, errorCh
-	w := &watcher.Watch{
-		EventCh: eventCh,
-		ErrorCh: errorCh,
-	}
-	return w
+	return eventCh, errorCh
 }
 
 func createFakeEvents(ctx context.Context, e chan notification.Event) {

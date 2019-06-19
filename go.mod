@@ -16,7 +16,7 @@ require (
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.8.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.1.0 // indirect
-	github.com/glower/file-watcher v0.0.0-20190619142538-68e3eb58e4d0
+	github.com/glower/file-watcher v0.0.0-20190617203430-b32f277ead97
 	github.com/gogo/googleapis v1.2.0 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f // indirect

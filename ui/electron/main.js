@@ -149,7 +149,3 @@ ipcMain.on('get-config-action', (event, arg) => {
    });
    req.end()
 });
-
-ipcMain.on('set-config-action', (event, arg) => {
-   console.log(arg);
-})
