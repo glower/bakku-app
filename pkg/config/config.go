@@ -18,8 +18,14 @@ type Config interface {
 	DirectoriesToWatch() []string
 }
 
+const defaultDBFile = "storage.db"
 const defaultConfigName = "config"
 const defaultCofigPath = ".bakkuapp"
+
+func getStoragePath() string {
+	path := GetConfigPath()
+	return filepath.Join(path, defaultDBFile)
+}
 
 // GetConfigPath returns a path to the configs of the app: search first in the ENV variable, then in the user home
 func GetConfigPath() string {

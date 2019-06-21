@@ -26,6 +26,8 @@ var teardowns = make(map[string]teardown)
 type StorageManager struct {
 	Ctx context.Context
 
+	LocalSnapshotStorage storage.Storage
+
 	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
@@ -33,7 +35,7 @@ type StorageManager struct {
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, messageCh chan message.Message, eventBuffer *event.Buffer) *StorageManager {
+func Setup(ctx context.Context, res types.GlobalResources, eventBuffer *event.Buffer) *StorageManager {
 	// eventCh chan<- notification.Event, fileBackupCompleteCh chan types.FileBackupComplete
 	m := &StorageManager{
 		Ctx: ctx,
@@ -97,7 +99,6 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 		return
 	}
 
-	log.Printf("!!!!!!!!!!!!!! sendFileToStorage(): send file [%s] to storage [%s]", event.AbsolutePath, storageName)
 	Start(event, storageName)
 	err := backup.Store(event)
 	if err != nil {
@@ -106,12 +107,12 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 		return
 	}
 
-	log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
-	m.fileBackupComple(types.FileBackupComplete{
-		BackupStorageName:  storageName,
-		AbsolutePath:       event.AbsolutePath,
-		WatchDirectoryName: event.WatchDirectoryName,
-	})
+	// log.Printf("sendFileToStorage(): backup of [%s] to storage [%s] is complete", event.AbsolutePath, storageName)
+	// m.fileBackupComple(types.FileBackupComplete{
+	// 	BackupStorageName:  storageName,
+	// 	AbsolutePath:       event.AbsolutePath,
+	// 	WatchDirectoryName: event.WatchDirectoryName,
+	// })
 }
 
 func (m *StorageManager) SubscribeForFileBackupCompleteEvent(ch chan types.FileBackupComplete) {

@@ -57,6 +57,8 @@ github.com/glower/file-watcher v0.0.0-20190617203430-b32f277ead97 h1:Tlh9cI209mZ
 github.com/glower/file-watcher v0.0.0-20190617203430-b32f277ead97/go.mod h1:MmmCK27svIAc4INGxUwcdvCqyogleFYJiIKCTpHMP9Y=
 github.com/glower/file-watcher v0.0.0-20190619142538-68e3eb58e4d0 h1:1SJR0gmIkqiIvMYmOCd8vin3LfYnQZ+LObooifBI17s=
 github.com/glower/file-watcher v0.0.0-20190619142538-68e3eb58e4d0/go.mod h1:vHY7AjUH/ttCIJFmNTjZkJVAgVCOaH6/IWdUHWhysJI=
+github.com/glower/file-watcher v0.0.0-20190619220212-63ceac8cc4d1 h1:NStRoYNXh+xXpqWjhvZ64fAAEnpz9U5z7BoTxOCnOQo=
+github.com/glower/file-watcher v0.0.0-20190619220212-63ceac8cc4d1/go.mod h1:vHY7AjUH/ttCIJFmNTjZkJVAgVCOaH6/IWdUHWhysJI=
 github.com/glower/file-watcher v1.4.4 h1:02k6o0h2xkYA1XVe5ddtGBrgxRJ4mNca9H8f5vojBdE=
 github.com/glower/file-watcher v1.4.4/go.mod h1:XoCdXMfwgnRdnUkk7ePOpQDysKKgSHANnIeX9R1dbtE=
 github.com/glower/file-watcher v2.0.0+incompatible h1:8rLsQS/mewYRLziCH1YDWGDeJezIU2xmONkHw7qBy/c=
@@ -228,6 +230,7 @@ github.com/xdg/stringprep v1.0.0/go.mod h1:Jhud4/sHMO4oL310DaZAKk9ZaJ08SJfe+sJh0
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
+go.etcd.io/bbolt v1.3.3 h1:MUGmc65QhB3pIlaQ5bB4LwqSj6GIonVJXpZiaKNyaKk=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.opencensus.io v0.20.1/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
 go.opencensus.io v0.20.2 h1:NAfh7zF0/3/HqtMvJNZ/RFrSlCE6ZTlHmKfhL/Dm1Jk=

@@ -1,5 +1,11 @@
 package types
 
+import (
+	"github.com/glower/bakku-app/pkg/message"
+	"github.com/glower/bakku-app/pkg/storage"
+	"github.com/glower/file-watcher/watcher"
+)
+
 // FileBackupComplete represents
 type FileBackupComplete struct {
 	BackupStorageName  string
@@ -21,4 +27,10 @@ type BackupStatus struct {
 	FilesInProgress int    `json:"in_progress"`
 	FilesDone       int    `json:"done"`
 	Status          string `json:"status"`
+}
+
+type GlobalResources struct {
+	MessageCh   chan message.Message
+	FileWatcher *watcher.Watch
+	Storage     storage.Storage
 }

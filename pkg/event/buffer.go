@@ -33,14 +33,14 @@ type Buffer struct {
 }
 
 // NewBuffer ...
-func NewBuffer(ctx context.Context, eventInCh chan notification.Event) *Buffer {
+func NewBuffer(ctx context.Context, res types.GlobalResources) *Buffer {
 	fmt.Println("event.NewBuffer(): starting event buffer")
 	b := &Buffer{
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
 		maxElementsInProgress: 5,
 		timeout:               5 * time.Second,
-		evenInCh:              eventInCh,
+		evenInCh:              res.FileWatcher.EventCh,
 		EvenOutCh:             make(chan notification.Event),
 		BackupDoneCh:          make(chan types.FileBackupComplete),
 		BackupStatusCh:        make(chan types.BackupStatus),

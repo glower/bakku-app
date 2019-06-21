@@ -16,7 +16,7 @@ require (
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/envoyproxy/go-control-plane v0.8.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v0.1.0 // indirect
-	github.com/glower/file-watcher v0.0.0-20190619142538-68e3eb58e4d0
+	github.com/glower/file-watcher v0.0.0-20190619220212-63ceac8cc4d1
 	github.com/gogo/googleapis v1.2.0 // indirect
 	github.com/golang/mock v1.3.1 // indirect
 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f // indirect
@@ -44,7 +44,7 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/ugorji/go v1.1.5-pre // indirect
-	go.etcd.io/bbolt v1.3.3 // indirect
+	go.etcd.io/bbolt v1.3.3
 	go.opencensus.io v0.22.0 // indirect
 	golang.org/x/crypto v0.0.0-20190617133340-57b3e21c3d56 // indirect
 	golang.org/x/exp v0.0.0-20190510132918-efd6b22b2522 // indirect

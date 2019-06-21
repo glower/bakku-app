@@ -4,63 +4,28 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/boltdb/bolt"
-	"github.com/glower/bakku-app/pkg/config/snapshot"
-	"github.com/glower/bakku-app/pkg/snapshot/storage"
+	bolt "go.etcd.io/bbolt"
 )
 
 // Storage ...
 type Storage struct {
-	path       string // /foo/bar
 	DBFilePath string // /foo/bar/.snapshot
-	DBFileName string // .snapshot
-}
-
-// New returns new snapshot storage implementation
-func New(path string) storage.Storage {
-	conf := snapshot.Conf()
-	return &Storage{
-		path:       path,
-		DBFilePath: filepath.Join(path, conf.FileName),
-		DBFileName: conf.FileName,
-	}
 }
 
 // Exist ...
 func (s *Storage) Exist() bool {
 	if _, err := os.Stat(s.DBFilePath); os.IsNotExist(err) {
-		log.Printf("snapshot.storage.boltdb.Exist(): snapshot for [%s] is not present!\n", s.DBFilePath)
+		log.Printf("[INFO] snapshot.storage.boltdb.Exist(): snapshot for [%s] is not present!\n", s.DBFilePath)
 		return false
 	}
 	return true
 }
 
-// FilePath ...
-func (s *Storage) FilePath() string {
-	return s.DBFilePath
-}
-
-// FileName ...
-func (s *Storage) FileName() string {
-	return s.DBFileName
-}
-
-// Path ...
-func (s *Storage) Path() string {
-	return s.path
-}
-
 // Add info about file to the snapshot, filePath is the key and bucketName is the name of the backup storage
 func (s *Storage) Add(filePath, bucketName string, value []byte) error {
-	// log.Printf("bolt.Add(): file=[%s], bucketName=[%s] DBFilePath=[%s]\n", filePath, bucketName, s.DBFilePath)
-	if strings.Contains(filePath, s.DBFileName) {
-		return nil
-	}
-	db := s.openDB()
-	defer db.Close()
+	db := s.openDB() // TODO: refactor me
+	defer db.Close() // handle this error
 	err := db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
@@ -81,7 +46,6 @@ func (s *Storage) Add(filePath, bucketName string, value []byte) error {
 
 // Get information about the file from the snapshot
 func (s *Storage) Get(filePath, bucketName string) (string, error) {
-	// log.Printf("bolt.Get(): file=[%s], bucketName=[%s] DBFilePath=[%s]\n", filePath, bucketName, s.DBFilePath)
 	if filePath == "" {
 		return "", fmt.Errorf("bolt.Get(): the key(file path) is empty")
 	}
@@ -114,7 +78,7 @@ func (s *Storage) Remove(filePath, bucketName string) error {
 	})
 }
 
-// GetAll entries from the snapshot storage
+// GetAll return all entries from the snapshot storage for one bucket
 func (s *Storage) GetAll(bucketName string) (map[string]string, error) {
 	db := s.openDB()
 	defer db.Close()
