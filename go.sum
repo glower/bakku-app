@@ -59,6 +59,8 @@ github.com/glower/file-watcher v0.0.0-20190619142538-68e3eb58e4d0 h1:1SJR0gmIkqi
 github.com/glower/file-watcher v0.0.0-20190619142538-68e3eb58e4d0/go.mod h1:vHY7AjUH/ttCIJFmNTjZkJVAgVCOaH6/IWdUHWhysJI=
 github.com/glower/file-watcher v0.0.0-20190619220212-63ceac8cc4d1 h1:NStRoYNXh+xXpqWjhvZ64fAAEnpz9U5z7BoTxOCnOQo=
 github.com/glower/file-watcher v0.0.0-20190619220212-63ceac8cc4d1/go.mod h1:vHY7AjUH/ttCIJFmNTjZkJVAgVCOaH6/IWdUHWhysJI=
+github.com/glower/file-watcher v0.0.0-20190621203329-46bc36fd783e h1:Fy3PFd5El+d4GMPnmZAddcR0df8K1oHa40W7Nblep9k=
+github.com/glower/file-watcher v0.0.0-20190621203329-46bc36fd783e/go.mod h1:vHY7AjUH/ttCIJFmNTjZkJVAgVCOaH6/IWdUHWhysJI=
 github.com/glower/file-watcher v1.4.4 h1:02k6o0h2xkYA1XVe5ddtGBrgxRJ4mNca9H8f5vojBdE=
 github.com/glower/file-watcher v1.4.4/go.mod h1:XoCdXMfwgnRdnUkk7ePOpQDysKKgSHANnIeX9R1dbtE=
 github.com/glower/file-watcher v2.0.0+incompatible h1:8rLsQS/mewYRLziCH1YDWGDeJezIU2xmONkHw7qBy/c=
