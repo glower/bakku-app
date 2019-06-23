@@ -33,7 +33,7 @@ type StorageManager struct {
 	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
-	// fileBackupCompleteCh []chan types.FileBackupComplete
+	BackupCompleteCh     chan types.BackupComplete
 }
 
 // Setup runs all implemented storages
@@ -46,6 +46,7 @@ func Setup(ctx context.Context, res types.GlobalResources, eventBuffer *event.Bu
 		MessageCh:            res.MessageCh,
 		LocalSnapshotStorage: res.Storage,
 		FileBackupProgressCh: make(chan types.BackupProgress),
+		BackupCompleteCh:     res.BackupCompleteCh,
 	}
 
 	for name, storage := range GetAll() {
@@ -77,7 +78,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 			case notification.FileRemoved:
 				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
-				// log.Printf("backup.ProcessNotifications(): [%s] was added or modified\n", file.AbsolutePath)
+				log.Printf("backup.ProcessNotifications(): [%s] was added or modified meta=[%v]\n", file.AbsolutePath, file.MetaInfo)
 				m.sendFileToAllStorages(&file)
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
@@ -106,6 +107,10 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	}
 
 	m.updateLocalStorage(event, storageName)
+	m.BackupCompleteCh <- types.BackupComplete{
+		StorageName: storageName,
+		FilePath:    event.AbsolutePath,
+	}
 }
 
 func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) {

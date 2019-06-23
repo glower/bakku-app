@@ -6,10 +6,10 @@ import (
 	"github.com/glower/file-watcher/watcher"
 )
 
-// FileBackupComplete represents
-type FileBackupComplete struct {
-	BackupStorageName  string
-	AbsolutePath       string
+// BackupComplete represents
+type BackupComplete struct {
+	StorageName        string
+	FilePath           string
 	WatchDirectoryName string
 }
 
@@ -30,7 +30,8 @@ type BackupStatus struct {
 }
 
 type GlobalResources struct {
-	MessageCh   chan message.Message
-	FileWatcher *watcher.Watch
-	Storage     storage.Storage
+	BackupCompleteCh chan BackupComplete
+	MessageCh        chan message.Message
+	FileWatcher      *watcher.Watch
+	Storage          storage.Storage
 }

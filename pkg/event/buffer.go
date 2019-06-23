@@ -27,9 +27,9 @@ type Buffer struct {
 	evenInCh              chan notification.Event
 	timeout               time.Duration
 
-	EvenOutCh      chan notification.Event
-	BackupDoneCh   chan types.FileBackupComplete
-	BackupStatusCh chan types.BackupStatus
+	EvenOutCh        chan notification.Event
+	BackupCompleteCh chan types.BackupComplete
+	BackupStatusCh   chan types.BackupStatus
 }
 
 // NewBuffer ...
@@ -39,11 +39,11 @@ func NewBuffer(ctx context.Context, res types.GlobalResources) *Buffer {
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
 		maxElementsInProgress: 5,
-		timeout:               5 * time.Second,
+		timeout:               1 * time.Second,
 		evenInCh:              res.FileWatcher.EventCh,
 		EvenOutCh:             make(chan notification.Event),
-		BackupDoneCh:          make(chan types.FileBackupComplete),
 		BackupStatusCh:        make(chan types.BackupStatus),
+		BackupCompleteCh:      res.BackupCompleteCh,
 	}
 	go b.processEvents()
 	return b
@@ -67,12 +67,12 @@ func (b *Buffer) processEvents() {
 func (b *Buffer) sendAllBack() {
 	for _, e := range events {
 		if inProgress >= b.maxElementsInProgress {
-			fmt.Printf(">>> %d/%d files are in progress, wait ... \n", inProgress, len(events))
+			// fmt.Printf(">>> %d/%d files are in progress, wait ... \n", inProgress, len(events))
 			for {
 				select {
 				case <-b.Ctx.Done():
 					return
-				case <-b.BackupDoneCh:
+				case <-b.BackupCompleteCh:
 					atomic.AddInt32(&inProgress, -1)
 					atomic.AddInt32(&done, 1)
 					fmt.Printf(">>> continue ... \n")

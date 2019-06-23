@@ -41,16 +41,16 @@ func main() {
 		})
 
 	res := types.GlobalResources{
-		MessageCh:   make(chan message.Message),
-		FileWatcher: fileWatcher,
-		Storage:     storage.New(config.GetStoragePath()),
+		BackupCompleteCh: make(chan types.BackupComplete),
+		MessageCh:        make(chan message.Message),
+		FileWatcher:      fileWatcher,
+		Storage:          storage.New(config.GetStoragePath()),
 	}
 
 	snapShotManager := snapshot.Setup(ctx, res)
 
 	// read from the configuration file a list of directories to watch
 	dirs, _ := config.DirectoriesToWatch()
-	fmt.Printf(">>> Dirs: %v\n", dirs)
 	for _, d := range dirs.DirsToWatch {
 		if d.Active {
 			go fileWatcher.StartWatching(d.Path)
