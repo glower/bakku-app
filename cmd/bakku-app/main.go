@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,13 +15,14 @@ import (
 	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/storage"
+	"github.com/glower/bakku-app/pkg/types"
 
 	// autoimport
 	_ "github.com/glower/bakku-app/pkg"
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 
-	"github.com/glower/file-watcher/notification"
 	"github.com/glower/file-watcher/watcher"
 )
 
@@ -34,48 +34,43 @@ func main() {
 	log.Println("Starting the service ...")
 
 	ctx, cancel := context.WithCancel(context.Background())
-	fileWatcher = watcher.Setup(ctx,
+	fileWatcher := watcher.Setup(ctx,
 		&watcher.Options{
 			IgnoreDirectoies: true,
-			FileFilters: []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
+			FileFilters:      []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
 		})
 
 	res := types.GlobalResources{
-		GolbMessageCh: make(chan message.Message),
+		MessageCh:   make(chan message.Message),
 		FileWatcher: fileWatcher,
-		Storage:     storage.New(config.getStoragePath()),
+		Storage:     storage.New(config.GetStoragePath()),
+	}
+
+	snapShotManager := snapshot.Setup(ctx, res)
+
+	// read from the configuration file a list of directories to watch
+	dirs, _ := config.DirectoriesToWatch()
+	fmt.Printf(">>> Dirs: %v\n", dirs)
+	for _, d := range dirs.DirsToWatch {
+		if d.Active {
+			go fileWatcher.StartWatching(d.Path)
+			go snapShotManager.CreateOrUpdate(d.Path)
+		}
 	}
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	// read from the configuration file a list of directories to watch
-	dirs, _ := config.DirectoriesToWatch()
-	for _, d := range dirs.DirsToWatch {
-		if d.Active {
-			fileWatcher.StartWatching(d.Path)
-		}
-	}
-		
 	router := startHTTPServer(res)
-
-	// TODO: don't like it, refactor it
-	// GolbMessageCh := make(chan message.Message)
 
 	eventBuffer := event.NewBuffer(ctx, res)
 	fmt.Println("event buffer is up and running ...")
-	
+
 	backupStorageManager := backup.Setup(ctx, res, eventBuffer)
 	fmt.Println("backup storage manager is up and running ...")
 
-	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, GlobErrorCh, GolbMessageCh, eventBuffer)
+	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, res, eventBuffer)
 	fmt.Println("SSE server is up and running ...")
-
-	snapShotManager := snapshot.Setup(ctx, dirs, fileWatcher)
-	fmt.Println("snapshot manager is up and running ...")
-	
-	backupStorageManager.SubscribeForFileBackupCompleteEvent(snapShotManager.FileBackupCompleteCh)
-	fmt.Println("!!! All Services Are Up And Running !!!")
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -95,7 +90,7 @@ func main() {
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(res bakkuapp.GlobalResources) *mux.Router {
+func startHTTPServer(res types.GlobalResources) *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")

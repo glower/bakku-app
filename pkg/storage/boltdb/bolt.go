@@ -1,7 +1,9 @@
 package boltdb
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -45,9 +47,9 @@ func (s *Storage) Add(filePath, bucketName string, value []byte) error {
 }
 
 // Get information about the file from the snapshot
-func (s *Storage) Get(filePath, bucketName string) (string, error) {
+func (s *Storage) Get(filePath, bucketName string) (io.Reader, error) {
 	if filePath == "" {
-		return "", fmt.Errorf("bolt.Get(): the key(file path) is empty")
+		return nil, fmt.Errorf("bolt.Get(): the key(file path) is empty")
 	}
 	db := s.openDB()
 	defer db.Close()
@@ -61,9 +63,9 @@ func (s *Storage) Get(filePath, bucketName string) (string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(value), nil
+	return bytes.NewReader(value), nil
 }
 
 // Remove file from the snapshot storage

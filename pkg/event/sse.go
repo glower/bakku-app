@@ -26,7 +26,7 @@ type SSE struct {
 }
 
 // NewSSE ...
-func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, errorCh chan notification.Error, messageCh chan message.Message, eventBuffer *Buffer) *SSE {
+func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, res types.GlobalResources, eventBuffer *Buffer) *SSE { //backupProgressCh chan types.BackupProgress, errorCh chan notification.Error, messageCh chan message.Message, eventBuffer *Buffer) *SSE {
 	events := sse.New()
 	for _, name := range streams {
 		events.CreateStream(name)
@@ -46,7 +46,7 @@ func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types
 	// messageCh chan message.Message
 	// fileBackupCompleteBCh broadcast.Broadcast
 	go s.processBackupStatus(eventBuffer.BackupStatusCh)
-	go s.processErrors(errorCh, messageCh)
+	go s.processErrors(res.FileWatcher.ErrorCh, res.MessageCh)
 	go s.processProgressCallback(backupProgressCh)
 	go s.ping()
 

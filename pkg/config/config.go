@@ -22,7 +22,7 @@ const defaultDBFile = "storage.db"
 const defaultConfigName = "config"
 const defaultCofigPath = ".bakkuapp"
 
-func getStoragePath() string {
+func GetStoragePath() string {
 	path := GetConfigPath()
 	return filepath.Join(path, defaultDBFile)
 }
