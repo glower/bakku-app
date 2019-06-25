@@ -62,7 +62,9 @@ func (s *Snapshot) CreateOrUpdate(path string) error {
 				if err != nil {
 					return err
 				}
-				s.watcher.CreateFileAddedNotification(path, relativePath, &notification.MetaInfo{})
+				s.watcher.CreateFileAddedNotification(path, relativePath, &notification.MetaInfo{
+					// TODO: add meta here: ""
+				})
 			}
 
 		}

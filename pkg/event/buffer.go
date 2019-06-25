@@ -75,7 +75,6 @@ func (b *Buffer) sendAllBack() {
 				case <-b.BackupCompleteCh:
 					atomic.AddInt32(&inProgress, -1)
 					atomic.AddInt32(&done, 1)
-					fmt.Printf(">>> continue ... \n")
 					return
 				}
 			}

@@ -26,7 +26,7 @@ type SSE struct {
 }
 
 // NewSSE ...
-func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, res types.GlobalResources, eventBuffer *Buffer) *SSE { //backupProgressCh chan types.BackupProgress, errorCh chan notification.Error, messageCh chan message.Message, eventBuffer *Buffer) *SSE {
+func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, res types.GlobalResources, eventBuffer *Buffer) *SSE {
 	events := sse.New()
 	for _, name := range streams {
 		events.CreateStream(name)
@@ -93,7 +93,7 @@ func (s *SSE) processProgressCallback(backupProgressCh chan types.BackupProgress
 			if strings.Contains(progress.FileName, ".snapshot") {
 				continue
 			}
-			log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			// log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, err := json.Marshal(progress)
 			if err != nil {
 				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
