@@ -6,7 +6,6 @@ require (
 	cloud.google.com/go v0.40.0 // indirect
 	github.com/boltdb/bolt v1.3.1
 	github.com/glower/file-watcher v0.0.0-20190621203329-46bc36fd783e
-	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.2
 	github.com/magiconair/properties v1.8.1 // indirect

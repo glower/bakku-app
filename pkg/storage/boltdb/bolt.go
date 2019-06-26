@@ -2,7 +2,6 @@ package boltdb
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/boltdb/bolt"
@@ -16,7 +15,6 @@ type BoltDB struct {
 // Exist checks if the database file exists
 func (s BoltDB) Exist() bool {
 	if _, err := os.Stat(s.DBFilePath); os.IsNotExist(err) {
-		log.Printf("[INFO] snapshot.storage.boltdb.Exist(): snapshot for [%s] is not present!\n", s.DBFilePath)
 		return false
 	}
 	return true
@@ -24,7 +22,7 @@ func (s BoltDB) Exist() bool {
 
 // Add info about file to the snapshot, filePath is the key and bucketName is the name of the backup storage
 func (s BoltDB) Add(filePath, bucketName string, value []byte) error {
-	fmt.Printf("storage.Add(): [key=%s][bucket=%s][value=%q]\n", filePath, bucketName, string(value))
+	// fmt.Printf("storage.Add(): [key=%s][bucket=%s][value=%q]\n", filePath, bucketName, string(value))
 	db, err := s.openDB()
 	if err != nil {
 		return err
@@ -36,7 +34,6 @@ func (s BoltDB) Add(filePath, bucketName string, value []byte) error {
 		}
 	}()
 	return db.Update(func(tx *bolt.Tx) error {
-		fmt.Printf("CreateBucketIfNotExists b=%s\n", bucketName)
 		b, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
 			return err
@@ -121,7 +118,6 @@ func (s BoltDB) GetAll(bucketName string) (map[string]string, error) {
 }
 
 func (s BoltDB) openDB() (*bolt.DB, error) {
-	fmt.Printf("openDB: %s\n", s.DBFilePath)
 	db, err := bolt.Open(s.DBFilePath, 0600, nil)
 	if err != nil {
 		fmt.Printf("[ERROR] bolt.openDB(): can't open boltDB file [%s]: %v\n", s.DBFilePath, err)
