@@ -53,6 +53,7 @@ func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types
 	return s
 }
 
+// StopSSE stops SSE service
 func (s *SSE) StopSSE() {
 	for _, name := range s.streams {
 		s.server.RemoveStream(name)
@@ -70,7 +71,11 @@ func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
 		case <-s.ctx.Done():
 			return
 		case bs := <-status:
-			log.Printf("[SSE] processBackupStatus(): [%s] [%d/%d]\n", bs.Status, bs.FilesInProgress, bs.TotalFiles)
+			if bs.Status == "waiting" {
+				log.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
+			} else {
+				log.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
+			}
 			stautsJSON, err := json.Marshal(bs)
 			if err != nil {
 				stautsJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))

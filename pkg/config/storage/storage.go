@@ -46,7 +46,7 @@ func Active() ([]string, error) {
 	for name := range storages {
 		storage := ProviderConf(name)
 		if storage.Active {
-			result = append(result, name)
+			result = append(result, "storage."+name)
 		}
 	}
 	return result, nil

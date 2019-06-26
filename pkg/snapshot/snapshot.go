@@ -37,6 +37,7 @@ func Setup(ctx context.Context, res types.GlobalResources) *Snapshot {
 	return snapShot
 }
 
+// CreateOrUpdate checks if files in a given dir was not backuped
 func (s *Snapshot) CreateOrUpdate(path string) error {
 	log.Printf("[INFO] snapshot.update(): path=%s\n", path)
 
@@ -51,20 +52,16 @@ func (s *Snapshot) CreateOrUpdate(path string) error {
 			return err
 		}
 		if !fileInfo.IsDir() {
-			backupToStorages := []string{}
+
 			for _, backupStorage := range backupStorages {
 				if s.fileDifferentToBackup(backupStorage, absoluteFilePath) {
-					backupToStorages = append(backupToStorages, backupStorage)
+					fmt.Printf("Send [%s] to [%s]\n", absoluteFilePath, backupStorage)
+					relativePath, err := filepath.Rel(path, absoluteFilePath)
+					if err != nil {
+						return err
+					}
+					s.watcher.CreateFileAddedNotification(path, relativePath, &notification.MetaInfo{"storage": backupStorage})
 				}
-			}
-			if len(backupToStorages) > 0 {
-				relativePath, err := filepath.Rel(path, absoluteFilePath)
-				if err != nil {
-					return err
-				}
-				s.watcher.CreateFileAddedNotification(path, relativePath, &notification.MetaInfo{
-					// TODO: add meta here: ""
-				})
 			}
 
 		}
@@ -73,32 +70,34 @@ func (s *Snapshot) CreateOrUpdate(path string) error {
 }
 
 func (s *Snapshot) fileDifferentToBackup(backupStorageName, absoluteFilePath string) bool {
-	snapshotEntryJSON, err := s.storage.Get(absoluteFilePath, backupStorageName)
+	snapshotEntry, err := s.storage.Get(absoluteFilePath, backupStorageName)
 	if err != nil {
+		fmt.Printf("fileDifferentToBackup(): s.storage.Get err: %v\n", err)
 		return true
 	}
-	if snapshotEntryJSON == nil {
+	if snapshotEntry == nil {
+		fmt.Printf("fileDifferentToBackup(): s.storage.Get empty data\n")
 		return true
 	}
 
 	e := &notification.Event{}
-	decoder := json.NewDecoder(snapshotEntryJSON)
-	err = decoder.Decode(&e)
+	err = json.Unmarshal(snapshotEntry, e)
 	if err != nil {
-		fmt.Printf("unable to unmarshal config: %v", err)
+		fmt.Printf("fileDifferentToBackup(): unable to unmarshal file data [%q]: %v", snapshotEntry, err)
 		return true
 	}
 	fileInfo, err := fi.GetFileInformation(absoluteFilePath)
 	if err != nil {
-		fmt.Printf("unable to get [%s] info: %v", absoluteFilePath, err)
+		fmt.Printf("fileDifferentToBackup(): unable to get [%s] info: %v", absoluteFilePath, err)
 		return true
 	}
 	checksum, err := fileInfo.Checksum()
 	if err != nil {
-		fmt.Printf("unable to get [%s] checksum: %v", absoluteFilePath, err)
+		fmt.Printf("fileDifferentToBackup(): unable to get [%s] checksum: %v", absoluteFilePath, err)
 		return true
 	}
 	if e.Checksum != checksum {
+		fmt.Printf("fileDifferentToBackup(): Old checksum: [%s] checksum: [%s]\n", e.Checksum, checksum)
 		return true
 	}
 	return false

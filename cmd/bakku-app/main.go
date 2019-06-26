@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/glower/bakku-app/pkg/backup"
-	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/storage"
@@ -61,16 +59,16 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	router := startHTTPServer(res)
+	startHTTPServer(res)
 
-	eventBuffer := event.NewBuffer(ctx, res)
-	fmt.Println("event buffer is up and running ...")
+	// eventBuffer := event.NewBuffer(ctx, res)
+	// fmt.Println("event buffer is up and running ...")
 
-	backupStorageManager := backup.Setup(ctx, res, eventBuffer)
-	fmt.Println("backup storage manager is up and running ...")
+	// backupStorageManager := backup.Setup(ctx, res, eventBuffer)
+	// fmt.Println("backup storage manager is up and running ...")
 
-	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, res, eventBuffer)
-	fmt.Println("SSE server is up and running ...")
+	// sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, res, eventBuffer)
+	// fmt.Println("SSE server is up and running ...")
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -83,7 +81,7 @@ func main() {
 
 	log.Print("The service is shutting down...")
 	cancel()
-	sseServer.StopSSE()
+	// sseServer.StopSSE()
 	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first

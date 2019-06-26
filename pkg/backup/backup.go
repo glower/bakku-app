@@ -38,11 +38,9 @@ type StorageManager struct {
 
 // Setup runs all implemented storages
 func Setup(ctx context.Context, res types.GlobalResources, eventBuffer *event.Buffer) *StorageManager {
-	// eventCh chan<- notification.Event, fileBackupCompleteCh chan types.FileBackupComplete
 	m := &StorageManager{
-		Ctx: ctx,
-
-		EventCh:              eventBuffer.EvenOutCh, //eventCh,
+		Ctx:                  ctx,
+		EventCh:              eventBuffer.EvenOutCh,
 		MessageCh:            res.MessageCh,
 		LocalSnapshotStorage: res.Storage,
 		FileBackupProgressCh: make(chan types.BackupProgress),
@@ -100,25 +98,34 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 
 	Start(event, storageName)
 	err := backup.Store(event)
+	Finish(event, storageName)
+
 	if err != nil {
 		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
-		Finish(event, storageName)
 		return
 	}
 
-	m.updateLocalStorage(event, storageName)
+	err = m.updateLocalStorage(event, storageName)
+	if err != nil {
+		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
+		return
+	}
 	m.BackupCompleteCh <- types.BackupComplete{
 		StorageName: storageName,
 		FilePath:    event.AbsolutePath,
 	}
 }
 
-func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) {
+func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) error {
 	value, err := json.Marshal(&event)
 	if err != nil {
-		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), "backup")
+		return err
 	}
-	m.LocalSnapshotStorage.Add(event.AbsolutePath, storageName, value)
+	err = m.LocalSnapshotStorage.Add(event.AbsolutePath, storageName, value)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Stop eveything
