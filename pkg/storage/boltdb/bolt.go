@@ -47,15 +47,15 @@ func (s BoltDB) Add(filePath, bucketName string, value []byte) error {
 }
 
 // Get information about the file from the snapshot
-func (s BoltDB) Get(filePath, bucketName string) ([]byte, error) {
-	fmt.Printf("storage.Get(): [key=%s][bucket=%s]\n", filePath, bucketName)
+func (s BoltDB) Get(filePath, bucketName string) (string, error) {
+	// fmt.Printf("storage.Get(): [key=%s][bucket=%s]\n", filePath, bucketName)
 	if filePath == "" {
-		return nil, fmt.Errorf("bolt.Get(): the key(file path) is empty")
+		return "", fmt.Errorf("bolt.Get(): the key(file path) is empty")
 	}
 
 	db, err := s.openDB()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	defer func() {
@@ -68,15 +68,17 @@ func (s BoltDB) Get(filePath, bucketName string) ([]byte, error) {
 	var value []byte
 	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
+		if b == nil {
+			return fmt.Errorf("bucket not found")
+		}
 		value = b.Get([]byte(filePath))
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	fmt.Printf("storage.Get(): result is [%s]\n", string(value))
-	return value, nil
+	return string(value), nil
 }
 
 // Remove file from the snapshot storage

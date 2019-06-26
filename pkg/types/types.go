@@ -33,5 +33,5 @@ type GlobalResources struct {
 	BackupCompleteCh chan BackupComplete
 	MessageCh        chan message.Message
 	FileWatcher      *watcher.Watch
-	Storage          storage.Storage
+	Storage          storage.Storager
 }

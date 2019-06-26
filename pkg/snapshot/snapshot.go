@@ -23,7 +23,7 @@ type Snapshot struct {
 	ctx context.Context
 
 	watcher   *watcher.Watch
-	storage   storage.Storage
+	storage   storage.Storager
 	messageCh chan message.Message
 }
 
@@ -75,13 +75,13 @@ func (s *Snapshot) fileDifferentToBackup(backupStorageName, absoluteFilePath str
 		fmt.Printf("fileDifferentToBackup(): s.storage.Get err: %v\n", err)
 		return true
 	}
-	if snapshotEntry == nil {
+	if snapshotEntry == "" {
 		fmt.Printf("fileDifferentToBackup(): s.storage.Get empty data\n")
 		return true
 	}
 
 	e := &notification.Event{}
-	err = json.Unmarshal(snapshotEntry, e)
+	err = json.Unmarshal([]byte(snapshotEntry), e)
 	if err != nil {
 		fmt.Printf("fileDifferentToBackup(): unable to unmarshal file data [%q]: %v", snapshotEntry, err)
 		return true

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"fmt"
 	"os/signal"
 	"syscall"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/storage"
 	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/bakku-app/pkg/event"
 
 	// autoimport
 	_ "github.com/glower/bakku-app/pkg"
@@ -48,7 +50,11 @@ func main() {
 	snapShotManager := snapshot.Setup(ctx, res)
 
 	// read from the configuration file a list of directories to watch
-	dirs, _ := config.DirectoriesToWatch()
+	dirs, err:= config.DirectoriesToWatch()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Dirs to watch: %v\n", dirs)
 	for _, d := range dirs.DirsToWatch {
 		if d.Active {
 			go fileWatcher.StartWatching(d.Path)
@@ -59,16 +65,16 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	startHTTPServer(res)
+	router := startHTTPServer(res)
 
-	// eventBuffer := event.NewBuffer(ctx, res)
-	// fmt.Println("event buffer is up and running ...")
+	eventBuffer := event.NewBuffer(ctx, res)
+	fmt.Println("event buffer is up and running ...")
 
-	// backupStorageManager := backup.Setup(ctx, res, eventBuffer)
-	// fmt.Println("backup storage manager is up and running ...")
+	backupStorageManager := backup.Setup(ctx, res, eventBuffer)
+	fmt.Println("backup storage manager is up and running ...")
 
-	// sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, res, eventBuffer)
-	// fmt.Println("SSE server is up and running ...")
+	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, res, eventBuffer)
+	fmt.Println("SSE server is up and running ...")
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -81,7 +87,7 @@ func main() {
 
 	log.Print("The service is shutting down...")
 	cancel()
-	// sseServer.StopSSE()
+	sseServer.StopSSE()
 	backup.Stop()
 	log.Println("Shutdown the web server ...")
 	// TODO: Shutdown is not working with open SSE connection, need to solve this first

@@ -28,12 +28,11 @@ var teardowns = make(map[string]teardown)
 type StorageManager struct {
 	Ctx context.Context
 
-	LocalSnapshotStorage storage.Storage
-
 	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
 	BackupCompleteCh     chan types.BackupComplete
+	LocalSnapshotStorage storage.Storager
 }
 
 // Setup runs all implemented storages

@@ -8,7 +8,7 @@ import (
 type Storager interface {
 	Exist() bool
 	Add(string, string, []byte) error
-	Get(string, string) ([]byte, error)
+	Get(string, string) (string, error)
 	GetAll(string) (map[string]string, error)
 	Remove(string, string) error
 }
