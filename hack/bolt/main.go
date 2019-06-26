@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/boltdb/bolt"
-	"github.com/glower/bakku-app/pkg/storage"
+	"github.com/glower/bakku-app/pkg/storage/boltdb"
 )
 
 func main() {
@@ -12,7 +12,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// defer
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte("MyBucket"))
@@ -32,9 +31,15 @@ func main() {
 		return nil
 	})
 	fmt.Printf("The final answer is: %s\n", value)
-	db.Close()
+	err = db.Close()
+	if err != nil {
+		panic(err)
+	}
 
-	s := storage.New("my.db")
+	// s := storage.New("my.db")
+	s := &boltdb.BoltDB{
+		DBFilePath: "my.db",
+	}
 	v, err := s.Get("answer", "MyBucket")
 	if err != nil {
 		panic(err)

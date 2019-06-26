@@ -13,7 +13,7 @@ type BoltDB struct {
 	DBFilePath string
 }
 
-// Exist ...
+// Exist checks if the database file exists
 func (s BoltDB) Exist() bool {
 	if _, err := os.Stat(s.DBFilePath); os.IsNotExist(err) {
 		log.Printf("[INFO] snapshot.storage.boltdb.Exist(): snapshot for [%s] is not present!\n", s.DBFilePath)
@@ -52,26 +52,30 @@ func (s BoltDB) Get(filePath, bucketName string) ([]byte, error) {
 	if filePath == "" {
 		return nil, fmt.Errorf("bolt.Get(): the key(file path) is empty")
 	}
+
 	db, err := s.openDB()
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() {
-		err := db.Close() // handle this error
+		err := db.Close()
 		if err != nil {
 			fmt.Printf("[ERROR] db.Close() faild: %v\n", err)
 		}
 	}()
+
 	var value []byte
-	db.View(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		value = b.Get([]byte(filePath))
 		return nil
 	})
-	// if err != nil {
-	// 	return nil, err
-	// }
-	fmt.Printf("Get done: v=%s\n", value)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("storage.Get(): result is [%s]\n", string(value))
 	return value, nil
 }
 
