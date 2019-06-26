@@ -27,23 +27,23 @@ type Buffer struct {
 	evenInCh              chan notification.Event
 	timeout               time.Duration
 
-	EvenOutCh      chan notification.Event
-	BackupDoneCh   chan types.FileBackupComplete
-	BackupStatusCh chan types.BackupStatus
+	EvenOutCh        chan notification.Event
+	BackupCompleteCh chan types.BackupComplete
+	BackupStatusCh   chan types.BackupStatus
 }
 
 // NewBuffer ...
-func NewBuffer(ctx context.Context, eventInCh chan notification.Event) *Buffer {
+func NewBuffer(ctx context.Context, res types.GlobalResources) *Buffer {
 	fmt.Println("event.NewBuffer(): starting event buffer")
 	b := &Buffer{
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
 		maxElementsInProgress: 5,
-		timeout:               5 * time.Second,
-		evenInCh:              eventInCh,
+		timeout:               1 * time.Second,
+		evenInCh:              res.FileWatcher.EventCh,
 		EvenOutCh:             make(chan notification.Event),
-		BackupDoneCh:          make(chan types.FileBackupComplete),
 		BackupStatusCh:        make(chan types.BackupStatus),
+		BackupCompleteCh:      res.BackupCompleteCh,
 	}
 	go b.processEvents()
 	return b
@@ -56,54 +56,63 @@ func (b *Buffer) processEvents() {
 			return
 		case e := <-b.evenInCh:
 			b.addEvent(e.AbsolutePath, e)
+		case <-b.BackupCompleteCh:
+			fmt.Println("processEvents(): continue ...")
+			atomic.AddInt32(&inProgress, -1)
+			atomic.AddInt32(&done, 1)
+			b.BackupStatusCh <- types.BackupStatus{
+				FilesDone:       int(done),
+				FilesInProgress: int(inProgress),
+				TotalFiles:      len(events),
+				Status:          "uploading",
+			}
 		case <-time.After(b.timeout):
-			go b.sendAllBack()
+			if len(events) != 0 && inProgress < b.maxElementsInProgress {
+				e := getEvent()
+				b.EvenOutCh <- e
+				removeEvent(e.AbsolutePath)
+				atomic.AddInt32(&inProgress, 1)
+			}
 		}
 	}
 }
 
-// TODO: we can have multiple BackupDone events for the same file (different backup provider!)
-// so the `done` counter needs to be fixed somehow!
-func (b *Buffer) sendAllBack() {
+// // TODO: we can have multiple BackupDone events for the same file (different backup provider!)
+// // so the `done` counter needs to be fixed somehow!
+// func (b *Buffer) sendAllBack() {
+// 	total := len(events)
+// 	for _, e := range events {
+// 		if inProgress >= b.maxElementsInProgress {
+// 			<-b.BackupCompleteCh
+// 			fmt.Println("sendAllBack(): continue a ...")
+// 			atomic.AddInt32(&inProgress, -1)
+// 			atomic.AddInt32(&done, 1)
+// 		} else {
+// 		}
+// 		b.BackupStatusCh <- types.BackupStatus{
+// 			FilesDone:       int(done),
+// 			FilesInProgress: int(inProgress),
+// 			TotalFiles:      total,
+// 			Status:          "uploading",
+// 		}
+// 	}
+// 	b.BackupStatusCh <- types.BackupStatus{
+// 		FilesDone:       0,
+// 		FilesInProgress: 0,
+// 		TotalFiles:      0,
+// 		Status:          "waiting",
+// 	}
+// }
+
+func getEvent() notification.Event {
 	for _, e := range events {
-		if inProgress >= b.maxElementsInProgress {
-			fmt.Printf(">>> %d/%d files are in progress, wait ... \n", inProgress, len(events))
-			for {
-				select {
-				case <-b.Ctx.Done():
-					return
-				case <-b.BackupDoneCh:
-					atomic.AddInt32(&inProgress, -1)
-					atomic.AddInt32(&done, 1)
-					fmt.Printf(">>> continue ... \n")
-					return
-				}
-			}
-		} else {
-			b.EvenOutCh <- e
-			removeEvent(e.AbsolutePath)
-			atomic.AddInt32(&inProgress, 1)
-		}
-
-		b.BackupStatusCh <- types.BackupStatus{
-			FilesDone:       int(done),
-			FilesInProgress: int(inProgress),
-			TotalFiles:      len(events),
-			Status:          "uploading",
-		}
+		return e
 	}
-
-	b.BackupStatusCh <- types.BackupStatus{
-		FilesDone:       0,
-		FilesInProgress: 0,
-		TotalFiles:      0,
-		Status:          "waiting",
-	}
+	return notification.Event{}
 }
 
 // addEvent adds an event to the internal cache
 func (b *Buffer) addEvent(path string, e notification.Event) {
-	// fmt.Printf("event.Buffer.addEent(): file path [%s]\n", path)
 	eventsM.Lock()
 	defer eventsM.Unlock()
 	events[path] = e

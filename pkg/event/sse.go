@@ -26,7 +26,7 @@ type SSE struct {
 }
 
 // NewSSE ...
-func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, errorCh chan notification.Error, messageCh chan message.Message, eventBuffer *Buffer) *SSE {
+func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, res types.GlobalResources, eventBuffer *Buffer) *SSE {
 	events := sse.New()
 	for _, name := range streams {
 		events.CreateStream(name)
@@ -46,13 +46,14 @@ func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types
 	// messageCh chan message.Message
 	// fileBackupCompleteBCh broadcast.Broadcast
 	go s.processBackupStatus(eventBuffer.BackupStatusCh)
-	go s.processErrors(errorCh, messageCh)
+	go s.processErrors(res.FileWatcher.ErrorCh, res.MessageCh)
 	go s.processProgressCallback(backupProgressCh)
 	go s.ping()
 
 	return s
 }
 
+// StopSSE stops SSE service
 func (s *SSE) StopSSE() {
 	for _, name := range s.streams {
 		s.server.RemoveStream(name)
@@ -70,7 +71,11 @@ func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
 		case <-s.ctx.Done():
 			return
 		case bs := <-status:
-			log.Printf("[SSE] processBackupStatus(): [%s] [%d/%d]\n", bs.Status, bs.FilesInProgress, bs.TotalFiles)
+			if bs.Status == "waiting" {
+				log.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
+			} else {
+				log.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
+			}
 			stautsJSON, err := json.Marshal(bs)
 			if err != nil {
 				stautsJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
@@ -93,7 +98,7 @@ func (s *SSE) processProgressCallback(backupProgressCh chan types.BackupProgress
 			if strings.Contains(progress.FileName, ".snapshot") {
 				continue
 			}
-			log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			// log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, err := json.Marshal(progress)
 			if err != nil {
 				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))

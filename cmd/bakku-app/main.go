@@ -2,27 +2,27 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"fmt"
 	"os/signal"
 	"syscall"
 
 	"github.com/gorilla/mux"
 
 	"github.com/glower/bakku-app/pkg/backup"
-	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
+	"github.com/glower/bakku-app/pkg/storage"
+	"github.com/glower/bakku-app/pkg/types"
+	"github.com/glower/bakku-app/pkg/event"
 
 	// autoimport
 	_ "github.com/glower/bakku-app/pkg"
 	"github.com/glower/bakku-app/pkg/config"
 	"github.com/glower/bakku-app/pkg/handlers"
 
-	"github.com/glower/file-watcher/notification"
 	"github.com/glower/file-watcher/watcher"
 )
 
@@ -33,58 +33,48 @@ func init() {
 func main() {
 	log.Println("Starting the service ...")
 
-	var useFakeEvents bool
-	flag.BoolVar(&useFakeEvents, "fake", false, "use fake events")
-	flag.Parse()
-
 	ctx, cancel := context.WithCancel(context.Background())
+	fileWatcher := watcher.Setup(ctx,
+		&watcher.Options{
+			IgnoreDirectoies: true,
+			FileFilters:      []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
+		})
+
+	res := types.GlobalResources{
+		BackupCompleteCh: make(chan types.BackupComplete),
+		MessageCh:        make(chan message.Message),
+		FileWatcher:      fileWatcher,
+		Storage:          storage.New(config.GetStoragePath()),
+	}
+
+	snapShotManager := snapshot.Setup(ctx, res)
+
+	// read from the configuration file a list of directories to watch
+	dirs, err:= config.DirectoriesToWatch()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Dirs to watch: %v\n", dirs)
+	for _, d := range dirs.DirsToWatch {
+		if d.Active {
+			go fileWatcher.StartWatching(d.Path)
+			go snapShotManager.CreateOrUpdate(d.Path)
+		}
+	}
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	// read from the configuration file a list of directories to watch
-	dirs, _ := config.DirectoriesToWatch()
+	router := startHTTPServer(res)
 
-	var GlobEventCh chan notification.Event
-	var GlobErrorCh chan notification.Error
-
-	w := &watcher.Watch{}
-	if useFakeEvents {
-		w = event.Fake(ctx, dirs)
-	} else {
-		// stup file change notifications
-		w = watcher.Setup(
-			ctx,
-			&watcher.Options{
-				IgnoreDirectoies: true,
-				FileFilters: []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
-			})
-		GlobEventCh = w.EventCh
-		GlobErrorCh = w.ErrorCh
-		for _, d := range dirs.DirsToWatch {
-			if d.Active {
-				w.StartWatching(d.Path)
-			}
-		}
-	}
-	router := startHTTPServer(w)
-
-	// TODO: don't like it, refactor it
-	GolbMessageCh := make(chan message.Message)
-
-	eventBuffer := event.NewBuffer(ctx, GlobEventCh)
+	eventBuffer := event.NewBuffer(ctx, res)
 	fmt.Println("event buffer is up and running ...")
-	backupStorageManager := backup.Setup(ctx, GolbMessageCh, eventBuffer)
+
+	backupStorageManager := backup.Setup(ctx, res, eventBuffer)
 	fmt.Println("backup storage manager is up and running ...")
 
-	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, GlobErrorCh, GolbMessageCh, eventBuffer)
+	sseServer := event.NewSSE(ctx, router, backupStorageManager.FileBackupProgressCh, res, eventBuffer)
 	fmt.Println("SSE server is up and running ...")
-
-	if !useFakeEvents {
-		snapShotManager := snapshot.Setup(ctx, dirs, GlobEventCh, GolbMessageCh)
-		fmt.Println("snapshot manager is up and running ...")
-		backupStorageManager.SubscribeForFileBackupCompleteEvent(snapShotManager.FileBackupCompleteCh)
-	}
-	fmt.Println("!!! All Services Are Up And Running !!!")
 
 	// server will block here untill we got SIGTERM/kill
 	killSignal := <-interrupt
@@ -104,7 +94,7 @@ func main() {
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(fileWatcher *watcher.Watch) *mux.Router {
+func startHTTPServer(res types.GlobalResources) *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")
@@ -112,7 +102,7 @@ func startHTTPServer(fileWatcher *watcher.Watch) *mux.Router {
 	}
 
 	r := handlers.Resources{
-		FileWatcher: fileWatcher,
+		FileWatcher: res.FileWatcher,
 	}
 	router := r.Router()
 	srv := &http.Server{
@@ -128,4 +118,8 @@ func startHTTPServer(fileWatcher *watcher.Watch) *mux.Router {
 	}()
 	log.Print("[OK] The service is ready to listen and serve!")
 	return router
+}
+
+func initStorage() {
+
 }
