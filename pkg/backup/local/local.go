@@ -1,11 +1,9 @@
 package local
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/glower/bakku-app/pkg/backup"
-	"github.com/glower/bakku-app/pkg/message"
 
 	conf "github.com/glower/bakku-app/pkg/config/storage"
 	"github.com/glower/bakku-app/pkg/types"
@@ -15,9 +13,9 @@ import (
 
 // Storage local
 type Storage struct {
-	name                  string // storage name
-	eventCh               chan notification.Event
-	MessageCh             chan message.Message
+	name string // storage name
+	// eventCh               chan notification.Event
+	// MessageCh             chan message.Message
 	fileStorageProgressCh chan types.BackupProgress
 	storagePath           string
 	addLatency            bool
@@ -41,8 +39,8 @@ func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 	config := conf.LocalDriveConfig()
 	if config.Active {
 		s.name = storageName
-		s.eventCh = make(chan notification.Event)
-		s.MessageCh = m.MessageCh
+		// s.eventCh = make(chan notification.Event)
+		// s.MessageCh = m.MessageCh
 		s.fileStorageProgressCh = m.FileBackupProgressCh
 		storagePath := filepath.Clean(config.Path)
 		s.storagePath = storagePath
@@ -59,7 +57,7 @@ func (s *Storage) Store(event *notification.Event) error {
 	directoryPath := event.DirectoryPath
 
 	// fmt.Printf("\nlocal.Store():\n")
-	fmt.Printf(">\tabsolutePath:\t%s\n>\trelativePath:\t%s\n>\tdirectoryPath:\t%s\n\n", absolutePath, relativePath, directoryPath)
+	// fmt.Printf(">\tabsolutePath:\t%s\n>\trelativePath:\t%s\n>\tdirectoryPath:\t%s\n\n", absolutePath, relativePath, directoryPath)
 
 	from := absolutePath
 	to := filepath.Join(s.storagePath, filepath.Base(directoryPath), relativePath)

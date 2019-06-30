@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -26,7 +25,7 @@ type SSE struct {
 }
 
 // NewSSE ...
-func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, res types.GlobalResources, eventBuffer *Buffer) *SSE {
+func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types.BackupProgress, res *types.GlobalResources, eventBuffer *Buffer) *SSE {
 	events := sse.New()
 	for _, name := range streams {
 		events.CreateStream(name)
@@ -72,9 +71,9 @@ func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
 			return
 		case bs := <-status:
 			if bs.Status == "waiting" {
-				log.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
+				fmt.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
 			} else {
-				log.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
+				fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
 			}
 			stautsJSON, err := json.Marshal(bs)
 			if err != nil {
@@ -98,7 +97,7 @@ func (s *SSE) processProgressCallback(backupProgressCh chan types.BackupProgress
 			if strings.Contains(progress.FileName, ".snapshot") {
 				continue
 			}
-			// log.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
+			// fmt.Printf("[SSE] ProcessProgressCallback(): [%s] [%s]\t%.2f%%\n", progress.StorageName, progress.FileName, progress.Percent)
 			progressJSON, err := json.Marshal(progress)
 			if err != nil {
 				progressJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
@@ -151,7 +150,7 @@ func (s *SSE) publishEventMessage(msg message.Message, channel string) {
 	if err != nil {
 		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
 	}
-	log.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
+	fmt.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
 	s.server.Publish(channel, &sse.Event{
 		Data: messageJSON,
 	})

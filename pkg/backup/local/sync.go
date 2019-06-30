@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -14,7 +13,7 @@ import (
 )
 
 func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
-	log.Printf("storage.local.store(): Copy file from [%s] to [%s]\n", fromPath, toPath)
+	// fmt.Printf("storage.local.store(): Copy file from [%s] to [%s]\n", fromPath, toPath)
 	from, err := os.Open(fromPath)
 	if err != nil {
 		return fmt.Errorf("cannot open file  [%s]: %v", fromPath, err)
@@ -41,6 +40,9 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 
 	totalWritten := 0
 	buf := make([]byte, bufferSize)
+	if s.addLatency {
+		sleepRandom()
+	}
 	for {
 		// read a chunk
 		n, err := readBuffer.Read(buf)
@@ -58,10 +60,6 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 		}
 		totalWritten = totalWritten + written
 
-		if s.addLatency {
-			sleepRandom()
-		}
-
 		if opt.reportProgress {
 			s.reportProgress(int64(written), int64(totalSize), int64(totalWritten), from.Name(), opt.fileID)
 		}
@@ -74,8 +72,9 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 }
 
 func sleepRandom() {
-	r := 500000 + rand.Intn(10000000)
-	time.Sleep(time.Duration(r) * time.Microsecond)
+	r := 5 + rand.Intn(20)
+	// fmt.Printf("... sleep for %d seconds\n", r)
+	time.Sleep(time.Duration(r) * time.Second)
 }
 
 func (s *Storage) reportProgress(written, totalSize, totalWritten int64, name, id string) {

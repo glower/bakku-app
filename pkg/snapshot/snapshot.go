@@ -3,7 +3,6 @@ package snapshot
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,7 +27,7 @@ type Snapshot struct {
 }
 
 // Setup the snapshot storage
-func Setup(ctx context.Context, res types.GlobalResources) *Snapshot {
+func Setup(ctx context.Context, res *types.GlobalResources) *Snapshot {
 	snapShot := &Snapshot{
 		watcher:   res.FileWatcher,
 		storage:   res.Storage,
@@ -55,7 +54,7 @@ func (s *Snapshot) CreateOrUpdate(path string) error {
 
 			for _, backupStorage := range backupStorages {
 				if s.fileDifferentToBackup(backupStorage, absoluteFilePath) {
-					fmt.Printf("Send [%s] to [%s]\n", absoluteFilePath, backupStorage)
+					// fmt.Printf("Send [%s] to [%s]\n", absoluteFilePath, backupStorage)
 					relativePath, err := filepath.Rel(path, absoluteFilePath)
 					if err != nil {
 						return err
@@ -72,32 +71,32 @@ func (s *Snapshot) CreateOrUpdate(path string) error {
 func (s *Snapshot) fileDifferentToBackup(backupStorageName, absoluteFilePath string) bool {
 	snapshotEntry, err := s.storage.Get(absoluteFilePath, backupStorageName)
 	if err != nil {
-		fmt.Printf("fileDifferentToBackup(): s.storage.Get err: %v\n", err)
+		// fmt.Printf("fileDifferentToBackup(): s.storage.Get err: %v\n", err)
 		return true
 	}
 	if snapshotEntry == "" {
-		fmt.Printf("fileDifferentToBackup(): s.storage.Get empty data\n")
+		// fmt.Printf("fileDifferentToBackup(): s.storage.Get empty data\n")
 		return true
 	}
 
 	e := &notification.Event{}
 	err = json.Unmarshal([]byte(snapshotEntry), e)
 	if err != nil {
-		fmt.Printf("fileDifferentToBackup(): unable to unmarshal file data [%q]: %v", snapshotEntry, err)
+		// fmt.Printf("fileDifferentToBackup(): unable to unmarshal file data [%q]: %v", snapshotEntry, err)
 		return true
 	}
 	fileInfo, err := fi.GetFileInformation(absoluteFilePath)
 	if err != nil {
-		fmt.Printf("fileDifferentToBackup(): unable to get [%s] info: %v", absoluteFilePath, err)
+		// fmt.Printf("fileDifferentToBackup(): unable to get [%s] info: %v", absoluteFilePath, err)
 		return true
 	}
 	checksum, err := fileInfo.Checksum()
 	if err != nil {
-		fmt.Printf("fileDifferentToBackup(): unable to get [%s] checksum: %v", absoluteFilePath, err)
+		// fmt.Printf("fileDifferentToBackup(): unable to get [%s] checksum: %v", absoluteFilePath, err)
 		return true
 	}
 	if e.Checksum != checksum {
-		fmt.Printf("fileDifferentToBackup(): Old checksum: [%s] checksum: [%s]\n", e.Checksum, checksum)
+		// fmt.Printf("fileDifferentToBackup(): Old checksum: [%s] checksum: [%s]\n", e.Checksum, checksum)
 		return true
 	}
 	return false
