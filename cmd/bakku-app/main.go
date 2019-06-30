@@ -2,21 +2,21 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"fmt"
 	"os/signal"
 	"syscall"
 
 	"github.com/gorilla/mux"
 
 	"github.com/glower/bakku-app/pkg/backup"
+	"github.com/glower/bakku-app/pkg/event"
 	"github.com/glower/bakku-app/pkg/message"
 	"github.com/glower/bakku-app/pkg/snapshot"
 	"github.com/glower/bakku-app/pkg/storage"
 	"github.com/glower/bakku-app/pkg/types"
-	"github.com/glower/bakku-app/pkg/event"
 
 	// autoimport
 	_ "github.com/glower/bakku-app/pkg"
@@ -40,7 +40,7 @@ func main() {
 			FileFilters:      []string{".crdownload", ".lock", ".snapshot", ".snapshot.lock"},
 		})
 
-	res := types.GlobalResources{
+	res := &types.GlobalResources{
 		BackupCompleteCh: make(chan types.BackupComplete),
 		MessageCh:        make(chan message.Message),
 		FileWatcher:      fileWatcher,
@@ -50,7 +50,7 @@ func main() {
 	snapShotManager := snapshot.Setup(ctx, res)
 
 	// read from the configuration file a list of directories to watch
-	dirs, err:= config.DirectoriesToWatch()
+	dirs, err := config.DirectoriesToWatch()
 	if err != nil {
 		panic(err)
 	}
@@ -94,7 +94,7 @@ func main() {
 	// srv.Shutdown(context.Background())
 }
 
-func startHTTPServer(res types.GlobalResources) *mux.Router {
+func startHTTPServer(res *types.GlobalResources) *mux.Router {
 	port := os.Getenv("BAKKU_PORT")
 	if port == "" {
 		log.Println("Port is not set, using default port 8080")

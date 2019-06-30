@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,6 +14,9 @@ import (
 	"github.com/glower/bakku-app/pkg/storage"
 	"github.com/glower/bakku-app/pkg/types"
 )
+
+// token represents a request that is being processed.
+type token struct{}
 
 type teardown func()
 
@@ -28,22 +32,29 @@ var teardowns = make(map[string]teardown)
 type StorageManager struct {
 	Ctx context.Context
 
+	tokens               chan token
 	MessageCh            chan message.Message
 	EventCh              chan notification.Event
 	FileBackupProgressCh chan types.BackupProgress
-	BackupCompleteCh     chan types.BackupComplete
 	LocalSnapshotStorage storage.Storager
+	r                    *types.GlobalResources
 }
 
 // Setup runs all implemented storages
-func Setup(ctx context.Context, res types.GlobalResources, eventBuffer *event.Buffer) *StorageManager {
+func Setup(ctx context.Context, res *types.GlobalResources, eventBuffer *event.Buffer) *StorageManager {
 	m := &StorageManager{
-		Ctx:                  ctx,
-		EventCh:              eventBuffer.EvenOutCh,
-		MessageCh:            res.MessageCh,
+		Ctx:     ctx,
+		EventCh: eventBuffer.EvenOutCh,
+		// MessageCh:            res.MessageCh,
 		LocalSnapshotStorage: res.Storage,
 		FileBackupProgressCh: make(chan types.BackupProgress),
-		BackupCompleteCh:     res.BackupCompleteCh,
+		tokens:               make(chan token, 5),
+		r:                    res,
+		// BackupCompleteCh:     res.BackupCompleteCh,
+	}
+
+	for i := 0; i < 5; i++ {
+		m.tokens <- token{}
 	}
 
 	for name, storage := range GetAll() {
@@ -57,7 +68,7 @@ func Setup(ctx context.Context, res types.GlobalResources, eventBuffer *event.Bu
 			Unregister(name)
 		}
 		if err != nil {
-			m.MessageCh <- message.FormatMessage("ERROR", err.Error(), name)
+			m.r.MessageCh <- message.FormatMessage("ERROR", err.Error(), name)
 		}
 	}
 	go m.ProcessNotifications(ctx)
@@ -73,10 +84,14 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 		case file := <-m.EventCh:
 			switch file.Action {
 			case notification.FileRemoved:
-				log.Printf("storage.processeFileChangeNotifications(): file=[%s] was deleted\n", file.AbsolutePath)
+				fmt.Printf("backup: file=[%s] was deleted\n", file.AbsolutePath)
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
-				log.Printf("backup.ProcessNotifications(): [%s] was added or modified meta=[%v]\n", file.AbsolutePath, file.MetaInfo)
-				m.sendFileToAllStorages(&file)
+				fmt.Printf(">>>>> backup: file [%s] was added, in progres=%d\n", file.AbsolutePath, TotalFilesInProgres())
+				for storageName, storageProvider := range GetAll() {
+					tok := <-m.tokens
+					go m.sendFileToStorage(&file, storageProvider, storageName, tok)
+				}
+
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
 			}
@@ -84,13 +99,9 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 	}
 }
 
-func (m *StorageManager) sendFileToAllStorages(event *notification.Event) {
-	for storageName, storageProvider := range GetAll() {
-		go m.sendFileToStorage(event, storageProvider, storageName)
-	}
-}
+func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Storage, storageName string, t token) {
+	// fmt.Printf(">>>>> sendFileToStorage(): backup %s => %s BEGIN\n", event.AbsolutePath, storageName)
 
-func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Storage, storageName string) {
 	if InProgress(event, storageName) {
 		return
 	}
@@ -100,19 +111,22 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	Finish(event, storageName)
 
 	if err != nil {
-		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
+		m.r.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
 		return
 	}
 
 	err = m.updateLocalStorage(event, storageName)
 	if err != nil {
-		m.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
+		m.r.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
 		return
 	}
-	m.BackupCompleteCh <- types.BackupComplete{
+	// fmt.Printf(">>>>> sendFileToStorage():backup  %s => %s DONE\n", event.AbsolutePath, storageName)
+	m.r.BackupCompleteCh <- types.BackupComplete{
 		StorageName: storageName,
 		FilePath:    event.AbsolutePath,
 	}
+	// fmt.Printf(">>>>> sendFileToStorage(): backup  %s => %s BackupCompleteCh received\n", event.AbsolutePath, storageName)
+	m.tokens <- t
 }
 
 func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) error {

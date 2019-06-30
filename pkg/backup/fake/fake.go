@@ -33,7 +33,7 @@ func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 	config := conf.FakeDriverConfig()
 	if config.Active {
 		s.name = storageName
-		s.MessageCh = m.MessageCh
+		// s.MessageCh = m.MessageCh
 		s.eventCh = make(chan notification.Event)
 		s.fileStorageProgressCh = m.FileBackupProgressCh
 		return true, nil

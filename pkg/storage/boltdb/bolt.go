@@ -38,7 +38,6 @@ func (s BoltDB) Add(filePath, bucketName string, value []byte) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Put k=%s\n", filePath)
 		return b.Put([]byte(filePath), value)
 	})
 }
