@@ -9,19 +9,22 @@ import (
 
 	"github.com/glower/bakku-app/pkg/types"
 	"github.com/glower/file-watcher/notification"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 var (
-	eventsM       sync.RWMutex
-	events        = make(map[string]notification.Event)
-	inProgress    int32 // int64?
-	done          int32
+	eventsM    sync.RWMutex
+	events     = make(map[string]notification.Event)
+	inProgress int32 // int64?
+	done       int32
+	// numberOfErrors
 	maxInProgress = 5
 )
 
 // Buffer TODO: rename me to Buffer!
 type Buffer struct {
 	Ctx context.Context
+	r   *types.GlobalResources
 
 	maxElementsInBuffer   int32
 	maxElementsInProgress int32
@@ -32,41 +35,59 @@ type Buffer struct {
 	BackupCompleteCh chan types.BackupComplete
 	BackupStatusCh   chan types.BackupStatus
 
-	r *types.GlobalResources
+	errorsCount metrics.EWMA
 }
 
 // NewBuffer ...
 func NewBuffer(ctx context.Context, res *types.GlobalResources) *Buffer {
+
+	// a := metrics.NewEWMA1()
+
 	b := &Buffer{
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
 		maxElementsInProgress: int32(maxInProgress),
-		timeout:               1 * time.Second,
+		timeout:               5 * time.Second,
 		EvenOutCh:             make(chan notification.Event),
 		BackupStatusCh:        make(chan types.BackupStatus),
 		r:                     res,
+		errorsCount:           metrics.NewEWMA1(),
 	}
 	go b.processEvents()
 	return b
 }
 
 func (b *Buffer) processEvents() {
+
+	checkErrorRate := time.Tick(5 * time.Second)
+
 	for {
 		select {
 		case <-b.Ctx.Done():
 			return
 		case e := <-b.r.FileWatcher.EventCh:
+			// TODO: add something like:
+			// Status: "scanning",
 			b.addEvent(e.AbsolutePath, e)
 		case c := <-b.r.BackupCompleteCh:
-			atomic.AddInt32(&inProgress, -1)
-			atomic.AddInt32(&done, 1)
-			fmt.Printf("<<<<< buffer.processEvents(): BackupComplete: %s, inProgress=%d, total done=%d\n", c.FilePath, inProgress, done)
-			b.BackupStatusCh <- types.BackupStatus{
-				FilesDone:       int(done),
-				FilesInProgress: int(inProgress),
-				TotalFiles:      len(events),
-				Status:          "uploading",
+			if c.Success {
+				atomic.AddInt32(&inProgress, -1)
+				atomic.AddInt32(&done, 1)
+				removeEvent(c.FilePath)
+				b.BackupStatusCh <- types.BackupStatus{
+					FilesDone:       int(done),
+					FilesInProgress: int(inProgress),
+					TotalFiles:      len(events),
+					Status:          "uploading",
+				}
+			} else {
+				// TODO: count errors, slow down, ...
+				fmt.Printf("!!!!!! buffer: error uploading %s\n", c.FilePath)
+				b.errorsCount.Update(1)
 			}
+		case <-checkErrorRate:
+			fmt.Printf("!!!!!! buffer: errors per min: %v\n", b.errorsCount.Rate())
+			b.errorsCount.Tick()
 		case <-time.After(b.timeout):
 			if len(events) != 0 && inProgress == 0 {
 				go b.send()
@@ -80,8 +101,6 @@ func (b *Buffer) processEvents() {
 func (b *Buffer) send() {
 	for _, e := range events {
 		b.EvenOutCh <- e
-		fmt.Printf("<<<<< buffer.send(): BackupComplete: %s, inProgress=%d, total done=%d\n", e.AbsolutePath, inProgress, done)
-		removeEvent(e.AbsolutePath)
 		atomic.AddInt32(&inProgress, 1)
 		b.BackupStatusCh <- types.BackupStatus{
 			FilesDone:       int(done),

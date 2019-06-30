@@ -47,7 +47,7 @@ func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types
 	go s.processBackupStatus(eventBuffer.BackupStatusCh)
 	go s.processErrors(res.FileWatcher.ErrorCh, res.MessageCh)
 	go s.processProgressCallback(backupProgressCh)
-	go s.ping()
+	// go s.ping()
 
 	return s
 }
@@ -70,11 +70,11 @@ func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
 		case <-s.ctx.Done():
 			return
 		case bs := <-status:
-			if bs.Status == "waiting" {
-				fmt.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
-			} else {
-				fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
-			}
+			// if bs.Status == "waiting" {
+			// 	fmt.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
+			// } else {
+			// 	fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
+			// }
 			stautsJSON, err := json.Marshal(bs)
 			if err != nil {
 				stautsJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))

@@ -14,6 +14,7 @@ require (
 	github.com/nsf/gocode v0.0.0-20190302080247-5bee97b48836 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/r3labs/sse v0.0.0-20190530104643-3c23fe8c6bd2
+	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.4.0

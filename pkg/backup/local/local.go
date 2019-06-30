@@ -39,8 +39,6 @@ func (s *Storage) Setup(m *backup.StorageManager) (bool, error) {
 	config := conf.LocalDriveConfig()
 	if config.Active {
 		s.name = storageName
-		// s.eventCh = make(chan notification.Event)
-		// s.MessageCh = m.MessageCh
 		s.fileStorageProgressCh = m.FileBackupProgressCh
 		storagePath := filepath.Clean(config.Path)
 		s.storagePath = storagePath
