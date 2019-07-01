@@ -11,7 +11,9 @@ require (
 	github.com/gorilla/mux v1.7.2
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mxmCherry/movavg v1.1.0
 	github.com/nsf/gocode v0.0.0-20190302080247-5bee97b48836 // indirect
+	github.com/paulbellamy/ratecounter v0.2.0
 	github.com/pelletier/go-toml v1.4.0 // indirect
 	github.com/r3labs/sse v0.0.0-20190530104643-3c23fe8c6bd2
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a

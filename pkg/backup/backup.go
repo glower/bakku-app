@@ -84,7 +84,7 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 			case notification.FileRemoved:
 				fmt.Printf("backup: file=[%s] was deleted\n", file.AbsolutePath)
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
-				fmt.Printf("backup: file [%s] was added, in progres=%d\n", file.AbsolutePath, TotalFilesInProgres())
+				fmt.Printf("backup: file [%s] was added, free slots: %d\n", file.AbsolutePath, len(m.tokens))
 				for storageName, storageProvider := range GetAll() {
 					tok := <-m.tokens
 					go m.sendFileToStorage(&file, storageProvider, storageName, tok)
@@ -97,8 +97,10 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 }
 
 func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Storage, storageName string, t token) {
-	// fmt.Printf("sendFileToStorage(): backup %s => %s BEGIN\n", event.AbsolutePath, storageName)
-
+	if event.AbsolutePath == "" {
+		return
+	}
+	fmt.Printf("sendFileToStorage(): backup %s => %s BEGIN\n", event.AbsolutePath, storageName)
 	defer func() {
 		m.tokens <- t
 	}()
@@ -131,6 +133,7 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 		StorageName: storageName,
 		FilePath:    event.AbsolutePath,
 	}
+	fmt.Printf("sendFileToStorage(): backup %s => %s DONE\n", event.AbsolutePath, storageName)
 }
 
 func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) error {
