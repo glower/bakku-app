@@ -8,6 +8,7 @@ import (
 
 // BackupComplete represents
 type BackupComplete struct {
+	Success            bool
 	StorageName        string
 	FilePath           string
 	WatchDirectoryName string

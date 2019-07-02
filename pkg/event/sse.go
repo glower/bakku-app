@@ -16,6 +16,7 @@ import (
 
 var streams = []string{"files", "messages", "ping", "status"}
 
+// SSE ...
 type SSE struct {
 	ctx context.Context
 
@@ -47,7 +48,7 @@ func NewSSE(ctx context.Context, router *mux.Router, backupProgressCh chan types
 	go s.processBackupStatus(eventBuffer.BackupStatusCh)
 	go s.processErrors(res.FileWatcher.ErrorCh, res.MessageCh)
 	go s.processProgressCallback(backupProgressCh)
-	go s.ping()
+	// go s.ping()
 
 	return s
 }
@@ -73,7 +74,7 @@ func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
 			if bs.Status == "waiting" {
 				fmt.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
 			} else {
-				fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
+				fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d done)\n", bs.Status, bs.TotalFiles, bs.FilesDone)
 			}
 			stautsJSON, err := json.Marshal(bs)
 			if err != nil {
@@ -150,7 +151,7 @@ func (s *SSE) publishEventMessage(msg message.Message, channel string) {
 	if err != nil {
 		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
 	}
-	fmt.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
+	// fmt.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
 	s.server.Publish(channel, &sse.Event{
 		Data: messageJSON,
 	})

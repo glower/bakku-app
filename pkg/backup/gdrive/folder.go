@@ -2,7 +2,6 @@ package gdrive
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -45,13 +44,13 @@ func (s *Storage) CreateFolder(name string) (*drive.File, error) {
 
 // FindOrCreateSubFolder ...
 func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) (*drive.File, error) {
-	log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
+	// log.Printf("gdrive.CreateSubFolder(): parentID=%s, name=%s\n", parentFolderID, name)
 	folder, err := s.FindFolder(name, &FindFileOptions{ParentFolderID: parentFolderID})
 	if err != nil {
 		return nil, fmt.Errorf("gdrive.FindOrCreateSubFolder(): Unable to create folder [%s]: %v", name, err)
 	}
 	if err == nil && folder != nil {
-		fmt.Printf("SubFolder(): folder found: [%s] [id:%s]\n", folder.Name, folder.Id)
+		// fmt.Printf("SubFolder(): folder found: [%s] [id:%s]\n", folder.Name, folder.Id)
 		return folder, nil
 	}
 
@@ -63,7 +62,6 @@ func (s *Storage) FindOrCreateSubFolder(parentFolderID, name string) (*drive.Fil
 	if err != nil {
 		return nil, fmt.Errorf("gdrive.CreateSubFolder(): Unable to create folder [%s] as subfolder of [%s]: %v", name, parentFolderID, err)
 	}
-	fmt.Printf(">>> SubFolder created [%s]\n", createFolder.Name)
 	return createFolder, nil
 }
 

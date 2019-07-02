@@ -43,14 +43,12 @@ type StorageManager struct {
 // Setup runs all implemented storages
 func Setup(ctx context.Context, res *types.GlobalResources, eventBuffer *event.Buffer) *StorageManager {
 	m := &StorageManager{
-		Ctx:     ctx,
-		EventCh: eventBuffer.EvenOutCh,
-		// MessageCh:            res.MessageCh,
+		Ctx:                  ctx,
+		EventCh:              eventBuffer.EvenOutCh,
 		LocalSnapshotStorage: res.Storage,
 		FileBackupProgressCh: make(chan types.BackupProgress),
 		tokens:               make(chan token, 5),
 		r:                    res,
-		// BackupCompleteCh:     res.BackupCompleteCh,
 	}
 
 	for i := 0; i < 5; i++ {
@@ -86,12 +84,11 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 			case notification.FileRemoved:
 				fmt.Printf("backup: file=[%s] was deleted\n", file.AbsolutePath)
 			case notification.FileAdded, notification.FileModified, notification.FileRenamedNewName:
-				fmt.Printf(">>>>> backup: file [%s] was added, in progres=%d\n", file.AbsolutePath, TotalFilesInProgres())
+				fmt.Printf("backup: file [%s] was added, free slots: %d\n", file.AbsolutePath, len(m.tokens))
 				for storageName, storageProvider := range GetAll() {
 					tok := <-m.tokens
 					go m.sendFileToStorage(&file, storageProvider, storageName, tok)
 				}
-
 			default:
 				log.Printf("[ERROR] ProcessFileChangeNotifications(): unknown file change notification: %#v\n", file)
 			}
@@ -100,7 +97,13 @@ func (m *StorageManager) ProcessNotifications(ctx context.Context) {
 }
 
 func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Storage, storageName string, t token) {
-	// fmt.Printf(">>>>> sendFileToStorage(): backup %s => %s BEGIN\n", event.AbsolutePath, storageName)
+	if event.AbsolutePath == "" {
+		return
+	}
+	fmt.Printf("sendFileToStorage(): backup [%s] => %s BEGIN\n", event.AbsolutePath, storageName)
+	defer func() {
+		m.tokens <- t
+	}()
 
 	if InProgress(event, storageName) {
 		return
@@ -111,6 +114,11 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	Finish(event, storageName)
 
 	if err != nil {
+		m.r.BackupCompleteCh <- types.BackupComplete{
+			Success:     false,
+			StorageName: storageName,
+			FilePath:    event.AbsolutePath,
+		}
 		m.r.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
 		return
 	}
@@ -120,13 +128,12 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 		m.r.MessageCh <- message.FormatMessage("ERROR", err.Error(), storageName)
 		return
 	}
-	// fmt.Printf(">>>>> sendFileToStorage():backup  %s => %s DONE\n", event.AbsolutePath, storageName)
 	m.r.BackupCompleteCh <- types.BackupComplete{
+		Success:     true,
 		StorageName: storageName,
 		FilePath:    event.AbsolutePath,
 	}
-	// fmt.Printf(">>>>> sendFileToStorage(): backup  %s => %s BackupCompleteCh received\n", event.AbsolutePath, storageName)
-	m.tokens <- t
+	fmt.Printf("sendFileToStorage(): backup [%s] => %s DONE\n", event.AbsolutePath, storageName)
 }
 
 func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) error {
@@ -145,9 +152,10 @@ func (m *StorageManager) updateLocalStorage(event *notification.Event, storageNa
 func Stop() {
 	// block here untill all files are transferd
 	for {
-		<-time.After(1 * time.Second)
+		<-time.After(3 * time.Second)
 		inProgress := TotalFilesInProgres()
-		log.Printf("TotalFilesInProgres: %d\n", inProgress)
+		log.Printf("backup.Stop(): TotalFilesInProgres: %d, waiting ...	\n", inProgress)
+		// if inProgress == 0 {
 		if true {
 			teardownAll()
 			return

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -106,7 +105,7 @@ func (s *Storage) Store(event *notification.Event) error {
 // gdrive.store(): C:\Users\Brown\MyFiles\pixiv\71738080_p0_master1200.jpg > MyFiles\pixiv
 func (s *Storage) store(file, toPath, mimeType string) error {
 	sleepRandom()
-	log.Printf("[DEBUG] gdrive.store(): send [%s] -> [%s]\n", file, filepath.Join(s.storagePath, toPath))
+	// log.Printf("[DEBUG] gdrive.store(): send [%s] -> [%s]\n", file, filepath.Join(s.storagePath, toPath))
 
 	fromFile, err := os.Open(file)
 	if err != nil {
@@ -120,13 +119,13 @@ func (s *Storage) store(file, toPath, mimeType string) error {
 	// if lastFolder == nil {
 	// 	return fmt.Errorf("foler was not found or created")
 	// }
-	fmt.Printf("[DEBUG] Create of update file %s in folder %s\n", filepath.Base(file), lastFolder.Name)
-	gFile, err := s.CreateOrUpdateFile(fromFile, filepath.Base(file), mimeType, lastFolder.Id)
+	// fmt.Printf("[DEBUG] Create of update file %s in folder %s\n", filepath.Base(file), lastFolder.Name)
+	_, err = s.CreateOrUpdateFile(fromFile, filepath.Base(file), mimeType, lastFolder.Id)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[OK] gdrive.store(): %s, %s, %s DONE\n", gFile.Name, gFile.Id, gFile.MimeType)
+	// log.Printf("[OK] gdrive.store(): %s, %s, %s DONE\n", gFile.Name, gFile.Id, gFile.MimeType)
 	return nil
 }
 

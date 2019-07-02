@@ -73,7 +73,6 @@ func (s *Storage) store(fromPath, toPath string, opt StoreOptions) error {
 
 func sleepRandom() {
 	r := 5 + rand.Intn(20)
-	// fmt.Printf("... sleep for %d seconds\n", r)
 	time.Sleep(time.Duration(r) * time.Second)
 }
 

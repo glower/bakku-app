@@ -2,47 +2,44 @@ package main
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/boltdb/bolt"
-	"github.com/glower/bakku-app/pkg/storage/boltdb"
+	"github.com/paulbellamy/ratecounter"
 )
 
 func main() {
-	db, err := bolt.Open("my.db", 0600, nil)
-	if err != nil {
-		panic(err)
-	}
+	errorRate := time.Tick(1 * time.Second)
+	checkErrorRate := time.Tick(10 * time.Second)
+	// stop := time.After(15 * time.Second)
 
-	err = db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte("MyBucket"))
-		if err != nil {
-			return err
+	counter := ratecounter.NewRateCounter(60 * time.Second)
+
+	q := make(chan bool)
+	go foo(q)
+
+	for {
+		select {
+		case <-errorRate:
+			counter.Incr(1)
+		case <-checkErrorRate:
+			fmt.Printf("errors per min: %v\n", counter.Rate())
+			if counter.Rate() > 1 {
+				q <- true
+			}
 		}
-		return b.Put([]byte("answer"), []byte("42"))
-	})
-	if err != nil {
-		panic(err)
 	}
 
-	var value []byte
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("MyBucket"))
-		value = b.Get([]byte("answer"))
-		return nil
-	})
-	fmt.Printf("The final answer is: %s\n", value)
-	err = db.Close()
-	if err != nil {
-		panic(err)
-	}
+}
 
-	// s := storage.New("my.db")
-	s := &boltdb.BoltDB{
-		DBFilePath: "my.db",
+func foo(q chan bool) {
+	for {
+		select {
+		case <-q:
+			fmt.Println("END")
+			return
+		default:
+			fmt.Printf("work ....\n")
+			time.Sleep(1 * time.Second)
+		}
 	}
-	v, err := s.Get("answer", "MyBucket")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("The final answer is: %s\n", v)
 }
