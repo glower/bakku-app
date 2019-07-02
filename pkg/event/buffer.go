@@ -13,12 +13,23 @@ import (
 )
 
 var (
-	eventsM    sync.RWMutex
-	events     = make(map[string]notification.Event)
-	inProgress int32 // int64?
-	done       int32
-	// numberOfErrors
+	eventsM       sync.RWMutex
+	events        = make(map[string]notification.Event)
+	inProgress    int32 // int64?
+	done          int32
 	maxInProgress = 5
+
+	// 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
+	throttlingRates = []time.Duration{
+		1 * 60 * time.Second,  // 1 min
+		2 * 60 * time.Second,  // 2 mins
+		3 * 60 * time.Second,  // 3 mins
+		5 * 60 * time.Second,  // 5 mins
+		8 * 60 * time.Second,  // 8 mins
+		13 * 60 * time.Second, // 13 mins
+		21 * 60 * time.Second, // 21 mins
+		34 * 60 * time.Second, // 34 mins
+	}
 )
 
 // Buffer TODO: rename me to Buffer!
@@ -35,14 +46,12 @@ type Buffer struct {
 	BackupCompleteCh chan types.BackupComplete
 	BackupStatusCh   chan types.BackupStatus
 
-	errorsRate *ratecounter.RateCounter
+	errorsRate  *ratecounter.RateCounter
+	successRate *ratecounter.RateCounter
 }
 
 // NewBuffer ...
 func NewBuffer(ctx context.Context, res *types.GlobalResources) *Buffer {
-
-	// a := metrics.NewEWMA1()
-
 	b := &Buffer{
 		Ctx:                   ctx,
 		maxElementsInBuffer:   1000,
@@ -52,69 +61,63 @@ func NewBuffer(ctx context.Context, res *types.GlobalResources) *Buffer {
 		BackupStatusCh:        make(chan types.BackupStatus),
 		r:                     res,
 		errorsRate:            ratecounter.NewRateCounter(60 * time.Second),
+		successRate:           ratecounter.NewRateCounter(60 * time.Second),
 	}
 	go b.processEvents()
 	return b
 }
 
 func (b *Buffer) processEvents() {
-
+	throttlingOffset := 0
 	checkErrorRate := time.Tick(5 * time.Second)
 	sendBufferTicker := time.Tick(b.timeout)
 	quit := make(chan bool)
-	newTimeout := b.timeout
 
 	for {
 		select {
 		case <-b.Ctx.Done():
-			fmt.Printf("buffer: DONE, WTF?!!!\n")
 			return
 		case e := <-b.r.FileWatcher.EventCh:
-			// TODO: add something like:
-			// Status: "scanning",
-			// fmt.Printf("buffer: add %s to the buffer\n", e.AbsolutePath)
+			b.setStatus("scanning")
 			b.addEvent(e.AbsolutePath, e)
 		case c := <-b.r.BackupCompleteCh:
-			fmt.Printf("buffer: BackupCompleteCh\n")
 			if c.Success {
 				atomic.AddInt32(&inProgress, -1)
 				atomic.AddInt32(&done, 1)
+				b.successRate.Incr(1)
 				removeEvent(c.FilePath)
-				b.BackupStatusCh <- types.BackupStatus{
-					FilesDone:       int(done),
-					FilesInProgress: int(inProgress),
-					TotalFiles:      len(events),
-					Status:          "uploading",
-				}
+				b.setStatus("uploading")
 			} else {
-				// TODO: count errors, slow down, ...
-				fmt.Printf("!!!!!!!!!!!!! buffer: error uploading %s\n", c.FilePath)
+				fmt.Printf("[ERROR] buffer: error uploading %s\n", c.FilePath)
 				b.errorsRate.Incr(1)
 			}
 		case <-checkErrorRate:
-			// fmt.Printf("buffer: checkErrorRate\n")
-			if b.errorsRate.Rate() == 0 && newTimeout != b.timeout {
-				fmt.Println("buffer: BACK TO NORMAL: error rate is 0 !!!!!!!!!!!!!!!")
-				newTimeout = b.timeout
+			if b.errorsRate.Rate() == 0 && b.successRate.Rate() > 0 && throttlingOffset > 0 {
+				throttlingOffset = 0
+				newTimeout := throttlingRates[throttlingOffset]
+				b.successRate = ratecounter.NewRateCounter(newTimeout)
+				b.errorsRate = ratecounter.NewRateCounter(newTimeout)
 				sendBufferTicker = time.Tick(b.timeout)
+
 			} else if b.errorsRate.Rate() > 0 && inProgress > 0 {
-				fmt.Printf("!!!!!!!!!!! buffer: error rate is %d/min with %d/%d events in the queue inProgress=%d\n", b.errorsRate.Rate(), len(b.EvenOutCh), cap(b.EvenOutCh), inProgress)
 				for i := 0; i < len(b.EvenOutCh); i++ {
 					<-b.EvenOutCh
 				}
-				// fmt.Printf("clean of the channel done: %d/%d inProgress=%d\n", len(b.EvenOutCh), cap(b.EvenOutCh), inProgress)
 				quit <- true
-				newTimeout = time.Duration(newTimeout * 2)
+
+				if throttlingOffset < len(throttlingRates)-1 {
+					throttlingOffset++
+				}
+				newTimeout := throttlingRates[throttlingOffset]
 				sendBufferTicker = time.Tick(newTimeout)
+				b.setStatus(fmt.Sprintf("paused for %s", newTimeout))
+				b.successRate = ratecounter.NewRateCounter(2 * newTimeout)
+				b.errorsRate = ratecounter.NewRateCounter(2 * newTimeout)
 			}
-			// fallthrough
-		case tick := <-sendBufferTicker:
-			fmt.Printf("buffer: send file events to backup afer %s\n", tick)
+		case <-sendBufferTicker:
 			if len(events) != 0 && inProgress == 0 {
 				go b.send(quit)
 			}
-			// default:
-			// 	// fmt.Println("buffer: ...")
 		}
 	}
 }
@@ -125,27 +128,24 @@ func (b *Buffer) send(quit chan bool) {
 	for _, e := range events {
 		select {
 		case <-quit:
-			fmt.Println("!!!!!!!!!!!!!!!!!! buffer: stop sending !!!!!!!!!!!!!!!!!!!!!!!!")
+			fmt.Println("[INFO] buffer: stopped sending")
 			atomic.StoreInt32(&inProgress, 0)
 			return
 		default:
 			b.EvenOutCh <- e
-			fmt.Printf(">>> send to backup: %s\n", e.AbsolutePath)
+			fmt.Printf("[INFO] buffer: send to backup: %s\n", e.AbsolutePath)
 			atomic.AddInt32(&inProgress, 1)
-			b.BackupStatusCh <- types.BackupStatus{
-				FilesDone:       int(done),
-				FilesInProgress: int(inProgress),
-				TotalFiles:      len(events),
-				Status:          "uploading",
-			}
 		}
 	}
+	b.setStatus("waiting")
+}
 
+func (b *Buffer) setStatus(status string) {
 	b.BackupStatusCh <- types.BackupStatus{
-		FilesDone:       0,
-		FilesInProgress: 0,
-		TotalFiles:      0,
-		Status:          "waiting",
+		FilesDone:       int(done),
+		FilesInProgress: int(inProgress),
+		TotalFiles:      len(events),
+		Status:          status,
 	}
 }
 

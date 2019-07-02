@@ -100,7 +100,7 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 	if event.AbsolutePath == "" {
 		return
 	}
-	fmt.Printf("sendFileToStorage(): backup %s => %s BEGIN\n", event.AbsolutePath, storageName)
+	fmt.Printf("sendFileToStorage(): backup [%s] => %s BEGIN\n", event.AbsolutePath, storageName)
 	defer func() {
 		m.tokens <- t
 	}()
@@ -133,7 +133,7 @@ func (m *StorageManager) sendFileToStorage(event *notification.Event, backup Sto
 		StorageName: storageName,
 		FilePath:    event.AbsolutePath,
 	}
-	fmt.Printf("sendFileToStorage(): backup %s => %s DONE\n", event.AbsolutePath, storageName)
+	fmt.Printf("sendFileToStorage(): backup [%s] => %s DONE\n", event.AbsolutePath, storageName)
 }
 
 func (m *StorageManager) updateLocalStorage(event *notification.Event, storageName string) error {

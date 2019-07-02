@@ -16,6 +16,7 @@ import (
 
 var streams = []string{"files", "messages", "ping", "status"}
 
+// SSE ...
 type SSE struct {
 	ctx context.Context
 
@@ -70,11 +71,11 @@ func (s *SSE) processBackupStatus(status chan types.BackupStatus) {
 		case <-s.ctx.Done():
 			return
 		case bs := <-status:
-			// if bs.Status == "waiting" {
-			// 	fmt.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
-			// } else {
-			// 	fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d in progress)\n", bs.Status, bs.TotalFiles, bs.FilesInProgress)
-			// }
+			if bs.Status == "waiting" {
+				fmt.Printf("[SSE] processBackupStatus(): [%s...]\n", bs.Status)
+			} else {
+				fmt.Printf("[SSE] processBackupStatus(): [%s] [%d to sync] (%d done)\n", bs.Status, bs.TotalFiles, bs.FilesDone)
+			}
 			stautsJSON, err := json.Marshal(bs)
 			if err != nil {
 				stautsJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
@@ -150,7 +151,7 @@ func (s *SSE) publishEventMessage(msg message.Message, channel string) {
 	if err != nil {
 		messageJSON = []byte(fmt.Sprintf(`{"message": "%s", "type": "error"}`, err.Error()))
 	}
-	fmt.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
+	// fmt.Printf("[SSE] [%s] %s: %s\n", msg.Type, msg.Source, msg.Message)
 	s.server.Publish(channel, &sse.Event{
 		Data: messageJSON,
 	})
